@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — Adversarial Security Framework</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ─────────────────────────────────────────────────────── */
+    :root {
+      --bg:      #07090f;
+      --bg2:     #0d1117;
+      --bg3:     #111827;
+      --red:     #ff3c3c;
+      --blue:    #3c8eff;
+      --green:   #00ff88;
+      --yellow:  #ffd700;
+      --dim:     #4a5568;
+      --muted:   #718096;
+      --text:    #e2e8f0;
+      --border:  #1a2236;
+      --mono:    'Courier New', Courier, monospace;
+    }
+
+    /* ── Reset ─────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    body { display: flex; flex-direction: column; }
+
+    /* ── Scrollbar ──────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--red) 0%, #ff8c42 40%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+    }
+
+    #round-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 120px;
+    }
+
+    #round-counter {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--yellow);
+    }
+
+    #technique-badge {
+      margin-top: 3px;
+      padding: 2px 8px;
+      border: 1px solid rgba(255, 215, 0, 0.4);
+      background: rgba(255, 215, 0, 0.06);
+      border-radius: 3px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--yellow);
+    }
+
+    #scoreboard {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
+
+    .score-box {
+      text-align: center;
+      padding: 4px 14px;
+      border-radius: 4px;
+      min-width: 70px;
+    }
+    .score-box.att { border: 1px solid rgba(255,60,60,0.5);  background: rgba(255,60,60,0.08); }
+    .score-box.def { border: 1px solid rgba(60,142,255,0.5); background: rgba(60,142,255,0.08); }
+
+    .score-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+    }
+
+    .score-val {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1;
+      transition: transform 0.2s, color 0.2s;
+    }
+    .score-box.att .score-val { color: var(--red); }
+    .score-box.def .score-val { color: var(--blue); }
+    .score-val.bump { transform: scale(1.25); }
+
+    .vs-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      color: var(--dim);
+      letter-spacing: 1px;
+    }
+
+    #conn-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--dim);
+      transition: background 0.3s;
+      flex-shrink: 0;
+    }
+    #conn-dot.on  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    #conn-dot.err { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+
+    /* ── Controls ────────────────────────────────────────────────────────── */
+    #controls {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ctrl-group { display: flex; align-items: center; gap: 8px; }
+
+    .ctrl-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--dim);
+      white-space: nowrap;
+    }
+
+    select, input[type="number"] {
+      background: var(--bg3);
+      border: 1px solid #2a3344;
+      color: var(--text);
+      padding: 5px 9px;
+      font-family: var(--mono);
+      font-size: 12px;
+      border-radius: 3px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    select:focus, input[type="number"]:focus { border-color: var(--blue); }
+    input[type="number"] { width: 65px; }
+
+    #start-btn {
+      margin-left: auto;
+      padding: 7px 22px;
+      border: 1px solid rgba(60,142,255,0.5);
+      background: rgba(60,142,255,0.1);
+      color: var(--blue);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    #start-btn:hover:not(:disabled) {
+      background: rgba(60,142,255,0.2);
+      border-color: var(--blue);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(60,142,255,0.3);
+    }
+    #start-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Main grid ───────────────────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 300px 1fr;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── Side panels ─────────────────────────────────────────────────────── */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      padding: 14px 14px 10px;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #attacker-panel { border-right: 1px solid var(--border); }
+    #defender-panel { border-left:  1px solid var(--border); }
+
+    .panel-header {
+      flex-shrink: 0;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ph-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+
+    #attacker-panel .panel-header { color: var(--red); }
+    #attacker-panel .ph-dot { background: var(--red); }
+    #defender-panel .panel-header { color: var(--blue); }
+    #defender-panel .ph-dot { background: var(--blue); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.25; }
+    }
+
+    .panel-section { flex-shrink: 0; margin-bottom: 10px; }
+
+    .sec-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--dim);
+      margin-bottom: 5px;
+    }
+
+    .panel-text {
+      font-size: 11px;
+      line-height: 1.65;
+      color: #8a9ab5;
+      min-height: 36px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1px solid var(--dim);
+      color: var(--muted);
+      background: transparent;
+      transition: all 0.25s;
+    }
+    .status-pill.thinking {
+      border-color: var(--yellow);
+      color: var(--yellow);
+      background: rgba(255, 215, 0, 0.06);
+    }
+    .status-pill.done {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(0, 255, 136, 0.06);
+    }
+
+    /* ── Code blocks ─────────────────────────────────────────────────────── */
+    .code-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .code-block {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 10.5px;
+      line-height: 1.55;
+      overflow-y: auto;
+      min-height: 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .empty-hint { color: var(--dim); font-style: italic; }
+
+    /* KQL syntax */
+    .kw  { color: #569cd6; }   /* keywords */
+    .tbl { color: #4ec9b0; }   /* table names */
+    .str { color: #ce9178; }   /* strings */
+    .num { color: #b5cea8; }   /* numbers */
+    .op  { color: #dcdcaa; }   /* operators / pipe */
+    .cmt { color: #6a9955; }   /* comments */
+
+    /* JSON log entries */
+    .log-entry {
+      border-bottom: 1px solid var(--border);
+      padding: 5px 0;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-idx { color: var(--dim); margin-right: 6px; }
+    .lk { color: #9aa5b4; }
+    .lv { color: #e2b96a; }
+
+    /* ── Center feed ─────────────────────────────────────────────────────── */
+    #feed-col {
+      display: flex;
+      flex-direction: column;
+      background: rgba(0,0,0,0.15);
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #feed-head {
+      flex-shrink: 0;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--dim);
+      text-align: center;
+      padding: 12px 10px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-height: 0;
+    }
+
+    .fi {
+      padding: 5px 9px;
+      border-radius: 2px;
+      font-size: 10.5px;
+      line-height: 1.45;
+      border-left: 2px solid;
+      animation: fadeSlide 0.28s ease-out both;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .fi.sys     { background: rgba(255,215,0,0.05);  border-color: #ffd700; color: #d4a800; }
+    .fi.attack  { background: rgba(255,60,60,0.06);  border-color: var(--red);  color: #ff7070; }
+    .fi.defense { background: rgba(60,142,255,0.06); border-color: var(--blue); color: #7ab0ff; }
+    .fi.detect  { background: rgba(0,255,136,0.06);  border-color: var(--green); color: var(--green); }
+    .fi.evade   { background: rgba(255,60,60,0.09);  border-color: var(--red);  color: var(--red); }
+    .fi.think   { background: transparent;           border-color: var(--dim); color: var(--dim); font-style: italic; }
+    .fi.err     { background: rgba(255,60,60,0.12);  border-color: #ff6060; color: #ff6060; }
+
+    .ft { font-size: 9px; opacity: 0.55; margin-right: 6px; }
+
+    /* ── Battle banner ───────────────────────────────────────────────────── */
+    #banner {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      padding: 14px 20px;
+      text-align: center;
+      z-index: 200;
+      animation: slideUp 0.45s cubic-bezier(0.22,1,0.36,1) both;
+      cursor: pointer;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    #banner.att-win { background: rgba(200, 30, 30, 0.93); }
+    #banner.def-win { background: rgba(20,  80,190, 0.93); }
+    #banner.draw    { background: rgba(160,130, 0,  0.93); }
+
+    #banner-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      color: #fff;
+    }
+    #banner-sub {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.75);
+      margin-top: 3px;
+    }
+    #banner-dismiss {
+      display: block;
+      font-size: 9px;
+      color: rgba(255,255,255,0.4);
+      margin-top: 5px;
+      letter-spacing: 1px;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────────────────── */
+    .spin {
+      display: inline-block;
+      width: 9px; height: 9px;
+      border: 1.5px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: rot 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes rot { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<div id="header">
+  <div id="logo">⚔ DUEL</div>
+
+  <div id="round-block">
+    <div id="round-counter">ROUND — / —</div>
+    <div id="technique-badge">—</div>
+  </div>
+
+  <div id="scoreboard">
+    <div class="score-box att">
+      <div class="score-label">ATTACKER</div>
+      <div class="score-val" id="att-score">0</div>
+    </div>
+    <div class="vs-label">VS</div>
+    <div class="score-box def">
+      <div class="score-label">DEFENDER</div>
+      <div class="score-val" id="def-score">0</div>
+    </div>
+  </div>
+
+  <div id="conn-dot" title="Connection status"></div>
+</div>
+
+<!-- ── Controls ────────────────────────────────────────────────────────────── -->
+<div id="controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">TECHNIQUE</span>
+    <select id="sel-technique">
+      <option value="T1078.004">T1078.004 — Valid Accounts: Cloud</option>
+      <option value="T1110.003">T1110.003 — Password Spray</option>
+    </select>
+  </div>
+
+  <div class="ctrl-group">
+    <span class="ctrl-label">ROUNDS</span>
+    <input type="number" id="inp-rounds" value="3" min="1" max="10" />
+  </div>
+
+  <div class="ctrl-group">
+    <span class="ctrl-label">LOGS / ROUND</span>
+    <input type="number" id="inp-logs" value="10" min="5" max="30" />
+  </div>
+
+  <button id="start-btn" onclick="startBattle()">&#9654; START BATTLE</button>
+</div>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- Attacker panel -->
+  <div class="panel" id="attacker-panel">
+    <div class="panel-header">
+      <div class="ph-dot"></div>
+      ATTACKER
+    </div>
+
+    <div class="panel-section">
+      <div class="sec-label">STATUS</div>
+      <div class="status-pill" id="att-status">IDLE</div>
+    </div>
+
+    <div class="panel-section">
+      <div class="sec-label">STRATEGY</div>
+      <div class="panel-text" id="att-strategy">Awaiting battle start&hellip;</div>
+    </div>
+
+    <div class="code-wrap">
+      <div class="sec-label">SYNTHETIC LOGS &mdash; SAMPLE</div>
+      <div class="code-block" id="att-logs">
+        <span class="empty-hint">No logs generated yet.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center feed -->
+  <div id="feed-col">
+    <div id="feed-head">BATTLE FEED</div>
+    <div id="feed"></div>
+  </div>
+
+  <!-- Defender panel -->
+  <div class="panel" id="defender-panel">
+    <div class="panel-header">
+      <div class="ph-dot"></div>
+      DEFENDER
+    </div>
+
+    <div class="panel-section">
+      <div class="sec-label">STATUS</div>
+      <div class="status-pill" id="def-status">IDLE</div>
+    </div>
+
+    <div class="panel-section">
+      <div class="sec-label">REASONING</div>
+      <div class="panel-text" id="def-reasoning">Awaiting battle start&hellip;</div>
+    </div>
+
+    <div class="code-wrap">
+      <div class="sec-label">KQL DETECTION RULE</div>
+      <div class="code-block" id="def-kql">
+        <span class="empty-hint">No rule generated yet.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Battle banner ────────────────────────────────────────────────────────── -->
+<div id="banner" onclick="this.style.display='none'">
+  <div id="banner-title">BATTLE COMPLETE</div>
+  <span id="banner-sub"></span>
+  <span id="banner-dismiss">click to dismiss</span>
+</div>
+
+<!-- ── Script ───────────────────────────────────────────────────────────────── -->
+<script>
+'use strict';
+
+/* ── State ─────────────────────────────────────────────────────────────────── */
+let ws = null;
+let active = false;
+
+/* ── KQL syntax highlighting ────────────────────────────────────────────────── */
+const KQL_TABLES  = ['SigninLogs','SecurityEvent','AuditLogs','IdentityLogonEvents','DeviceEvents','CommonSecurityLog'];
+const KQL_KW      = ['where','project','project-away','summarize','extend','top','limit','take',
+                     'order','sort','by','distinct','count','let','and','or','not','in','contains',
+                     'has','startswith','endswith','matches','regex','isempty','isnull','isnotempty',
+                     'isnotnull','ago','now','bin','dcount','make_list','make_set','mv-expand',
+                     'between','in~','!contains','!has','join','union','render'];
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function highlightKQL(raw) {
+  // Work line by line so comments don't bleed
+  return raw.split('\n').map(line => {
+    // Comments
+    const ci = line.indexOf('//');
+    let code = ci >= 0 ? line.slice(0, ci) : line;
+    const comment = ci >= 0 ? line.slice(ci) : '';
+
+    code = esc(code);
+
+    // Strings (double quotes)
+    code = code.replace(/"([^"]*)"/g, '<span class="str">"$1"</span>');
+    // Strings (single quotes)
+    code = code.replace(/'([^']*)'/g, "<span class='str'>'$1'</span>");
+    // Numbers
+    code = code.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="num">$1</span>');
+    // Tables
+    KQL_TABLES.forEach(t => {
+      code = code.replace(new RegExp('\\b(' + t + ')\\b', 'g'), '<span class="tbl">$1</span>');
+    });
+    // Keywords (case-insensitive)
+    KQL_KW.forEach(k => {
+      code = code.replace(new RegExp('\\b(' + k.replace(/-/g,'\\-') + ')\\b', 'gi'),
+        '<span class="kw">$1</span>');
+    });
+    // Pipe
+    code = code.replace(/\|/g, '<span class="op">|</span>');
+    // Comparison operators
+    code = code.replace(/(!?[=<>]=?)/g, '<span class="op">$1</span>');
+
+    const commentHtml = comment ? `<span class="cmt">${esc(comment)}</span>` : '';
+    return code + commentHtml;
+  }).join('\n');
+}
+
+/* ── Log renderer ────────────────────────────────────────────────────────────── */
+function renderLogs(logs) {
+  if (!logs || !logs.length) return '<span class="empty-hint">No logs.</span>';
+  return logs.map((log, i) => {
+    const rows = Object.entries(log)
+      .filter(([k]) => !k.startsWith('_'))
+      .slice(0, 9)
+      .map(([k, v]) => `<span class="lk">${esc(k)}</span>: <span class="lv">${esc(JSON.stringify(v))}</span>`)
+      .join('\n');
+    return `<div class="log-entry"><span class="log-idx">[${i + 1}]</span>${rows}</div>`;
+  }).join('');
+}
+
+/* ── Feed helpers ─────────────────────────────────────────────────────────────── */
+function addFeed(text, cls) {
+  const feed = document.getElementById('feed');
+  const now  = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const el   = document.createElement('div');
+  el.className = 'fi ' + cls;
+  el.innerHTML = `<span class="ft">${now}</span>${esc(text)}`;
+  feed.appendChild(el);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+/* ── Status pill helpers ─────────────────────────────────────────────────────── */
+function setStatus(id, cls, text, spin) {
+  const el = document.getElementById(id);
+  el.className = 'status-pill ' + cls;
+  el.innerHTML = (spin ? '<span class="spin"></span> ' : '') + esc(text);
+}
+
+/* ── Score bump animation ────────────────────────────────────────────────────── */
+function setScore(id, val) {
+  const el = document.getElementById(id);
+  el.textContent = val;
+  el.classList.remove('bump');
+  void el.offsetWidth; // reflow
+  el.classList.add('bump');
+  setTimeout(() => el.classList.remove('bump'), 200);
+}
+
+/* ── UI reset ────────────────────────────────────────────────────────────────── */
+function resetUI() {
+  document.getElementById('feed').innerHTML = '';
+  document.getElementById('banner').style.display = 'none';
+  document.getElementById('att-score').textContent = '0';
+  document.getElementById('def-score').textContent = '0';
+  document.getElementById('round-counter').textContent = 'ROUND — / —';
+  document.getElementById('technique-badge').textContent = '—';
+  document.getElementById('att-logs').innerHTML     = '<span class="empty-hint">Awaiting&hellip;</span>';
+  document.getElementById('def-kql').innerHTML      = '<span class="empty-hint">Awaiting&hellip;</span>';
+  document.getElementById('att-strategy').textContent  = 'Awaiting battle start\u2026';
+  document.getElementById('def-reasoning').textContent = 'Awaiting battle start\u2026';
+  setStatus('att-status', '', 'IDLE', false);
+  setStatus('def-status', '', 'IDLE', false);
+  document.getElementById('conn-dot').className = '';
+}
+
+/* ── Message handler ─────────────────────────────────────────────────────────── */
+function handle(data) {
+  switch (data.type) {
+
+    case 'round_start':
+      document.getElementById('round-counter').textContent =
+        'ROUND ' + data.round + ' / ' + data.total;
+      document.getElementById('technique-badge').textContent = data.technique;
+      addFeed('\u2500\u2500 ROUND ' + data.round + '/' + data.total + ' \u2014 ' + data.technique + ' \u2500\u2500', 'sys');
+      setStatus('att-status', '', 'STANDBY', false);
+      setStatus('def-status', '', 'STANDBY', false);
+      break;
+
+    case 'attacker_thinking':
+      setStatus('att-status', 'thinking', 'GENERATING LOGS', true);
+      setStatus('def-status', '', 'WAITING', false);
+      addFeed('Attacker generating synthetic telemetry\u2026', 'think');
+      document.getElementById('att-strategy').textContent = 'Computing attack strategy\u2026';
+      break;
+
+    case 'attacker_done':
+      setStatus('att-status', 'done', '\u2713 LOGS READY', false);
+      document.getElementById('att-strategy').textContent = data.strategy || '\u2014';
+      document.getElementById('att-logs').innerHTML = renderLogs(data.logs_sample);
+      addFeed('Attacker generated ' + (data.logs_sample ? data.logs_sample.length : '?') + ' sample log(s)', 'attack');
+      break;
+
+    case 'defender_thinking':
+      setStatus('def-status', 'thinking', 'GENERATING KQL', true);
+      addFeed('Defender analysing attack pattern\u2026', 'think');
+      document.getElementById('def-reasoning').textContent = 'Analysing attack vectors\u2026';
+      break;
+
+    case 'defender_done':
+      setStatus('def-status', 'done', '\u2713 RULE READY', false);
+      document.getElementById('def-reasoning').textContent = data.reasoning || '\u2014';
+      document.getElementById('def-kql').innerHTML =
+        '<code style="white-space:pre-wrap">' + highlightKQL(data.kql || '') + '</code>';
+      addFeed('Defender deployed KQL detection rule', 'defense');
+      break;
+
+    case 'detection_result': {
+      const pct = (data.rate * 100).toFixed(1);
+      const cls = data.detected >= data.evaded ? 'detect' : 'evade';
+      addFeed(
+        'Detection engine \u2192 ' + data.detected + ' caught / ' + data.evaded +
+        ' evaded (' + pct + '% detection rate)',
+        cls
+      );
+      break;
+    }
+
+    case 'round_result':
+      setScore('att-score', data.attacker_score);
+      setScore('def-score', data.defender_score);
+      if (data.result === 'detected') {
+        addFeed('ROUND RESULT \u2014 DEFENDER wins: KQL caught majority of attack logs', 'detect');
+      } else {
+        addFeed('ROUND RESULT \u2014 ATTACKER wins: majority of logs evaded detection', 'evade');
+      }
+      break;
+
+    case 'battle_complete':
+      active = false;
+      document.getElementById('start-btn').disabled = false;
+      document.getElementById('conn-dot').className = 'on';
+
+      addFeed('\u2500\u2500 BATTLE COMPLETE \u2500\u2500', 'sys');
+      addFeed(
+        'Final score \u2014 Attacker: ' + data.final_attacker +
+        ' | Defender: ' + data.final_defender,
+        'sys'
+      );
+
+      {
+        const banner = document.getElementById('banner');
+        const title  = document.getElementById('banner-title');
+        const sub    = document.getElementById('banner-sub');
+        banner.className = data.winner === 'Attacker' ? 'att-win'
+                         : data.winner === 'Defender' ? 'def-win' : 'draw';
+        title.textContent = data.winner === 'Attacker' ? '\u2694 ATTACKER WINS'
+                          : data.winner === 'Defender' ? '\uD83D\uDEE1 DEFENDER WINS' : '\u2696 DRAW';
+        sub.textContent   = 'Attacker ' + data.final_attacker + ' pts \u2014 Defender ' + data.final_defender + ' pts';
+        banner.style.display = 'block';
+        setTimeout(() => { banner.style.display = 'none'; }, 10000);
+      }
+      break;
+
+    case 'error':
+      addFeed('ERROR: ' + data.message, 'err');
+      active = false;
+      document.getElementById('start-btn').disabled = false;
+      document.getElementById('conn-dot').className = 'err';
+      break;
+  }
+}
+
+/* ── Start battle ─────────────────────────────────────────────────────────────── */
+function startBattle() {
+  if (active) return;
+  resetUI();
+
+  const technique = document.getElementById('sel-technique').value;
+  const rounds    = parseInt(document.getElementById('inp-rounds').value, 10) || 3;
+  const logs      = parseInt(document.getElementById('inp-logs').value, 10) || 10;
+
+  const url = 'ws://' + location.host + '/ws';
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    active = true;
+    document.getElementById('start-btn').disabled = true;
+    document.getElementById('conn-dot').className = 'on';
+    addFeed('Connected to DUEL engine \u2014 ' + technique + ' \u2014 ' + rounds + ' round(s)', 'sys');
+    ws.send(JSON.stringify({
+      technique,
+      rounds,
+      logs_per_round: logs,
+      attacker_model: 'llama3.1:8b',
+      defender_model: 'mistral:7b',
+    }));
+  };
+
+  ws.onmessage = e => {
+    try { handle(JSON.parse(e.data)); }
+    catch (err) { console.error('Parse error:', err, e.data); }
+  };
+
+  ws.onerror = () => {
+    addFeed('WebSocket error \u2014 is the server running?', 'err');
+    document.getElementById('conn-dot').className = 'err';
+    document.getElementById('start-btn').disabled = false;
+    active = false;
+  };
+
+  ws.onclose = () => {
+    document.getElementById('conn-dot').className = '';
+    if (active) {
+      addFeed('Connection closed unexpectedly.', 'err');
+      document.getElementById('start-btn').disabled = false;
+      active = false;
+    }
+  };
+}
+</script>
+
+</body>
+</html>
