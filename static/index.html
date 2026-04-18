@@ -567,50 +567,90 @@ let ws = null;
 let active = false;
 
 /* ── KQL syntax highlighting ────────────────────────────────────────────────── */
-const KQL_TABLES  = ['SigninLogs','SecurityEvent','AuditLogs','IdentityLogonEvents','DeviceEvents','CommonSecurityLog'];
-const KQL_KW      = ['where','project','project-away','summarize','extend','top','limit','take',
-                     'order','sort','by','distinct','count','let','and','or','not','in','contains',
-                     'has','startswith','endswith','matches','regex','isempty','isnull','isnotempty',
-                     'isnotnull','ago','now','bin','dcount','make_list','make_set','mv-expand',
-                     'between','in~','!contains','!has','join','union','render'];
-
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+/* highlightKQL — left-to-right character scan.
+ * Each token is esc()-encoded at emit time so previously-emitted span tags
+ * are never re-scanned. The old regex-chain approach ran the operator regex
+ * last, after all spans had been added, causing it to match '=', '<', '>'
+ * inside span attributes and corrupt the HTML. */
 function highlightKQL(raw) {
-  // Work line by line so comments don't bleed
-  return raw.split('\n').map(line => {
-    // Comments
-    const ci = line.indexOf('//');
-    let code = ci >= 0 ? line.slice(0, ci) : line;
-    const comment = ci >= 0 ? line.slice(ci) : '';
+  const TABLES = new Set([
+    'SigninLogs','SecurityEvent','AuditLogs',
+    'IdentityLogonEvents','DeviceEvents','CommonSecurityLog'
+  ]);
+  const KEYWORDS = new Set([
+    'where','project','summarize','extend','top','limit','take',
+    'order','sort','by','distinct','count','let','and','or','not',
+    'in','contains','has','startswith','endswith','matches','regex',
+    'isempty','isnull','isnotempty','isnotnull','dcount','between',
+    'join','union','render','project-away','mv-expand'
+  ]);
+  const TWO_OPS = new Set(['==','!=','<=','>=']);
 
-    code = esc(code);
+  function hlLine(line) {
+    const ci      = line.indexOf('//');
+    const code    = ci >= 0 ? line.slice(0, ci) : line;
+    const comment = ci >= 0 ? line.slice(ci)    : '';
+    let out = '', i = 0;
 
-    // Strings (double quotes)
-    code = code.replace(/"([^"]*)"/g, '<span class="str">"$1"</span>');
-    // Strings (single quotes)
-    code = code.replace(/'([^']*)'/g, "<span class='str'>'$1'</span>");
-    // Numbers
-    code = code.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="num">$1</span>');
-    // Tables
-    KQL_TABLES.forEach(t => {
-      code = code.replace(new RegExp('\\b(' + t + ')\\b', 'g'), '<span class="tbl">$1</span>');
-    });
-    // Keywords (case-insensitive)
-    KQL_KW.forEach(k => {
-      code = code.replace(new RegExp('\\b(' + k.replace(/-/g,'\\-') + ')\\b', 'gi'),
-        '<span class="kw">$1</span>');
-    });
-    // Pipe
-    code = code.replace(/\|/g, '<span class="op">|</span>');
-    // Comparison operators
-    code = code.replace(/(!?[=<>]=?)/g, '<span class="op">$1</span>');
+    while (i < code.length) {
+      const ch = code[i];
 
-    const commentHtml = comment ? `<span class="cmt">${esc(comment)}</span>` : '';
-    return code + commentHtml;
-  }).join('\n');
+      // Quoted string — consume until matching close quote
+      if (ch === '"' || ch === "'") {
+        let j = i + 1;
+        while (j < code.length && code[j] !== ch) j++;
+        out += `<span class="str">${esc(code.slice(i, j + 1))}</span>`;
+        i = j + 1;
+        continue;
+      }
+
+      // Pipe
+      if (ch === '|') { out += '<span class="op">|</span>'; i++; continue; }
+
+      // Two-char operators first (==, !=, <=, >=)
+      if (i + 1 < code.length && TWO_OPS.has(code.slice(i, i + 2))) {
+        out += `<span class="op">${esc(code.slice(i, i + 2))}</span>`;
+        i += 2; continue;
+      }
+
+      // Single-char operators
+      if ('<>=!'.includes(ch)) {
+        out += `<span class="op">${esc(ch)}</span>`;
+        i++; continue;
+      }
+
+      // Word token — letters, digits, underscore; also hyphen for project-away
+      if (/\w/.test(ch)) {
+        let j = i;
+        while (j < code.length && /[\w-]/.test(code[j])) j++;
+        // Don't let a trailing hyphen attach to the word
+        while (j > i && code[j - 1] === '-') j--;
+        const word = code.slice(i, j);
+        if (TABLES.has(word)) {
+          out += `<span class="tbl">${esc(word)}</span>`;
+        } else if (KEYWORDS.has(word.toLowerCase())) {
+          out += `<span class="kw">${esc(word)}</span>`;
+        } else if (/^\d+(\.\d+)?$/.test(word)) {
+          out += `<span class="num">${esc(word)}</span>`;
+        } else {
+          out += esc(word);
+        }
+        i = j; continue;
+      }
+
+      // Everything else (spaces, commas, parens, etc.)
+      out += esc(ch);
+      i++;
+    }
+
+    return out + (comment ? `<span class="cmt">${esc(comment)}</span>` : '');
+  }
+
+  return raw.split('\n').map(hlLine).join('\n');
 }
 
 /* ── Log renderer ────────────────────────────────────────────────────────────── */
