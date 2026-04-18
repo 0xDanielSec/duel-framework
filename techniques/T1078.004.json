@@ -1,0 +1,34 @@
+{
+  "technique_id": "T1078.004",
+  "name": "Valid Accounts: Cloud Accounts",
+  "tactic": "Defense Evasion, Persistence, Privilege Escalation, Initial Access",
+  "description": "Adversaries may obtain and abuse credentials of cloud accounts to maintain persistent access. Cloud accounts are those created and managed by an organization for use by users, remote support, integration, etc. Cloud providers implement logins to cloud management portals and products using various credentials such as passwords, tokens, keys, and MFA.",
+  "platforms": ["Azure AD", "Office 365", "SaaS"],
+  "data_sources": ["Azure Active Directory Logs", "Microsoft Entra ID Sign-in Logs", "Office 365 Audit Logs"],
+  "sentinel_tables": ["SigninLogs", "AuditLogs", "AADNonInteractiveUserSignInLogs"],
+  "iocs": [
+    "Logins from unusual geographic locations",
+    "Multiple failed logins followed by success",
+    "Token reuse from different IPs",
+    "Service principal activity outside business hours",
+    "Legacy authentication protocol usage",
+    "Impossible travel",
+    "Anonymous proxy or Tor exit node usage"
+  ],
+  "evasion_variants": [
+    "Use of legitimate cloud management tools",
+    "Mimic normal user-agent strings",
+    "Operate within expected business hours",
+    "Gradual geographic drift instead of impossible travel",
+    "Single successful login (avoid spray patterns)",
+    "Use of trusted IP ranges",
+    "Conditional access policy bypass via compliant device claims"
+  ],
+  "detection_kql_hints": [
+    "Look for ResultType != 0 clusters followed by 0",
+    "Correlate IPAddress with known threat intel",
+    "Flag logins with AuthenticationRequirement changes",
+    "Detect UserAgent anomalies vs user baseline",
+    "Monitor ConditionalAccessStatus == 'notApplied'"
+  ]
+}

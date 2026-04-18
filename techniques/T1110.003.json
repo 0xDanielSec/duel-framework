@@ -1,0 +1,39 @@
+{
+  "technique_id": "T1110.003",
+  "name": "Brute Force: Password Spraying",
+  "tactic": "Credential Access",
+  "description": "Adversaries use a single common password against many accounts (or a small set of passwords against many accounts) to avoid account lockouts. Password spraying is distinct from traditional brute force in that it distributes attempts across many accounts rather than hammering one account. In Azure AD / Entra ID environments this typically appears as a wave of ResultType 50126 (invalid credentials) or 50053 (account locked) events spread across many UserPrincipalName values from one or a small cluster of source IPs.",
+  "platforms": ["Azure AD", "Office 365", "Entra ID"],
+  "data_sources": ["Azure Active Directory Sign-in Logs"],
+  "sentinel_tables": ["SigninLogs"],
+  "iocs": [
+    "Many distinct UserPrincipalName values with ResultType 50126 from a single IPAddress",
+    "Attempts spread within a short time window (minutes) to avoid per-account lockout",
+    "Low attempt count per account (1–3) but high total volume across accounts",
+    "Use of legacy authentication clients: BasicAuthConnector, SMTP, IMAP, POP3",
+    "Uniform UserAgent across all failed attempts",
+    "ClientAppUsed set to 'Other clients' or legacy protocol names",
+    "Attempts targeting high-value accounts: admin@, finance@, hr@, ceo@",
+    "Single successful ResultType 0 following a spray pattern from same IP"
+  ],
+  "evasion_variants": [
+    "Distribute attempts from multiple source IPs in the same /24 subnet",
+    "Slow the spray rate to 1 attempt per account per 10 minutes",
+    "Rotate UserAgent strings to mimic different browser/OS combinations",
+    "Mix in legitimate-looking failed logins (wrong MFA, not invalid password)",
+    "Use ResultType 50158 (external security challenge) to blend with MFA friction",
+    "Target only accounts that have not had recent successful logins",
+    "Attempt logins during business hours to blend with normal traffic",
+    "Use OAuth device code flow (ClientAppUsed: 'Microsoft Authentication Broker')",
+    "Spread across multiple AppDisplayName values to avoid single-app thresholds"
+  ],
+  "detection_kql_hints": [
+    "Summarize count() by IPAddress and filter where distinct UserPrincipalName count is high",
+    "Look for ResultType in (50126, 50053, 50055) as primary spray indicators",
+    "Threshold: same IP, >5 distinct users failing within a 10-minute bin",
+    "Flag ClientAppUsed == 'Other clients' combined with failed ResultType",
+    "Correlate: IP that caused failures later succeeds (ResultType 0) — likely successful spray",
+    "Use dcount(UserPrincipalName) by IPAddress, bin(TimeGenerated, 10m) to find spray waves",
+    "AuthenticationRequirement == 'singleFactorAuthentication' on legacy clients is a strong signal"
+  ]
+}
