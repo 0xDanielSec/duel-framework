@@ -12,89 +12,38 @@ import ollama
 logger = logging.getLogger(__name__)
 
 DEFENDER_SYSTEM = """\
-You are a Microsoft Sentinel detection engineer in the DUEL adversarial AI \
-framework. You write KQL rules executed by a LOCAL detection engine with \
-STRICT operator limits. Generating unsupported constructs produces a rule \
-that detects nothing — treat every forbidden item as a hard failure.
+You are a Microsoft Sentinel detection engineer in the DUEL framework. \
+Output ONLY a raw KQL query — no prose, no markdown fences.
 
-══════════ SUPPORTED OPERATORS (these are the ONLY ones that work) ══════════
+SUPPORTED: where (==, !=, <, >, <=, >=, has, contains, startswith, endswith, \
+in ("a","b"), isempty, isnotempty, and/or/not), project, project-away, \
+summarize count() by, extend, top N by, limit N, order by, distinct, count.
 
-  where     Filter rows. Supported condition forms:
-              Field == "value"        Field != "value"
-              Field > N               Field < N   Field >= N   Field <= N
-              Field has "token"       Field contains "substr"
-              Field startswith "v"    Field endswith "v"
-              Field in ("a", "b", "c")
-              isempty(Field)          isnotempty(Field)
-              isnull(Field)           isnotnull(Field)
-              Combine with:  and   or   not(...)
+FORBIDDEN (silently match nothing — hard failure): \
+subqueries in in(), ago/now/bin/datetime, prev/next/last, CountIf/dcountif, \
+let, join, union, make_list, make_set, mv-expand.
 
-  project       Keep specific columns:   project Field1, Field2
-  project-away  Drop specific columns:   project-away Field1
-  summarize     Aggregate:               summarize count() by Field
-  extend        Derive a column:         extend NewCol = Field
-  top N by      First N rows by field:   top 10 by TimeGenerated desc
-  limit N       First N rows:            limit 100
-  order by      Sort:                    order by TimeGenerated desc
-  distinct      Deduplicate rows
-  count         Count all rows
+DETECTION LOGIC — your rule runs against the ATTACK LOGS:
+- Every "where" condition must be TRUE for attack rows or those rows are removed.
+- Match field values that ARE in the logs (== or in() or has). \
+  Do NOT negate a value present in the logs — that removes the attack rows.
+- T1078 attacks are SUCCESSFUL logins: ResultType == 0. \
+  Never write ResultType != 0.
 
-══════════ FORBIDDEN — these constructs silently match NOTHING ══════════
-
-  NEVER — subquery inside in():       Field in (Table | where ...)
-  NEVER — temporal functions:         ago(), now(), bin(), datetime()
-  NEVER — cross-row functions:        prev(), next(), last(), series_*()
-  NEVER — conditional aggregates:     CountIf(), dcountif(), percentile()
-  NEVER — let / function statements
-  NEVER — join, union, any cross-table reference
-  NEVER — make_list(), make_set(), mv-expand, scan, evaluate
-
-══════════ DETECTION LOGIC ══════════
-
-  HOW THE ENGINE WORKS:
-    Your KQL rule is run against the ATTACK LOGS. Every "where" condition must
-    evaluate to TRUE for attack rows — a FALSE condition REMOVES those rows,
-    lowering your score. Your goal is to RETURN the attack rows.
-
-  STEP-BY-STEP:
-    1. Read the "Distinct field values" section in the user prompt.
-    2. For each interesting field: write a condition that MATCHES the value
-       actually present in the logs (== or in() or has/contains).
-    3. Do NOT negate a value that IS in the attack logs — that removes them.
-    4. Chain 2-4 matching conditions with "and".
-
-  EXAMPLE — attack logs have AppDisplayName="Azure AD Portal",
-            AuthenticationRequirement="MFA Not Required":
-    CORRECT: | where AppDisplayName has "Azure"
-             | where AuthenticationRequirement has "Not Required"
-    WRONG:   | where CountryOrRegion != "US"    (negates a value IN the logs)
-             | where ResultType != 0            (T1078 attacks have ResultType 0)
-
-  KEY RULE: T1078 (Valid Accounts) attacks are SUCCESSFUL logins.
-    The attack logs have ResultType == 0.
-    Writing "ResultType != 0" catches ZERO attack logs.
-    Use "ResultType == 0" as a baseline filter, then match additional
-    suspicious field values actually visible in the provided log samples.
-
-══════════ WORKING EXAMPLE ══════════
-
+EXAMPLE:
   SigninLogs
   | where ResultType == 0
   | where AuthenticationRequirement has "Not Required"
-  | where AppDisplayName in ("Azure AD Portal", "Azure Portal", "Azure DevOps Services")
+  | where AppDisplayName in ("Azure AD Portal", "Azure Portal")
 
-══════════ FIELD REFERENCES ══════════
-
-  SigninLogs:    TimeGenerated, UserPrincipalName, AppDisplayName, IPAddress,
-                 Location, CountryOrRegion, City, ResultType, ResultDescription,
-                 AuthenticationRequirement, ConditionalAccessStatus, UserAgent,
-                 ClientAppUsed, RiskLevelDuringSignIn, RiskState, CorrelationId
-
-  SecurityEvent: TimeGenerated, EventID, Activity, Account, Computer,
-                 SubjectUserName, TargetUserName, LogonType, IpAddress, Status
-
-  AuditLogs:     TimeGenerated, OperationName, Result, Category,
-                 ActivityDisplayName, Identity, CorrelationId
+FIELDS — SigninLogs: TimeGenerated, UserPrincipalName, AppDisplayName, \
+IPAddress, Location, CountryOrRegion, City, ResultType, ResultDescription, \
+AuthenticationRequirement, ConditionalAccessStatus, UserAgent, ClientAppUsed, \
+RiskLevelDuringSignIn, RiskState, CorrelationId | \
+SecurityEvent: TimeGenerated, EventID, Activity, Account, Computer, \
+SubjectUserName, TargetUserName, LogonType, IpAddress, Status | \
+AuditLogs: TimeGenerated, OperationName, Result, Category, \
+ActivityDisplayName, Identity, CorrelationId
 """
 
 INITIAL_PROMPT_TEMPLATE = """\
@@ -282,7 +231,7 @@ class DefenderAgent:
                     {"role": "system", "content": DEFENDER_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                options={"temperature": 0.4, "num_predict": 2048},
+                options={"temperature": 0.4, "num_predict": 1024},
             )
             return response["message"]["content"]
         except Exception as exc:
