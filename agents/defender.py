@@ -12,38 +12,89 @@ import ollama
 logger = logging.getLogger(__name__)
 
 DEFENDER_SYSTEM = """\
-You are a senior Microsoft Sentinel detection engineer participating in an \
-adversarial AI security framework called DUEL. Your mission is to write KQL \
-(Kusto Query Language) detection rules that catch malicious activity in \
-Microsoft Sentinel log tables.
+You are a Microsoft Sentinel detection engineer in the DUEL adversarial AI \
+framework. You write KQL rules executed by a LOCAL detection engine with \
+STRICT operator limits. Generating unsupported constructs produces a rule \
+that detects nothing — treat every forbidden item as a hard failure.
 
-CRITICAL RULES:
-1. Output ONLY the raw KQL query — no prose, no explanations, no markdown fences.
-2. The query MUST start with a table name from the AVAILABLE TABLES list provided \
-   in the user prompt. Starting with any other table causes a hard failure.
-3. NEVER use join, union, or any cross-table operator. Every rule must query \
-   exactly one table — the one that contains the attack telemetry.
-4. Use only these operators: where, project, project-away, summarize, extend, \
-   top, limit, order by, sort by, distinct, count.
-5. Target realistic field values visible in the attack logs provided.
-6. If previous evasions are shown, HARDEN your rule to close those gaps. \
-   Reason about what field patterns or thresholds the attacker exploited and \
-   write conditions that catch them.
-7. Prefer broad rules that catch patterns over narrow rules that match exact values.
+══════════ SUPPORTED OPERATORS (these are the ONLY ones that work) ══════════
 
-SigninLogs field reference:
-  TimeGenerated, UserPrincipalName, AppDisplayName, IPAddress, Location,
-  CountryOrRegion, City, ResultType, ResultDescription,
-  AuthenticationRequirement, ConditionalAccessStatus, UserAgent,
-  ClientAppUsed, RiskLevelDuringSignIn, RiskState, CorrelationId
+  where     Filter rows. Supported condition forms:
+              Field == "value"        Field != "value"
+              Field > N               Field < N   Field >= N   Field <= N
+              Field has "token"       Field contains "substr"
+              Field startswith "v"    Field endswith "v"
+              Field in ("a", "b", "c")
+              isempty(Field)          isnotempty(Field)
+              isnull(Field)           isnotnull(Field)
+              Combine with:  and   or   not(...)
 
-SecurityEvent field reference:
-  TimeGenerated, EventID, Activity, Account, Computer, SubjectUserName,
-  TargetUserName, LogonType, IpAddress, Status
+  project       Keep specific columns:   project Field1, Field2
+  project-away  Drop specific columns:   project-away Field1
+  summarize     Aggregate:               summarize count() by Field
+  extend        Derive a column:         extend NewCol = Field
+  top N by      First N rows by field:   top 10 by TimeGenerated desc
+  limit N       First N rows:            limit 100
+  order by      Sort:                    order by TimeGenerated desc
+  distinct      Deduplicate rows
+  count         Count all rows
 
-AuditLogs field reference:
-  TimeGenerated, OperationName, Result, Category, ActivityDisplayName,
-  Identity, CorrelationId
+══════════ FORBIDDEN — these constructs silently match NOTHING ══════════
+
+  NEVER — subquery inside in():       Field in (Table | where ...)
+  NEVER — temporal functions:         ago(), now(), bin(), datetime()
+  NEVER — cross-row functions:        prev(), next(), last(), series_*()
+  NEVER — conditional aggregates:     CountIf(), dcountif(), percentile()
+  NEVER — let / function statements
+  NEVER — join, union, any cross-table reference
+  NEVER — make_list(), make_set(), mv-expand, scan, evaluate
+
+══════════ DETECTION LOGIC ══════════
+
+  HOW THE ENGINE WORKS:
+    Your KQL rule is run against the ATTACK LOGS. Every "where" condition must
+    evaluate to TRUE for attack rows — a FALSE condition REMOVES those rows,
+    lowering your score. Your goal is to RETURN the attack rows.
+
+  STEP-BY-STEP:
+    1. Read the "Distinct field values" section in the user prompt.
+    2. For each interesting field: write a condition that MATCHES the value
+       actually present in the logs (== or in() or has/contains).
+    3. Do NOT negate a value that IS in the attack logs — that removes them.
+    4. Chain 2-4 matching conditions with "and".
+
+  EXAMPLE — attack logs have AppDisplayName="Azure AD Portal",
+            AuthenticationRequirement="MFA Not Required":
+    CORRECT: | where AppDisplayName has "Azure"
+             | where AuthenticationRequirement has "Not Required"
+    WRONG:   | where CountryOrRegion != "US"    (negates a value IN the logs)
+             | where ResultType != 0            (T1078 attacks have ResultType 0)
+
+  KEY RULE: T1078 (Valid Accounts) attacks are SUCCESSFUL logins.
+    The attack logs have ResultType == 0.
+    Writing "ResultType != 0" catches ZERO attack logs.
+    Use "ResultType == 0" as a baseline filter, then match additional
+    suspicious field values actually visible in the provided log samples.
+
+══════════ WORKING EXAMPLE ══════════
+
+  SigninLogs
+  | where ResultType == 0
+  | where AuthenticationRequirement has "Not Required"
+  | where AppDisplayName in ("Azure AD Portal", "Azure Portal", "Azure DevOps Services")
+
+══════════ FIELD REFERENCES ══════════
+
+  SigninLogs:    TimeGenerated, UserPrincipalName, AppDisplayName, IPAddress,
+                 Location, CountryOrRegion, City, ResultType, ResultDescription,
+                 AuthenticationRequirement, ConditionalAccessStatus, UserAgent,
+                 ClientAppUsed, RiskLevelDuringSignIn, RiskState, CorrelationId
+
+  SecurityEvent: TimeGenerated, EventID, Activity, Account, Computer,
+                 SubjectUserName, TargetUserName, LogonType, IpAddress, Status
+
+  AuditLogs:     TimeGenerated, OperationName, Result, Category,
+                 ActivityDisplayName, Identity, CorrelationId
 """
 
 INITIAL_PROMPT_TEMPLATE = """\
@@ -52,56 +103,76 @@ Description: {description}
 
 ROUND {round_num} of {total_rounds} — Write your initial detection rule.
 
-AVAILABLE TABLES (only these contain data — start your query with one of them):
+AVAILABLE TABLES — your query MUST start with one of these exactly:
   {available_tables}
 
-Sample attack logs from the Attacker this round:
+Attack log samples ({total_logs} logs total, showing {sample_count}):
 {attack_samples}
 
-Detection hints from the MITRE knowledge base:
+Distinct field values observed across all {total_logs} attack logs:
+{field_value_summary}
+
+Conceptual detection hints (implement as simple where conditions only):
 {detection_hints}
 
-Write a single KQL query that detects this attack pattern. \
-Your query MUST start with one of the AVAILABLE TABLES above. \
-Focus on behavioral indicators rather than exact IP/user matches since \
-those will rotate. Output KQL only.
+INSTRUCTIONS:
+  1. Start with one of the AVAILABLE TABLES above — no other table name.
+  2. Use ONLY the operators listed in the system prompt.
+  3. Do NOT use subqueries, time functions, or any FORBIDDEN construct.
+  4. Write 2-4 "where" conditions. Each condition must be TRUE for the attack
+     logs — use == or in() or has/contains to MATCH values you see above.
+     Do NOT negate (!=) a value that appears in the "Distinct field values".
+  5. ResultType == 0 in these logs. Do NOT write ResultType != 0.
+  6. Start with "ResultType == 0", then add conditions matching suspicious
+     field values you observe (unusual auth method, risky app, risk level, etc.).
+
+Output ONLY the KQL query — no explanation, no markdown, no fences.
 """
 
 HARDENING_PROMPT_TEMPLATE = """\
 MITRE Technique: {technique_id} — {technique_name}
 ROUND {round_num} of {total_rounds} — HARDEN your detection rule.
 
-AVAILABLE TABLES (only these contain data — start your query with one of them):
+AVAILABLE TABLES — your query MUST start with one of these exactly:
   {available_tables}
 
 Your PREVIOUS KQL rule:
 {last_kql}
 
 Performance last round:
-- Detected: {detected_count} logs ({detection_rate:.0%} detection rate)
-- Evaded:   {evaded_count} logs
+  Detected: {detected_count} logs ({detection_rate:.0%} rate)
+  Evaded:   {evaded_count} logs
 
-Logs that EVADED your rule (study these carefully — find the gaps):
+Logs that EVADED your rule (find the gap):
 {evaded_samples}
+
+Distinct field values in evaded logs:
+{evaded_field_summary}
 
 Logs that WERE DETECTED (preserve what worked):
 {detected_samples}
 
-New attack logs from this round:
+New attack logs this round:
 {new_attack_samples}
 
-Analyze WHY the evaded logs slipped through your rule. Identify the specific \
-field values, thresholds, or operators that need to change. Then write an \
-IMPROVED KQL query that closes those gaps.
+Distinct field values in new attack logs:
+{new_field_summary}
 
-Rules:
-- Your query MUST start with one of the AVAILABLE TABLES above.
-- NEVER use join or union.
-- Do not just add exact-match conditions on rotating values (IPs, UPNs).
-- Target structural patterns: protocols, timing, auth method, CA status, etc.
-- You may use OR conditions to cover multiple evasion variants.
+INSTRUCTIONS:
+  1. Start with one of the AVAILABLE TABLES above — no other table name.
+  2. Use ONLY the operators listed in the system prompt — NO subqueries, NO
+     time functions, NO CountIf, NO prev/next/last, NO FORBIDDEN constructs.
+  3. Identify which field values in the evaded logs your previous conditions
+     missed and add or adjust "where" conditions to cover them.
+  4. Each condition must be TRUE for attack rows. Do NOT negate (!=) a value
+     you see in the field summaries — that removes the attack rows.
+  5. Do NOT just match exact IPs or UPNs — those rotate. Target structural
+     fields: AuthenticationRequirement, ClientAppUsed, AppDisplayName,
+     RiskLevelDuringSignIn, ConditionalAccessStatus, CountryOrRegion.
+  6. Use "or" conditions to cover multiple evasion variants in one clause.
+  7. Keep ResultType == 0 (do NOT flip to != 0).
 
-Output KQL only.
+Output ONLY the KQL query — no explanation, no markdown, no fences.
 """
 
 
@@ -156,6 +227,7 @@ class DefenderAgent:
     def _build_initial_prompt(
         self, technique: dict, round_num: int, total_rounds: int, attack_logs: list[dict]
     ) -> str:
+        samples = attack_logs[:5]
         return INITIAL_PROMPT_TEMPLATE.format(
             technique_id=technique["technique_id"],
             technique_name=technique["name"],
@@ -163,7 +235,10 @@ class DefenderAgent:
             round_num=round_num,
             total_rounds=total_rounds,
             available_tables=", ".join(_tables_in_logs(attack_logs)),
-            attack_samples=_format_logs(attack_logs, n=5),
+            total_logs=len(attack_logs),
+            sample_count=len(samples),
+            attack_samples=_format_logs(samples),
+            field_value_summary=_field_value_summary(attack_logs),
             detection_hints="\n".join(
                 f"- {h}" for h in technique.get("detection_kql_hints", [])
             ),
@@ -189,8 +264,10 @@ class DefenderAgent:
             evaded_count=len(evaded),
             detection_rate=len(detected) / max(len(detected) + len(evaded), 1),
             evaded_samples=_format_logs(evaded, n=4),
+            evaded_field_summary=_field_value_summary(evaded) if evaded else "  (none)",
             detected_samples=_format_logs(detected, n=2),
             new_attack_samples=_format_logs(attack_logs, n=4),
+            new_field_summary=_field_value_summary(attack_logs),
         )
 
     # ------------------------------------------------------------------
@@ -250,6 +327,33 @@ def _format_logs(logs: list[dict], n: int = 4) -> str:
     samples = logs[:n]
     clean = [{k: v for k, v in s.items() if not k.startswith("_duel")} for s in samples]
     return json.dumps(clean, indent=2, default=str) if clean else "[]"
+
+
+def _field_value_summary(logs: list[dict], max_vals: int = 6) -> str:
+    """
+    Show distinct values per field across all logs so the LLM can write
+    where conditions that match what is actually in the data.
+    Skips internal _duel_* fields and the 'table' routing field.
+    """
+    if not logs:
+        return "  (no logs)"
+    field_vals: dict[str, list[str]] = {}
+    for log in logs:
+        for k, v in log.items():
+            if k.startswith("_duel") or k == "table":
+                continue
+            sv = str(v)
+            if k not in field_vals:
+                field_vals[k] = []
+            if sv not in field_vals[k]:
+                field_vals[k].append(sv)
+    lines = []
+    for field in sorted(field_vals):
+        vals = field_vals[field]
+        shown = vals[:max_vals]
+        overflow = f" … +{len(vals) - max_vals} more" if len(vals) > max_vals else ""
+        lines.append(f"  {field}: {shown}{overflow}")
+    return "\n".join(lines)
 
 
 def _tables_in_logs(logs: list[dict]) -> list[str]:

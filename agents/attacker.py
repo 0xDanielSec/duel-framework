@@ -119,15 +119,18 @@ class AttackerAgent:
         raw = self._call_ollama(prompt)
         logs = self._parse_logs(raw)
 
-        # Stamp each log with a unique _duel_id
+        # Stamp each log with a unique _duel_id and normalise known schema fields
         for log in logs:
             if not log.get("_duel_id"):
                 log["_duel_id"] = str(uuid.uuid4())
-            # Default table if missing
             log.setdefault("table", "SigninLogs")
-            # Set TimeGenerated to now if missing or placeholder
             if not log.get("TimeGenerated") or log["TimeGenerated"] in ("", "now", "ISO8601"):
                 log["TimeGenerated"] = _random_timestamp()
+            # ResultType must be an integer (Azure AD error code; 0 = success).
+            # LLMs frequently emit strings like "Success" or "0" — normalise them.
+            rt = log.get("ResultType")
+            if isinstance(rt, str):
+                log["ResultType"] = _RESULT_TYPE_MAP.get(rt.lower(), 0)
 
         logger.info("Attacker generated %d logs for round %d", len(logs), round_num)
         self.round_history.append({
@@ -257,6 +260,15 @@ class AttackerAgent:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+# LLMs emit ResultType as strings; map them to the Azure AD integer error codes.
+_RESULT_TYPE_MAP: dict[str, int] = {
+    "success": 0, "successful": 0, "succeeded": 0,
+    "0": 0, "ok": 0, "pass": 0, "passed": 0,
+    "failure": 50074, "failed": 50074, "fail": 50074,
+    "error": 50074, "invalid": 50074,
+}
+
 
 def _random_timestamp(offset_hours: int = 0) -> str:
     base = datetime.now(timezone.utc) - timedelta(hours=random.randint(0, 23))
