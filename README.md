@@ -9,6 +9,8 @@
 ![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red)
 ![License MIT](https://img.shields.io/badge/License-MIT-green)
 
+![DUEL in action](demo.gif)
+
 ---
 
 ## What is DUEL?
