@@ -1,0 +1,34 @@
+{
+  "technique_id": "T1136.003",
+  "name": "Create Account: Cloud Account",
+  "tactic": "Persistence",
+  "description": "Adversaries may create cloud accounts to maintain persistent access to victim environments. In Microsoft 365 / Entra ID, this includes creation of new member accounts, invitation of external guests (B2B), and creation of service principals. Guest invitations are especially stealthy because they originate from inside the tenant but land in an external mailbox the adversary controls, and the invited account can be granted roles or group memberships without generating a traditional new-user event in some SIEM configurations. Rogue accounts are then used for lateral movement, data exfiltration, or as a persistence fallback if the original compromised credentials are rotated.",
+  "platforms": ["Azure AD", "Office 365", "Entra ID"],
+  "data_sources": ["Microsoft Entra ID Audit Logs"],
+  "sentinel_tables": ["AuditLogs"],
+  "iocs": [
+    "AuditLogs Operation 'Add user' with UserType 'Guest' initiated by a non-IT account",
+    "Bulk guest invitations (>5 within 10 minutes) from a single InitiatedBy user",
+    "New member account created and immediately assigned a privileged directory role (Global Admin, Exchange Admin)",
+    "AuditLogs Operation 'Invite external user' targeting a domain not in the tenant's trusted B2B allow-list",
+    "Newly created account with no prior sign-in activity used to access SharePoint or Exchange within minutes of creation",
+    "Service principal created (Operation 'Add service principal') with DisplayName mimicking a Microsoft first-party app (e.g., 'Microsoft Graph')",
+    "AuditLogs showing account creation where the CreatedDateTime and first successful SigninLogs entry differ by less than 60 seconds"
+  ],
+  "evasion_variants": [
+    "Invite guests one at a time with multi-hour gaps to avoid bulk-invite volume thresholds",
+    "Use a display name and UPN suffix matching the tenant's internal naming convention (firstname.lastname@tenant.onmicrosoft.com) so the new account visually blends in user lists",
+    "Create the account during a legitimate provisioning window (new employee onboarding period) when multiple real accounts are also being created",
+    "Grant the rogue account only low-privilege roles initially; escalate permissions gradually over days to avoid immediate privilege anomaly alerts",
+    "Invite a guest from a typosquatted domain that resembles a known partner organization to pass quick human review",
+    "Use an attacker-controlled compromised admin account to create the rogue account — so InitiatedBy appears as a known trusted identity"
+  ],
+  "detection_kql_hints": [
+    "AuditLogs | where OperationName == 'Add user' | extend UserType = tostring(TargetResources[0].modifiedProperties[0].newValue) | where UserType == '\"Guest\"'",
+    "AuditLogs | where OperationName == 'Invite external user' | summarize InviteCount=count() by InitiatedBy=tostring(InitiatedBy.user.userPrincipalName), bin(TimeGenerated, 10m) | where InviteCount > 4",
+    "Correlate AuditLogs 'Add user' with AuditLogs 'Add member to role' on the same TargetResources ObjectId within 30 minutes — flag if the role is privileged",
+    "AuditLogs | where OperationName == 'Add user' | join kind=inner (SigninLogs | project AccountCreatedSignin=TimeGenerated, UserPrincipalName) on UserPrincipalName | where datetime_diff('minute', AccountCreatedSignin, TimeGenerated) < 5",
+    "Flag guest invitations where the invited domain is not in a known-good partner domain allowlist: parse InvitedUserEmailAddress and extract domain for comparison",
+    "AuditLogs | where OperationName == 'Add service principal' | where DisplayName matches regex @'^Microsoft|^Azure|^Office' — detect first-party impersonation"
+  ]
+}

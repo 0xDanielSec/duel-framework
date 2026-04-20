@@ -1,0 +1,37 @@
+{
+  "technique_id": "T1528",
+  "name": "Steal Application Access Token",
+  "tactic": "Credential Access",
+  "description": "Adversaries may steal application access tokens as a means of acquiring credentials to build persistence or escalate privileges. OAuth tokens, service principal secrets, and SAML assertions can be harvested via AiTM (Adversary-in-the-Middle) proxy frameworks (e.g., Evilginx2, Modlishka), malicious OAuth app consent phishing, or post-compromise credential scraping. In Microsoft 365 / Entra ID, a stolen access token allows replay without MFA because the authentication step already completed — the adversary skips the credential layer entirely and operates as the legitimate user or service principal.",
+  "platforms": ["Azure AD", "Office 365", "Entra ID", "SaaS"],
+  "data_sources": ["Azure Active Directory Sign-in Logs", "Office 365 Audit Logs", "Microsoft Entra ID Audit Logs"],
+  "sentinel_tables": ["SigninLogs", "AuditLogs"],
+  "iocs": [
+    "SigninLogs entries with TokenIssuerType == 'AzureAD' but IPAddress mismatched from prior session",
+    "OAuth consent events in AuditLogs with Operation 'Consent to application' for high-privilege scopes (Mail.Read, Directory.ReadWrite.All)",
+    "New OAuth app registration followed immediately by credential addition and token issuance",
+    "UserAgent string from token replay differs from original session UserAgent",
+    "ResultType 0 with AuthenticationRequirement 'singleFactorAuthentication' on accounts enrolled in MFA — indicates token replay bypassing MFA",
+    "Multiple resource access tokens issued in rapid succession for same user from different IPAddress values",
+    "AuditLogs Operation 'Add OAuth2PermissionGrant' for an app not previously seen in the tenant",
+    "OfficeActivity showing delegated mailbox access from an OAuth app immediately after consent event"
+  ],
+  "evasion_variants": [
+    "Replay token from a residential proxy IP that partially overlaps with the victim's ASN to avoid impossible-travel triggers",
+    "Limit resource access to a single service (e.g., SharePoint only) to avoid broad scope anomaly detection",
+    "Use a cloned legitimate app display name and publisher to pass visual inspection of consent prompts",
+    "Spread token replay sessions across extended time windows (hours) with normal-looking UserAgent strings",
+    "Register the malicious OAuth app under an existing compromised tenant service principal to inherit trusted branding",
+    "Request only delegated (not application) permissions to stay under automated high-privilege-scope alerts",
+    "Avoid Graph API /me/messages in favor of EWS endpoint access to bypass Graph-specific monitoring"
+  ],
+  "detection_kql_hints": [
+    "Flag SigninLogs where AuthenticationRequirement == 'singleFactorAuthentication' and UserDetails is member of MFA-required group",
+    "Detect IPAddress change mid-session: join SigninLogs on CorrelationId and look for multiple distinct IPAddress values",
+    "AuditLogs | where OperationName == 'Consent to application' | where TargetResources has_any ('Mail.Read','Directory.ReadWrite.All','Files.ReadWrite.All')",
+    "Look for ResultType == 0 with TokenIssuerType == 'AzureAD' and ConditionalAccessStatus == 'notApplied' on MFA-policy-scoped users",
+    "Correlate AuditLogs 'Add OAuth2PermissionGrant' timestamp with subsequent SigninLogs ResourceDisplayName activity within 15 minutes",
+    "Flag AppDisplayName values not seen in tenant in prior 30 days that have ResultType 0 token issuances",
+    "Use bag_unpack(DeviceDetail) to detect mismatched DeviceId between authentication and subsequent resource access events"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "technique_id": "T1114.002",
+  "name": "Email Collection: Remote Email Collection",
+  "tactic": "Collection",
+  "description": "Adversaries may leverage user permissions to collect email from remote mail servers or services. In Microsoft 365 environments this is achieved via mailbox delegation (Full Access or SendAs), Graph API mail-read operations using stolen OAuth tokens (Mail.Read, Mail.ReadWrite scopes), EWS impersonation by a service account, or creation of inbox forwarding rules that silently copy mail to an external address. These methods allow bulk email harvesting without triggering interactive login events and, in the case of forwarding rules, operate passively after initial setup — continuing even if the attacker's session token is revoked.",
+  "platforms": ["Office 365", "Azure AD", "Exchange Online"],
+  "data_sources": ["Office 365 Audit Logs"],
+  "sentinel_tables": ["OfficeActivity"],
+  "iocs": [
+    "OfficeActivity Operation 'Add-MailboxPermission' granting FullAccess or SendAs to an external or recently created account",
+    "OfficeActivity Operation 'New-InboxRule' with ForwardTo or RedirectTo targeting an external SMTP address",
+    "OfficeActivity Operation 'MailItemsAccessed' by a service principal or delegated account not matching the mailbox owner",
+    "High-volume OfficeActivity 'MailItemsAccessed' events (>100 items) in a short time window — indicative of bulk harvesting via Graph API",
+    "OfficeActivity Operation 'Set-Mailbox' with DeliverToMailboxAndForward set to True",
+    "Graph API calls to /v1.0/users/{id}/messages with $top=1000 appearing in SigninLogs or network telemetry",
+    "OfficeActivity ClientInfoString containing 'Client=REST;' or 'Client=Graph;' for mailbox access events — indicates programmatic access rather than Outlook client"
+  ],
+  "evasion_variants": [
+    "Use a forwarding rule with a display name mimicking a legitimate mail flow rule (e.g., 'IT Compliance Archive') to survive admin rule reviews",
+    "Access only the Inbox folder rather than All Items to reduce the MailItemsAccessed count and stay under volume-based alert thresholds",
+    "Establish mailbox delegation using a compromised admin account during a helpdesk ticket window so the delegation event appears in legitimate change context",
+    "Use EWS impersonation with a service account that already has ApplicationImpersonation role — no new delegation events are generated per-mailbox",
+    "Throttle Graph API mail reads to <10 messages per minute with jittered delays to avoid Microsoft's built-in throttling alerts",
+    "Forward only specific high-value senders (CFO, legal, HR) using rule conditions rather than all mail — limits log volume and avoids bulk-forwarding signatures",
+    "Delete the forwarding rule after the initial exfiltration window (hours) — rely on the external inbox copy rather than the persistent rule, minimising rule-retention audit exposure"
+  ],
+  "detection_kql_hints": [
+    "OfficeActivity | where Operation == 'New-InboxRule' | where Parameters has_any ('ForwardTo','RedirectTo') | extend ExternalAddr = extract(@'ForwardTo.*?([\\w.]+@[\\w.]+)', 1, tostring(Parameters)) | where ExternalAddr !endswith tenant_domain",
+    "OfficeActivity | where Operation == 'MailItemsAccessed' and ClientInfoString has_any ('REST','Graph') | summarize ItemCount=count(), dcount(Folders) by UserId, bin(TimeGenerated, 10m) | where ItemCount > 50",
+    "OfficeActivity | where Operation == 'Add-MailboxPermission' | extend Grantee=tostring(Parameters) | where Grantee !in (known_service_accounts) | project TimeGenerated, UserId, Grantee, Operation",
+    "OfficeActivity | where Operation == 'Set-Mailbox' | where Parameters has 'DeliverToMailboxAndForward' and Parameters has 'True'",
+    "Correlate AuditLogs 'Add OAuth2PermissionGrant' for Mail.Read scope with subsequent OfficeActivity MailItemsAccessed from the same AppId within 30 minutes",
+    "OfficeActivity | where Operation == 'MailItemsAccessed' and LogonType == 'Delegate' | where UserId != MailboxOwnerUPN | summarize count() by UserId, MailboxOwnerUPN, bin(TimeGenerated, 1h) | where count_ > 100",
+    "Flag OfficeActivity where Operation == 'New-InboxRule' and the rule was created outside business hours — passive persistence setup is often done off-hours"
+  ]
+}

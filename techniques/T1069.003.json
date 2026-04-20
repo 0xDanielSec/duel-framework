@@ -1,0 +1,34 @@
+{
+  "technique_id": "T1069.003",
+  "name": "Permission Groups Discovery: Cloud Groups",
+  "tactic": "Discovery",
+  "description": "Adversaries may attempt to discover cloud groups and roles to understand the permission structure of the environment and identify high-value targets for lateral movement or privilege escalation. In Entra ID this includes enumerating Azure AD security groups, Microsoft 365 groups, distribution lists, and directory role assignments via the Microsoft Graph API, Azure AD PowerShell module, or the Azure portal. Enumeration of group memberships reveals which users have privileged access, which service principals are granted roles, and which Conditional Access policy exclusion groups exist — all of which inform subsequent attack phases.",
+  "platforms": ["Azure AD", "Office 365", "Entra ID"],
+  "data_sources": ["Microsoft Entra ID Audit Logs", "Azure Active Directory Sign-in Logs"],
+  "sentinel_tables": ["AuditLogs", "SigninLogs"],
+  "iocs": [
+    "High volume of AuditLogs 'List groups' or 'List group members' operations from a single user in a short window",
+    "Graph API calls to /v1.0/groups?$top=999 or /v1.0/directoryRoles appearing in SigninLogs ResourceDisplayName 'Microsoft Graph'",
+    "AADNonInteractiveUserSignInLogs entries with AppDisplayName 'Azure Active Directory PowerShell' or 'MS Graph PowerShell' outside expected admin hours",
+    "A non-admin user account performing AuditLogs operations that are normally restricted to privileged roles",
+    "SigninLogs ResourceDisplayName 'Microsoft Graph' with AuthenticationRequirement 'singleFactorAuthentication' — token replay for enumeration",
+    "Batch Graph API requests enumerating group membership across >50 groups within a 1-minute window",
+    "AuditLogs Operation 'Get group' repeated in sequence across all groups in the directory — indicates automated enumeration script"
+  ],
+  "evasion_variants": [
+    "Use a legitimate privileged account (e.g., compromised helpdesk UPN) so AuditLogs InitiatedBy appears expected for group read operations",
+    "Query groups via Microsoft Graph Explorer in a browser session rather than PowerShell to avoid 'Azure AD PowerShell' AppDisplayName signatures",
+    "Enumerate groups with small page sizes ($top=10) and deliberate delays between requests to avoid volume-based rate-limit or SIEM threshold alerts",
+    "Target only a subset of high-value groups (Global Admins, Exchange Admins, CA exclusion groups) rather than all groups, to minimize log noise",
+    "Perform enumeration immediately after a legitimate helpdesk session where similar read operations are expected, blending with normal audit trail",
+    "Use the SharePoint REST API to enumerate M365 group-connected sites rather than Graph /groups — different ResourceDisplayName, often less monitored"
+  ],
+  "detection_kql_hints": [
+    "AuditLogs | where OperationName in ('List groups','List group members','Get group','List members') | summarize OpCount=count() by InitiatedBy=tostring(InitiatedBy.user.userPrincipalName), bin(TimeGenerated, 5m) | where OpCount > 20",
+    "SigninLogs | where ResourceDisplayName == 'Microsoft Graph' and AppDisplayName in ('Azure Active Directory PowerShell','MS Graph PowerShell','Graph Explorer') | where UserType != 'Member' or TimeGenerated !between (time(08:00:00) .. time(18:00:00))",
+    "AuditLogs | where OperationName == 'List members' | summarize dcount(TargetResources) by InitiatedBy=tostring(InitiatedBy.user.userPrincipalName), bin(TimeGenerated, 10m) | where dcount_ > 30",
+    "Correlate AuditLogs group enumeration events with subsequent AuditLogs 'Add member to group' or 'Add member to role' from the same user — discovery followed by action pattern",
+    "Flag AuditLogs where OperationName contains 'role' and InitiatedBy is not in PIM-eligible admin list: 'List role assignments','Get directoryRole'",
+    "SigninLogs | where ResourceDisplayName == 'Microsoft Graph' | summarize dcount(OperationName) by UserPrincipalName, bin(TimeGenerated, 1m) | where dcount_ > 15 — batch API burst"
+  ]
+}

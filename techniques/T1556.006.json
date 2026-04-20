@@ -1,0 +1,35 @@
+{
+  "technique_id": "T1556.006",
+  "name": "Modify Authentication Process: Multi-Factor Authentication",
+  "tactic": "Credential Access, Defense Evasion, Persistence",
+  "description": "Adversaries may disable, modify, or bypass multi-factor authentication mechanisms to maintain access. In Entra ID / Microsoft 365 environments this manifests as MFA fatigue attacks (repeated push notifications to exhaust a user into approving), MFA method registration from adversary-controlled devices after initial account compromise, Conditional Access policy tampering to exclude attacker-controlled accounts, and SSPR (Self-Service Password Reset) abuse to downgrade authentication strength. Success means subsequent logins complete with AuthenticationRequirement 'singleFactorAuthentication' or with attacker-registered authenticators.",
+  "platforms": ["Azure AD", "Office 365", "Entra ID"],
+  "data_sources": ["Azure Active Directory Sign-in Logs", "Microsoft Entra ID Audit Logs"],
+  "sentinel_tables": ["SigninLogs", "AuditLogs"],
+  "iocs": [
+    "AuditLogs Operation 'Update user' with modified field 'StrongAuthenticationMethod' — MFA method added or removed",
+    "Burst of ResultType 50074 (strong auth required) followed by ResultType 0 within seconds — MFA fatigue approval",
+    "AuditLogs Operation 'Disable Strong Authentication' or changes to per-user MFA state to 'Disabled'",
+    "SigninLogs AuthenticationDetails showing MFA method 'PhoneAppNotification' with approval after >10 push attempts in 5 minutes",
+    "AuditLogs changes to Conditional Access policy excluding a specific user or IP range",
+    "New authenticator app registration (Operation 'Register security info') from an unfamiliar DeviceId or IPAddress",
+    "SSPR flow completion (Operation 'Reset password using mobile app notification') followed by MFA re-registration from new device"
+  ],
+  "evasion_variants": [
+    "Space MFA push notifications 90 seconds apart to avoid volume-based fatigue detection thresholds",
+    "Register the adversary's authenticator during a legitimate helpdesk-assisted MFA reset to blend with expected audit events",
+    "Exploit a Conditional Access exclusion group by adding the compromised account to that group rather than modifying the policy itself",
+    "Use number-matching bypass: socially engineer the user into approving the correct number displayed in the push — leaves no anomalous log field",
+    "Abuse SSPR with a pre-compromised backup email or phone to reset credentials and re-enroll MFA outside business-hours monitoring windows",
+    "Modify Named Location policy to include attacker IP so SigninLogs show ConditionalAccessStatus 'success' rather than 'notApplied'"
+  ],
+  "detection_kql_hints": [
+    "AuditLogs | where OperationName in ('Update user','Disable Strong Authentication','Delete user authentication method') | where TargetResources has 'StrongAuthenticationMethod'",
+    "SigninLogs | where ResultType == 50074 | summarize PushCount=count() by UserPrincipalName, bin(TimeGenerated, 5m) | where PushCount > 8",
+    "Correlate AuditLogs 'Register security info' with SigninLogs IPAddress — flag if registration IP != any prior successful login IP for that user",
+    "AuditLogs | where OperationName == 'Update policy' and TargetResources has 'ConditionalAccess' | project InitiatedBy, TimeGenerated, TargetResources",
+    "Look for AuthenticationRequirement == 'singleFactorAuthentication' on accounts whose prior 30-day baseline shows 'multiFactorAuthentication'",
+    "Flag ResultType 0 following a sequence of ResultType 50074 within the same CorrelationId session — indicates fatigue approval",
+    "AuditLogs | where OperationName == 'Add member to group' and TargetResources has_any (known CA exclusion group ObjectIds)"
+  ]
+}

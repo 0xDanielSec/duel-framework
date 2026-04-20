@@ -1,0 +1,34 @@
+{
+  "technique_id": "T1098.001",
+  "name": "Account Manipulation: Additional Cloud Credentials",
+  "tactic": "Persistence, Privilege Escalation",
+  "description": "Adversaries may add adversary-controlled credentials to cloud accounts and service principals to maintain persistent access without relying on stolen user passwords. In Entra ID, this typically means adding a new client secret or X.509 certificate to an existing app registration or service principal — especially one already granted high-privilege API permissions. Because service principals authenticate non-interactively, these additions do not trigger MFA and are often missed by user-centric alerting. The adversary then authenticates as that service principal using the new credential from infrastructure entirely outside the victim tenant.",
+  "platforms": ["Azure AD", "Entra ID", "Azure"],
+  "data_sources": ["Microsoft Entra ID Audit Logs"],
+  "sentinel_tables": ["AuditLogs"],
+  "iocs": [
+    "AuditLogs Operation 'Add service principal credentials' or 'Update application – Certificates and secrets management'",
+    "New credential added to a service principal that already holds Directory.ReadWrite.All, RoleManagement.ReadWrite.Directory, or similar high-privilege roles",
+    "Credential addition performed by an account that does not normally manage app registrations (e.g., non-admin user with Owner role on the app)",
+    "Very short credential expiry (1–2 days) or very long expiry (2+ years) outside tenant policy norms",
+    "Credential addition immediately followed by SigninLogs entry with ServicePrincipalName and a foreign IPAddress",
+    "AuditLogs Operation 'Add app role assignment to service principal' shortly after credential creation",
+    "Multiple credential additions across different service principals in a short window — lateral movement pattern"
+  ],
+  "evasion_variants": [
+    "Target a dormant, legacy app registration with existing high permissions but no recent audit events — reduces baseline deviation",
+    "Set credential expiry to match the tenant's standard rotation policy (e.g., 12 months) to blend with legitimate secrets",
+    "Use a certificate credential (X.509) rather than a client secret — certificate additions generate different Operation names and are less commonly alerted",
+    "Perform the credential addition from a Global Administrator account that regularly modifies app registrations to avoid InitiatedBy anomalies",
+    "Add credentials to a multi-tenant application where the home tenant is attacker-controlled, making AuditLogs in the victim tenant show only 'Update application' without credential detail",
+    "Use the Microsoft Graph API with a stolen user token (rather than the Azure portal) so the Operation source is logged as 'Microsoft Graph' rather than an admin portal — can evade portal-specific detections"
+  ],
+  "detection_kql_hints": [
+    "AuditLogs | where OperationName in ('Add service principal credentials','Update application – Certificates and secrets management') | extend InitiatorUPN = tostring(InitiatedBy.user.userPrincipalName)",
+    "Join credential-addition events with AADServicePrincipalSignInLogs on ServicePrincipalId to detect usage within 1 hour of creation",
+    "Flag service principals where OperationName == 'Add app role assignment to service principal' and the role name contains 'Write' or 'ReadWrite' within 24h of a credential add",
+    "AuditLogs | where OperationName == 'Add service principal credentials' | mv-expand TargetResources | extend AppId = tostring(TargetResources.id) | lookup high_priv_apps on AppId",
+    "Alert when InitiatedBy.user.userPrincipalName performing credential ops is not in the privileged-identity-management (PIM) eligible role list",
+    "Look for KeyCredentials entries with KeyType == 'AsymmetricX509Cert' added outside change-window hours as a certificate-based persistence signal"
+  ]
+}
