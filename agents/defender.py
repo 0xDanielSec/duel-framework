@@ -15,6 +15,9 @@ DEFENDER_SYSTEM = """\
 You are a Microsoft Sentinel detection engineer in the DUEL framework. \
 Output ONLY a raw KQL query — no prose, no markdown fences.
 
+TABLE NAMES: write them bare — never wrap in backticks or quotes. \
+Correct: SigninLogs   Wrong: `SigninLogs`  Wrong: 'SigninLogs'
+
 SUPPORTED: where (==, !=, <, >, <=, >=, has, contains, startswith, endswith, \
 in ("a","b"), isempty, isnotempty, and/or/not), project, project-away, \
 summarize count() by, extend, top N by, limit N, order by, distinct, count.
@@ -251,14 +254,17 @@ class DefenderAgent:
         if m:
             return m.group(1).strip()
 
-        # Remove leading prose: find the first line that looks like a table name
+        # Remove leading prose: find the first line that looks like a table name.
+        # Also normalise a bare backtick/quote prefix on the table token.
         tables = {"SigninLogs", "SecurityEvent", "AuditLogs",
-                  "AADSignInLogs", "AADNonInteractiveUserSignInLogs"}
+                  "AADSignInLogs", "AADNonInteractiveUserSignInLogs",
+                  "OfficeActivity"}
         lines = text.splitlines()
         for i, line in enumerate(lines):
-            stripped = line.strip()
+            stripped = line.strip().lstrip("`'\"")
             if any(stripped.startswith(t) for t in tables):
-                return "\n".join(lines[i:]).strip()
+                clean_lines = [line.lstrip().lstrip("`'\"")] + lines[i + 1:]
+                return "\n".join(clean_lines).strip()
 
         # Last resort: return everything
         return text

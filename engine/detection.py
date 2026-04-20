@@ -138,7 +138,10 @@ class KQLExecutor:
            pipeline will keep whatever rows survived earlier stages.
         """
         stages = self._split_pipeline(query)
-        primary = stages[0].strip()
+        # Strip leading/trailing backticks and quotes that LLMs sometimes emit
+        # (e.g. `SigninLogs` → SigninLogs) before any table lookup occurs.
+        primary = stages[0].strip().strip("`'\"")
+        stages[0] = primary
 
         # Redirect if primary table is missing
         if primary not in self.tables and self.tables:

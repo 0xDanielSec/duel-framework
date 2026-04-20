@@ -37,3 +37,4 @@ output/*.log
 # OS
 .DS_Store
 Thumbs.db
+ffmpeg.exe
