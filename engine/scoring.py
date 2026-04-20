@@ -122,7 +122,7 @@ class BattleScorer:
             "rounds": self.rounds,
             "surviving_kql_rules": self.surviving_kql,
         }
-        path = OUTPUT_DIR / "full_battle_log.json"
+        path = OUTPUT_DIR / f"full_battle_log_{self.technique_id}.json"
         with open(path, "w", encoding="utf-8") as f:
             json.dump(battle, f, indent=2, default=str)
         return path

@@ -116,9 +116,9 @@ async def coverage():
         except Exception:
             pass
 
-    # Aggregate from full battle log files (have 'technique_id' + 'rounds' list)
+    # Aggregate from per-technique full battle logs only
     battle_data: dict[str, dict] = {}
-    for p in OUTPUT_DIR.glob("*.json"):
+    for p in OUTPUT_DIR.glob("full_battle_log_*.json"):
         try:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
