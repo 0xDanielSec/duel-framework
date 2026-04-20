@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — ATT&CK Coverage Heatmap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ─────────────────────────────────────────────────────── */
+    :root {
+      --bg:     #07090f;
+      --bg2:    #0d1117;
+      --bg3:    #111827;
+      --red:    #ff3c3c;
+      --blue:   #3c8eff;
+      --green:  #00ff88;
+      --yellow: #ffd700;
+      --dim:    #4a5568;
+      --muted:  #718096;
+      --text:   #e2e8f0;
+      --border: #1a2236;
+      --mono:   'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    #header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 10px 24px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--red) 0%, #ff8c42 40%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    #page-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--muted);
+    }
+
+    #back-btn {
+      margin-left: auto;
+      padding: 6px 16px;
+      border: 1px solid #2a3344;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    #back-btn:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    #refresh-btn {
+      padding: 6px 16px;
+      border: 1px solid rgba(255,215,0,0.35);
+      background: rgba(255,215,0,0.05);
+      color: var(--yellow);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.2s;
+    }
+    #refresh-btn:hover {
+      background: rgba(255,215,0,0.12);
+      border-color: var(--yellow);
+    }
+
+    /* ── Summary bar ─────────────────────────────────────────────────────── */
+    #summary {
+      display: flex;
+      gap: 28px;
+      padding: 10px 24px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+    }
+
+    .sum-item { display: flex; flex-direction: column; gap: 2px; }
+    .sum-label { font-size: 9px; letter-spacing: 2px; color: var(--dim); }
+    .sum-val   { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: var(--text); }
+    .sum-val.red    { color: var(--red); }
+    .sum-val.green  { color: var(--green); }
+    .sum-val.yellow { color: var(--yellow); }
+
+    /* ── Legend ──────────────────────────────────────────────────────────── */
+    #legend {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 24px;
+      font-size: 10px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .leg-item { display: flex; align-items: center; gap: 6px; }
+    .leg-swatch {
+      width: 28px; height: 7px;
+      border-radius: 2px;
+    }
+    .leg-swatch.red   { background: #ff3c3c; }
+    .leg-swatch.yel   { background: #ffd700; }
+    .leg-swatch.grn   { background: #00ff88; }
+    .leg-swatch.gray  { background: #2d3748; border: 1px dashed #4a5568; }
+
+    /* ── Grid ────────────────────────────────────────────────────────────── */
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      padding: 20px 16px 32px;
+    }
+
+    .tactic-col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 8px;
+      border-right: 1px solid var(--border);
+    }
+    .tactic-col:last-child { border-right: none; }
+
+    .tactic-header {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--dim);
+      text-transform: uppercase;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2px;
+      text-align: center;
+    }
+
+    /* ── Cards ───────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 10px 11px;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+      position: relative;
+      overflow: hidden;
+      text-decoration: none;
+      display: block;
+      color: inherit;
+    }
+    .card:hover {
+      border-color: var(--blue);
+      box-shadow: 0 0 12px rgba(60,142,255,0.18);
+      transform: translateY(-2px);
+    }
+    .card.untested {
+      border-style: dashed;
+      opacity: 0.55;
+    }
+    .card.untested:hover {
+      opacity: 0.85;
+      border-color: var(--dim);
+      box-shadow: none;
+    }
+
+    .card-id {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--blue);
+      margin-bottom: 3px;
+    }
+    .card.untested .card-id { color: var(--dim); }
+
+    .card-name {
+      font-size: 10px;
+      line-height: 1.4;
+      color: var(--muted);
+      margin-bottom: 8px;
+      min-height: 28px;
+    }
+
+    /* Evasion bar */
+    .bar-track {
+      height: 5px;
+      background: #1a2236;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 5px;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .card-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--dim);
+    }
+
+    .card-badge {
+      position: absolute;
+      top: 7px;
+      right: 8px;
+      font-size: 8px;
+      letter-spacing: 1px;
+      padding: 1px 5px;
+      border-radius: 2px;
+    }
+    .badge-tested {
+      background: rgba(0,255,136,0.08);
+      border: 1px solid rgba(0,255,136,0.3);
+      color: var(--green);
+    }
+    .badge-untested {
+      background: rgba(74,85,104,0.3);
+      border: 1px solid var(--dim);
+      color: var(--dim);
+    }
+
+    /* ── Loading / error states ──────────────────────────────────────────── */
+    #loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      height: 200px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 2px;
+    }
+
+    .spin {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--dim);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: rot 0.8s linear infinite;
+    }
+    @keyframes rot { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────────────────────────── -->
+<div id="header">
+  <a href="/" id="logo">⚔ DUEL</a>
+  <div id="page-title">COVERAGE HEATMAP</div>
+  <button id="refresh-btn" onclick="load()">&#8635; REFRESH</button>
+  <a href="/" id="back-btn">&#8592; BACK TO BATTLE</a>
+</div>
+
+<!-- ── Summary bar ──────────────────────────────────────────────────────────── -->
+<div id="summary">
+  <div class="sum-item">
+    <span class="sum-label">TECHNIQUES</span>
+    <span class="sum-val" id="s-total">—</span>
+  </div>
+  <div class="sum-item">
+    <span class="sum-label">TESTED</span>
+    <span class="sum-val yellow" id="s-tested">—</span>
+  </div>
+  <div class="sum-item">
+    <span class="sum-label">TOTAL BATTLES</span>
+    <span class="sum-val" id="s-battles">—</span>
+  </div>
+  <div class="sum-item">
+    <span class="sum-label">TOTAL ROUNDS</span>
+    <span class="sum-val" id="s-rounds">—</span>
+  </div>
+  <div class="sum-item">
+    <span class="sum-label">AVG EVASION RATE</span>
+    <span class="sum-val red" id="s-evasion">—</span>
+  </div>
+  <div class="sum-item">
+    <span class="sum-label">AVG DETECTION RATE</span>
+    <span class="sum-val green" id="s-detection">—</span>
+  </div>
+</div>
+
+<!-- ── Legend ───────────────────────────────────────────────────────────────── -->
+<div id="legend">
+  <span style="letter-spacing:2px;font-size:9px;color:var(--dim)">EVASION RATE</span>
+  <div class="leg-item"><div class="leg-swatch grn"></div>0% evaded</div>
+  <div class="leg-item"><div class="leg-swatch yel"></div>50% evaded</div>
+  <div class="leg-item"><div class="leg-swatch red"></div>100% evaded</div>
+  <div class="leg-item"><div class="leg-swatch gray"></div>not tested</div>
+</div>
+
+<!-- ── Grid ─────────────────────────────────────────────────────────────────── -->
+<div id="loading"><div class="spin"></div> LOADING COVERAGE DATA…</div>
+<div id="grid" style="display:none"></div>
+
+<script>
+'use strict';
+
+const TACTICS = [
+  'Initial Access',
+  'Credential Access',
+  'Persistence',
+  'Discovery',
+  'Collection',
+];
+
+// Map each technique to the primary display tactic.
+// Rules: first matching tactic in the TACTICS list wins.
+function primaryTactic(tacticStr) {
+  for (const t of TACTICS) {
+    if (tacticStr.includes(t)) return t;
+  }
+  return TACTICS[0];
+}
+
+function evasionColor(rate) {
+  // 0.0 = green (#00ff88), 0.5 = yellow (#ffd700), 1.0 = red (#ff3c3c)
+  const h = Math.round((1 - rate) * 120);   // 120=green, 60=yellow, 0=red
+  return `hsl(${h}, 100%, 55%)`;
+}
+
+function pct(v) {
+  return v == null ? '—' : (v * 100).toFixed(0) + '%';
+}
+
+function buildCard(tid, data) {
+  const tested = data.battles > 0;
+  const href = `/?technique=${encodeURIComponent(tid)}`;
+
+  const card = document.createElement('a');
+  card.className = 'card' + (tested ? '' : ' untested');
+  card.href = href;
+  card.title = tested
+    ? `${data.battles} battle(s) · ${data.total_rounds} rounds`
+    : 'No battle data yet — click to run';
+
+  const badge = document.createElement('div');
+  badge.className = 'card-badge ' + (tested ? 'badge-tested' : 'badge-untested');
+  badge.textContent = tested ? `×${data.battles}` : 'NEW';
+
+  const id_el = document.createElement('div');
+  id_el.className = 'card-id';
+  id_el.textContent = tid;
+
+  const name_el = document.createElement('div');
+  name_el.className = 'card-name';
+  name_el.textContent = data.name;
+
+  const track = document.createElement('div');
+  track.className = 'bar-track';
+
+  const fill = document.createElement('div');
+  fill.className = 'bar-fill';
+  if (tested) {
+    const ev = data.avg_evasion_rate;
+    fill.style.width = (ev * 100).toFixed(1) + '%';
+    fill.style.background = evasionColor(ev);
+  } else {
+    fill.style.width = '0%';
+    fill.style.background = '#2d3748';
+  }
+  track.appendChild(fill);
+
+  const stats = document.createElement('div');
+  stats.className = 'card-stats';
+  stats.innerHTML = tested
+    ? `<span>EVA ${pct(data.avg_evasion_rate)}</span><span>DET ${pct(data.avg_detection_rate)}</span><span>${data.total_rounds}r</span>`
+    : `<span>NOT TESTED</span>`;
+
+  card.append(badge, id_el, name_el, track, stats);
+  return card;
+}
+
+async function load() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('grid').style.display = 'none';
+
+  let data;
+  try {
+    const resp = await fetch('/coverage');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    data = await resp.json();
+  } catch (e) {
+    document.getElementById('loading').innerHTML =
+      `<span style="color:var(--red)">Failed to load coverage data: ${e.message}</span>`;
+    return;
+  }
+
+  // Summary stats
+  const tids = Object.keys(data);
+  const tested = tids.filter(t => data[t].battles > 0);
+  const totalBattles = tested.reduce((a, t) => a + data[t].battles, 0);
+  const totalRounds  = tested.reduce((a, t) => a + data[t].total_rounds, 0);
+  const evRates = tested.map(t => data[t].avg_evasion_rate).filter(v => v != null);
+  const detRates = tested.map(t => data[t].avg_detection_rate).filter(v => v != null);
+  const avgEv  = evRates.length  ? evRates.reduce((a,b)=>a+b,0)/evRates.length   : null;
+  const avgDet = detRates.length ? detRates.reduce((a,b)=>a+b,0)/detRates.length : null;
+
+  document.getElementById('s-total').textContent    = tids.length;
+  document.getElementById('s-tested').textContent   = tested.length;
+  document.getElementById('s-battles').textContent  = totalBattles;
+  document.getElementById('s-rounds').textContent   = totalRounds;
+  document.getElementById('s-evasion').textContent  = pct(avgEv);
+  document.getElementById('s-detection').textContent = pct(avgDet);
+
+  // Build tactic columns
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  // Group techniques by display tactic
+  const byTactic = {};
+  TACTICS.forEach(t => { byTactic[t] = []; });
+  for (const [tid, d] of Object.entries(data)) {
+    const tac = primaryTactic(d.tactic);
+    if (byTactic[tac]) byTactic[tac].push([tid, d]);
+    else byTactic[TACTICS[0]].push([tid, d]);
+  }
+
+  // Sort each column: tested first (by evasion rate desc), untested last
+  for (const tac of TACTICS) {
+    byTactic[tac].sort(([, a], [, b]) => {
+      if (a.battles > 0 && b.battles === 0) return -1;
+      if (a.battles === 0 && b.battles > 0) return 1;
+      if (a.battles > 0 && b.battles > 0) return b.avg_evasion_rate - a.avg_evasion_rate;
+      return 0;
+    });
+  }
+
+  for (const tac of TACTICS) {
+    const col = document.createElement('div');
+    col.className = 'tactic-col';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'tactic-header';
+    hdr.textContent = tac;
+    col.appendChild(hdr);
+
+    for (const [tid, d] of byTactic[tac]) {
+      col.appendChild(buildCard(tid, d));
+    }
+
+    if (byTactic[tac].length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:10px;color:var(--dim);text-align:center;padding:20px 0;font-style:italic';
+      empty.textContent = 'no techniques';
+      col.appendChild(empty);
+    }
+
+    grid.appendChild(col);
+  }
+
+  // Animate bars after paint
+  requestAnimationFrame(() => {
+    document.getElementById('loading').style.display = 'none';
+    grid.style.display = 'grid';
+  });
+}
+
+load();
+</script>
+</body>
+</html>

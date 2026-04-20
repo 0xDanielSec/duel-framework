@@ -198,6 +198,28 @@
     }
     #start-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+    #heatmap-btn {
+      padding: 7px 16px;
+      border: 1px solid rgba(255,215,0,0.4);
+      background: rgba(255,215,0,0.06);
+      color: var(--yellow);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.2s;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    #heatmap-btn:hover {
+      background: rgba(255,215,0,0.14);
+      border-color: var(--yellow);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(255,215,0,0.25);
+    }
+
     /* ── Main grid ───────────────────────────────────────────────────────── */
     #main {
       flex: 1;
@@ -494,6 +516,7 @@
   </div>
 
   <button id="start-btn" onclick="startBattle()">&#9654; START BATTLE</button>
+  <a href="/heatmap" id="heatmap-btn">&#9632; VIEW HEATMAP</a>
 </div>
 
 <!-- ── Main ────────────────────────────────────────────────────────────────── -->
@@ -567,6 +590,16 @@
 <!-- ── Script ───────────────────────────────────────────────────────────────── -->
 <script>
 'use strict';
+
+/* ── Pre-select technique from URL param (?technique=T1528) ─────────────────── */
+(function () {
+  const p = new URLSearchParams(window.location.search).get('technique');
+  if (p) {
+    const sel = document.getElementById('sel-technique');
+    const opt = [...sel.options].find(o => o.value === p);
+    if (opt) sel.value = p;
+  }
+})();
 
 /* ── State ─────────────────────────────────────────────────────────────────── */
 let ws = null;

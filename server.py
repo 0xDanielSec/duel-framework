@@ -24,7 +24,8 @@ from engine.detection import DetectionEngine
 from engine.scoring import BattleScorer
 
 TECHNIQUES_DIR = Path(__file__).parent / "techniques"
-STATIC_DIR = Path(__file__).parent / "static"
+STATIC_DIR    = Path(__file__).parent / "static"
+OUTPUT_DIR    = Path(__file__).parent / "output"
 
 app = FastAPI(title="DUEL")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -95,6 +96,59 @@ async def _in_thread(fn, *args, **kwargs):
 @app.get("/")
 async def root():
     return FileResponse(str(STATIC_DIR / "index.html"))
+
+
+@app.get("/heatmap")
+async def heatmap():
+    return FileResponse(str(STATIC_DIR / "heatmap.html"))
+
+
+@app.get("/coverage")
+async def coverage():
+    """Aggregate all full battle logs in /output and return per-technique stats."""
+    # Load technique metadata
+    tech_meta: dict[str, dict] = {}
+    for p in TECHNIQUES_DIR.glob("*.json"):
+        try:
+            with open(p, encoding="utf-8") as f:
+                t = json.load(f)
+            tech_meta[t["technique_id"]] = t
+        except Exception:
+            pass
+
+    # Aggregate from full battle log files (have 'technique_id' + 'rounds' list)
+    battle_data: dict[str, dict] = {}
+    for p in OUTPUT_DIR.glob("*.json"):
+        try:
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f)
+        except Exception:
+            continue
+        if "technique_id" not in d or not isinstance(d.get("rounds"), list):
+            continue
+        tid = d["technique_id"]
+        if tid not in battle_data:
+            battle_data[tid] = {"battles": 0, "sum_evasion": 0.0, "sum_detection": 0.0, "total_rounds": 0}
+        bd = battle_data[tid]
+        bd["battles"] += 1
+        for r in d["rounds"]:
+            bd["total_rounds"] += 1
+            bd["sum_evasion"]   += float(r.get("evasion_rate", 0.0))
+            bd["sum_detection"] += float(r.get("detection_rate", 0.0))
+
+    result: dict[str, dict] = {}
+    for tid, t in tech_meta.items():
+        bd = battle_data.get(tid)
+        n  = bd["total_rounds"] if bd else 0
+        result[tid] = {
+            "name":               t["name"],
+            "tactic":             t["tactic"],
+            "battles":            bd["battles"] if bd else 0,
+            "avg_evasion_rate":   round(bd["sum_evasion"]   / n, 4) if n else None,
+            "avg_detection_rate": round(bd["sum_detection"] / n, 4) if n else None,
+            "total_rounds":       n,
+        }
+    return JSONResponse(result)
 
 
 @app.get("/techniques")
