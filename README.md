@@ -298,6 +298,12 @@ SigninLogs
 |----|------|--------------|--------|
 | [T1078.004](https://attack.mitre.org/techniques/T1078/004/) | Valid Accounts: Cloud Accounts | `SigninLogs` | Included |
 | [T1110.003](https://attack.mitre.org/techniques/T1110/003/) | Brute Force: Password Spraying | `SigninLogs` | Included |
+| [T1528](https://attack.mitre.org/techniques/T1528/) | Steal Application Access Token | `SigninLogs`, `AuditLogs` | Included |
+| [T1556.006](https://attack.mitre.org/techniques/T1556/006/) | Modify Authentication Process: MFA | `SigninLogs`, `AuditLogs` | Included |
+| [T1098.001](https://attack.mitre.org/techniques/T1098/001/) | Account Manipulation: Additional Cloud Credentials | `AuditLogs` | Included |
+| [T1136.003](https://attack.mitre.org/techniques/T1136/003/) | Create Account: Cloud Account | `AuditLogs` | Included |
+| [T1069.003](https://attack.mitre.org/techniques/T1069/003/) | Permission Groups Discovery: Cloud Groups | `AuditLogs`, `SigninLogs` | Included |
+| [T1114.002](https://attack.mitre.org/techniques/T1114/002/) | Email Collection: Remote Email Collection | `OfficeActivity` | Included |
 
 ### Adding a New Technique
 
