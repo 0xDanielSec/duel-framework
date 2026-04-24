@@ -22,6 +22,7 @@ from agents.attacker import AttackerAgent
 from agents.defender import DefenderAgent
 from engine.detection import DetectionEngine
 from engine.scoring import BattleScorer
+from engine.tournament_scorer import TournamentScorer
 
 TECHNIQUES_DIR = Path(__file__).parent / "techniques"
 STATIC_DIR    = Path(__file__).parent / "static"
@@ -101,6 +102,11 @@ async def root():
 @app.get("/heatmap")
 async def heatmap():
     return FileResponse(str(STATIC_DIR / "heatmap.html"))
+
+
+@app.get("/tournament")
+async def tournament():
+    return FileResponse(str(STATIC_DIR / "tournament.html"))
 
 
 @app.get("/coverage")
@@ -311,6 +317,155 @@ async def ws_battle(websocket: WebSocket):
             "final_attacker": scorer.attacker_score,
             "final_defender": scorer.defender_score,
         })
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as exc:
+        try:
+            await send({"type": "error", "message": str(exc)})
+        except Exception:
+            pass
+
+
+# ── WebSocket tournament loop ────────────────────────────────────────────────
+
+
+@app.websocket("/ws/tournament")
+async def ws_tournament(websocket: WebSocket):
+    await websocket.accept()
+
+    async def send(payload: dict):
+        await websocket.send_text(json.dumps(payload, default=str))
+
+    try:
+        cfg = await websocket.receive_json()
+        technique_id: str  = cfg.get("technique", "T1078.004")
+        rounds: int        = max(1, int(cfg.get("rounds", 3)))
+        logs_per_round: int = max(5, int(cfg.get("logs_per_round", 10)))
+        attacker_model: str = cfg.get("attacker_model", "llama3.1:8b")
+        raw_defenders: str  = cfg.get("defenders", "mistral:7b")
+        defenders: list[str] = [m.strip() for m in raw_defenders.split(",") if m.strip()]
+
+        if not defenders:
+            await send({"type": "error", "message": "No defender models specified."})
+            return
+
+        try:
+            technique = await _in_thread(_load_technique, technique_id)
+        except FileNotFoundError:
+            await send({"type": "error", "message": f"Technique {technique_id} not found."})
+            return
+
+        Path("output").mkdir(exist_ok=True)
+        await send({
+            "type": "tournament_start",
+            "technique": technique_id,
+            "rounds": rounds,
+            "defenders": defenders,
+        })
+
+        # ── Phase 1: pre-generate attack logs (identical for all defenders) ──
+        attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
+        all_attack_logs: dict[int, list[dict]] = {}
+
+        for round_num in range(1, rounds + 1):
+            await send({"type": "attack_phase_start", "round": round_num, "total_rounds": rounds})
+            try:
+                logs = await _in_thread(
+                    attacker.generate_logs,
+                    technique=technique,
+                    round_num=round_num,
+                    total_rounds=rounds,
+                    last_kql=None,
+                    detected_logs=[],
+                    evaded_logs=[],
+                )
+                all_attack_logs[round_num] = logs
+            except Exception as exc:
+                await send({"type": "error", "message": f"Attacker error round {round_num}: {exc}"})
+                return
+            await send({"type": "attack_phase_done", "round": round_num, "log_count": len(logs)})
+
+        # ── Phase 2: run each defender ────────────────────────────────────────
+        defender_results: dict[str, dict] = {}
+
+        for defender_model in defenders:
+            await send({"type": "defender_battle_start", "defender": defender_model})
+            defender_agent = DefenderAgent(model=defender_model)
+            scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id)
+
+            for round_num in range(1, rounds + 1):
+                attack_logs = all_attack_logs[round_num]
+                await send({
+                    "type": "defender_round_start",
+                    "defender": defender_model,
+                    "round": round_num,
+                    "total_rounds": rounds,
+                })
+
+                try:
+                    kql_rule = await _in_thread(
+                        defender_agent.generate_rule,
+                        technique=technique,
+                        round_num=round_num,
+                        total_rounds=rounds,
+                        attack_logs=attack_logs,
+                        detected_logs=scorer.get_last_detected_logs(),
+                        evaded_logs=scorer.get_last_evaded_logs(),
+                    )
+                except Exception as exc:
+                    kql_rule = "SigninLogs | where ResultType != 0"
+                    await send({
+                        "type": "error",
+                        "message": f"Defender {defender_model} fallback round {round_num}: {exc}",
+                    })
+
+                engine_inst = DetectionEngine(attack_logs)
+                det_result = engine_inst.run(kql_rule)
+
+                record = scorer.record_round(
+                    round_num=round_num,
+                    attack_logs=attack_logs,
+                    kql_rule=kql_rule,
+                    detected_ids=det_result["detected_ids"],
+                    kql_valid=det_result["kql_valid"],
+                )
+
+                await send({
+                    "type": "defender_round_done",
+                    "defender": defender_model,
+                    "round": round_num,
+                    "kql": kql_rule,
+                    "detection_rate": record["detection_rate"],
+                    "evasion_rate": record["evasion_rate"],
+                    "detected": record["detected_count"],
+                    "evaded": record["evaded_count"],
+                    "kql_valid": det_result["kql_valid"],
+                })
+
+            defender_results[defender_model] = {
+                "rounds": scorer.rounds,
+                "attacker_score": scorer.attacker_score,
+                "defender_score": scorer.defender_score,
+                "surviving_kql": scorer.surviving_kql,
+            }
+            avg_det = scorer.defender_score / sum(
+                len(all_attack_logs[r]) for r in range(1, rounds + 1)
+            ) if rounds else 0.0
+            await send({
+                "type": "defender_battle_done",
+                "defender": defender_model,
+                "defender_score": scorer.defender_score,
+                "attacker_score": scorer.attacker_score,
+            })
+
+        # ── Phase 3: rank and emit results ────────────────────────────────────
+        ts = TournamentScorer(technique_id=technique_id, defender_results=defender_results)
+        rankings = ts.rank()
+        ts.save(all_attack_logs)
+        ts.generate_report(rankings)
+
+        await send({"type": "tournament_complete", "rankings": rankings})
 
     except WebSocketDisconnect:
         pass

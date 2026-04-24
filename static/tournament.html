@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — Tournament Mode</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ─────────────────────────────────────────────────────── */
+    :root {
+      --bg:      #07090f;
+      --bg2:     #0d1117;
+      --bg3:     #111827;
+      --red:     #ff3c3c;
+      --blue:    #3c8eff;
+      --green:   #00ff88;
+      --yellow:  #ffd700;
+      --gold:    #ffaa00;
+      --silver:  #c0c0c0;
+      --bronze:  #cd7f32;
+      --dim:     #4a5568;
+      --muted:   #718096;
+      --text:    #e2e8f0;
+      --border:  #1a2236;
+      --mono:    'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    body { display: flex; flex-direction: column; overflow: hidden; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--yellow) 0%, var(--gold) 40%, var(--red) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+    }
+
+    #mode-badge {
+      padding: 2px 10px;
+      border: 1px solid rgba(255, 215, 0, 0.5);
+      background: rgba(255, 215, 0, 0.08);
+      border-radius: 3px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--yellow);
+      white-space: nowrap;
+    }
+
+    #nav-links {
+      margin-left: auto;
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+    }
+
+    #nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    #nav-links a:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── Layout ─────────────────────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      grid-template-rows: 1fr;
+      overflow: hidden;
+    }
+
+    /* ── Left panel: config + feed ──────────────────────────────────────── */
+    #left-panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    /* ── Config ─────────────────────────────────────────────────────────── */
+    #config {
+      flex-shrink: 0;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+
+    #config h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: var(--yellow);
+      margin-bottom: 10px;
+    }
+
+    .field { margin-bottom: 8px; }
+    .field label {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .field input, .field select {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 5px 8px;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .field input:focus, .field select:focus {
+      border-color: var(--yellow);
+    }
+
+    #start-btn {
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px;
+      background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,170,0,0.1));
+      border: 1px solid rgba(255, 215, 0, 0.5);
+      color: var(--yellow);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    #start-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,170,0,0.18));
+    }
+
+    #start-btn:active:not(:disabled) { transform: scale(0.98); }
+    #start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Live feed ──────────────────────────────────────────────────────── */
+    #feed-wrap {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #feed-header {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+
+    #feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .feed-line { margin-bottom: 2px; }
+    .feed-line.info  { color: var(--muted); }
+    .feed-line.atk   { color: var(--red); }
+    .feed-line.def   { color: var(--blue); }
+    .feed-line.ok    { color: var(--green); }
+    .feed-line.warn  { color: var(--yellow); }
+    .feed-line.rule  { color: #7dd3fc; font-size: 10px; padding-left: 12px; }
+    .feed-line.done  { color: var(--gold); }
+
+    /* ── Right panel: leaderboard + charts ──────────────────────────────── */
+    #right-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #right-top {
+      flex-shrink: 0;
+      padding: 14px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #right-top h2 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px;
+      letter-spacing: 3px;
+      color: var(--yellow);
+      margin-bottom: 2px;
+    }
+
+    #technique-label {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    /* ── Leaderboard ────────────────────────────────────────────────────── */
+    #leaderboard-wrap {
+      flex-shrink: 0;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    #leaderboard-wrap h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    #leaderboard {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    #leaderboard th {
+      text-align: left;
+      padding: 4px 8px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #leaderboard td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(26, 34, 54, 0.6);
+      vertical-align: middle;
+    }
+
+    #leaderboard tr.rank-1 td { background: rgba(0, 255, 136, 0.05); }
+    #leaderboard tr.rank-last td { background: rgba(255, 60, 60, 0.05); }
+
+    .rank-medal {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .model-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .stat-cell { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .bar-inline {
+      display: inline-block;
+      height: 8px;
+      border-radius: 2px;
+      vertical-align: middle;
+      transition: width 0.4s ease;
+    }
+
+    /* ── Charts section ─────────────────────────────────────────────────── */
+    #charts-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 20px;
+    }
+
+    #charts-wrap h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    #charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .model-chart {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+    }
+
+    .chart-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chart-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+      font-size: 11px;
+    }
+
+    .chart-label {
+      width: 52px;
+      flex-shrink: 0;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .chart-bar-bg {
+      flex: 1;
+      height: 14px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .chart-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+
+    .chart-pct {
+      width: 36px;
+      text-align: right;
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    .chart-status {
+      width: 12px;
+      flex-shrink: 0;
+      text-align: center;
+      font-size: 10px;
+    }
+
+    /* ── Status bar ─────────────────────────────────────────────────────── */
+    #status-bar {
+      flex-shrink: 0;
+      padding: 5px 20px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--dim);
+      flex-shrink: 0;
+    }
+
+    #status-dot.active { background: var(--green); animation: pulse 1s infinite; }
+    #status-dot.done   { background: var(--yellow); animation: none; }
+    #status-dot.error  { background: var(--red); animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* ── Placeholder ────────────────────────────────────────────────────── */
+    .placeholder {
+      color: var(--dim);
+      font-size: 12px;
+      padding: 20px 0;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<div id="header">
+  <div id="logo">DUEL</div>
+  <div id="mode-badge">TOURNAMENT</div>
+  <div id="nav-links">
+    <a href="/">⚔ BATTLE</a>
+    <a href="/heatmap">◈ HEATMAP</a>
+  </div>
+</div>
+
+<!-- ── Main ───────────────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- Left: config + feed -->
+  <div id="left-panel">
+    <div id="config">
+      <h3>TOURNAMENT CONFIG</h3>
+
+      <div class="field">
+        <label>TECHNIQUE</label>
+        <select id="cfg-technique"></select>
+      </div>
+
+      <div class="field">
+        <label>ROUNDS</label>
+        <input id="cfg-rounds" type="number" value="3" min="1" max="20" />
+      </div>
+
+      <div class="field">
+        <label>LOGS PER ROUND</label>
+        <input id="cfg-logs" type="number" value="10" min="5" max="50" />
+      </div>
+
+      <div class="field">
+        <label>ATTACKER MODEL</label>
+        <input id="cfg-attacker" type="text" value="llama3.1:8b" />
+      </div>
+
+      <div class="field">
+        <label>DEFENDERS (comma-separated)</label>
+        <input id="cfg-defenders" type="text" value="mistral:7b,llama3.1:8b" />
+      </div>
+
+      <button id="start-btn" onclick="startTournament()">▶ RUN TOURNAMENT</button>
+    </div>
+
+    <div id="feed-wrap">
+      <div id="feed-header">LIVE FEED</div>
+      <div id="feed">
+        <div class="feed-line info">Configure tournament above and click Run.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: leaderboard + charts -->
+  <div id="right-panel">
+    <div id="right-top">
+      <h2>LEADERBOARD</h2>
+      <div id="technique-label">No tournament run yet</div>
+    </div>
+
+    <div id="leaderboard-wrap">
+      <h3>DEFENDER RANKINGS</h3>
+      <div id="leaderboard-container">
+        <div class="placeholder">— awaiting tournament —</div>
+      </div>
+    </div>
+
+    <div id="charts-wrap">
+      <h3>DETECTION RATE PER ROUND</h3>
+      <div id="charts-grid">
+        <div class="placeholder">— awaiting tournament —</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Status bar ─────────────────────────────────────────────────────── -->
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <span id="status-text">idle</span>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────
+  let ws = null;
+  let liveData = {};   // model → {rounds: [{round, detection_rate, evasion_rate, kql_valid}]}
+  let numRounds = 3;
+
+  // ── Bootstrap: load techniques ─────────────────────────────────────────
+  fetch('/techniques').then(r => r.json()).then(techs => {
+    const sel = document.getElementById('cfg-technique');
+    techs.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      if (t === 'T1078.004') opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+
+  // ── Feed helpers ────────────────────────────────────────────────────────
+  function feedLine(text, cls = 'info') {
+    const feed = document.getElementById('feed');
+    const d = document.createElement('div');
+    d.className = `feed-line ${cls}`;
+    d.textContent = text;
+    feed.appendChild(d);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  function feedClear() {
+    document.getElementById('feed').innerHTML = '';
+  }
+
+  function setStatus(state, text) {
+    const dot = document.getElementById('status-dot');
+    dot.className = '';
+    if (state) dot.classList.add(state);
+    document.getElementById('status-text').textContent = text;
+  }
+
+  // ── Chart colour by detection rate ─────────────────────────────────────
+  function rateColour(rate) {
+    if (rate >= 0.7) return 'var(--green)';
+    if (rate >= 0.4) return 'var(--yellow)';
+    return 'var(--red)';
+  }
+
+  function medalFor(rank, total) {
+    if (rank === 1)     return { sym: '🥇', col: 'var(--green)' };
+    if (rank === 2)     return { sym: '🥈', col: 'var(--silver)' };
+    if (rank === 3)     return { sym: '🥉', col: 'var(--bronze)' };
+    if (rank === total) return { sym: `#${rank}`, col: 'var(--red)' };
+    return { sym: `#${rank}`, col: 'var(--muted)' };
+  }
+
+  // ── Render leaderboard ──────────────────────────────────────────────────
+  function renderLeaderboard(rankings) {
+    const container = document.getElementById('leaderboard-container');
+    const total = rankings.length;
+
+    let html = `
+      <table id="leaderboard">
+        <thead>
+          <tr>
+            <th>RANK</th>
+            <th>MODEL</th>
+            <th style="text-align:right">AVG DET</th>
+            <th style="text-align:right">AVG EVA</th>
+            <th style="text-align:right">CONSIST.</th>
+            <th style="text-align:right">KQL</th>
+            <th style="text-align:right">BEST</th>
+            <th style="text-align:right">WORST</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+    rankings.forEach((e, i) => {
+      const { sym, col } = medalFor(e.rank, total);
+      const rowClass = e.rank === 1 ? 'rank-1' : (e.rank === total ? 'rank-last' : '');
+      const detPct = Math.round(e.avg_detection_rate * 100);
+      const evaPct = Math.round(e.avg_evasion_rate * 100);
+
+      html += `
+          <tr class="${rowClass}">
+            <td><span class="rank-medal" style="color:${col}">${sym}</span></td>
+            <td><span class="model-name" style="color:${col}">${e.model}</span></td>
+            <td class="stat-cell">
+              <span style="color:${rateColour(e.avg_detection_rate)}">${detPct}%</span>
+              <span class="bar-inline" style="width:${detPct * 0.5}px;background:${rateColour(e.avg_detection_rate)};margin-left:4px"></span>
+            </td>
+            <td class="stat-cell" style="color:var(--muted)">${evaPct}%</td>
+            <td class="stat-cell" style="color:var(--muted)">${e.consistency.toFixed(3)}</td>
+            <td class="stat-cell" style="color:var(--blue)">${e.kql_complexity_score}</td>
+            <td class="stat-cell" style="color:var(--green)">R${e.best_round}</td>
+            <td class="stat-cell" style="color:var(--red)">R${e.worst_round}</td>
+          </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+  }
+
+  // ── Render/update live charts ───────────────────────────────────────────
+  function renderCharts() {
+    const grid = document.getElementById('charts-grid');
+    grid.innerHTML = '';
+
+    Object.entries(liveData).forEach(([model, data]) => {
+      const card = document.createElement('div');
+      card.className = 'model-chart';
+      card.id = `chart-${CSS.escape(model)}`;
+
+      let rows = '';
+      for (let r = 1; r <= numRounds; r++) {
+        const rd = data.rounds.find(x => x.round === r);
+        const pct = rd ? Math.round(rd.detection_rate * 100) : null;
+        const valid = rd ? rd.kql_valid : true;
+        const col = pct !== null ? rateColour(rd.detection_rate) : 'var(--dim)';
+        const fill = pct !== null ? pct : 0;
+        const label = pct !== null ? `${pct}%` : '—';
+        const status = pct === null ? '' : (valid ? '' : '✗');
+
+        rows += `
+          <div class="chart-row">
+            <div class="chart-label">RND ${r}</div>
+            <div class="chart-bar-bg">
+              <div class="chart-bar-fill" style="width:${fill}%;background:${col}"></div>
+            </div>
+            <div class="chart-pct" style="color:${col}">${label}</div>
+            <div class="chart-status" style="color:var(--red)">${status}</div>
+          </div>`;
+      }
+
+      card.innerHTML = `<div class="chart-title" style="color:var(--blue)">${model}</div>${rows}`;
+      grid.appendChild(card);
+    });
+  }
+
+  function updateChartForModel(model, round, detectionRate, kqlValid) {
+    if (!liveData[model]) liveData[model] = { rounds: [] };
+    const existing = liveData[model].rounds.findIndex(x => x.round === round);
+    const entry = { round, detection_rate: detectionRate, evasion_rate: 1 - detectionRate, kql_valid: kqlValid };
+    if (existing >= 0) liveData[model].rounds[existing] = entry;
+    else liveData[model].rounds.push(entry);
+    renderCharts();
+  }
+
+  // ── WebSocket tournament ────────────────────────────────────────────────
+  function startTournament() {
+    if (ws && ws.readyState === WebSocket.OPEN) return;
+
+    const technique   = document.getElementById('cfg-technique').value;
+    const rounds      = parseInt(document.getElementById('cfg-rounds').value) || 3;
+    const logs        = parseInt(document.getElementById('cfg-logs').value) || 10;
+    const attacker    = document.getElementById('cfg-attacker').value.trim() || 'llama3.1:8b';
+    const defenders   = document.getElementById('cfg-defenders').value.trim();
+
+    numRounds = rounds;
+    liveData = {};
+
+    feedClear();
+    document.getElementById('leaderboard-container').innerHTML = '<div class="placeholder">— running —</div>';
+    document.getElementById('charts-grid').innerHTML = '<div class="placeholder">— generating attack telemetry —</div>';
+    document.getElementById('technique-label').textContent = `${technique}  |  ${rounds} rounds  |  ${defenders}`;
+
+    const btn = document.getElementById('start-btn');
+    btn.disabled = true;
+    setStatus('active', 'connecting…');
+
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws/tournament`);
+
+    ws.onopen = () => {
+      setStatus('active', 'connected — starting tournament');
+      ws.send(JSON.stringify({
+        technique, rounds, logs_per_round: logs,
+        attacker_model: attacker, defenders,
+      }));
+    };
+
+    ws.onmessage = (evt) => {
+      const msg = JSON.parse(evt.data);
+      handleMessage(msg);
+    };
+
+    ws.onerror = () => {
+      feedLine('WebSocket error.', 'warn');
+      setStatus('error', 'connection error');
+      btn.disabled = false;
+    };
+
+    ws.onclose = () => {
+      if (btn.disabled) {
+        btn.disabled = false;
+        setStatus('done', 'done');
+      }
+    };
+  }
+
+  function handleMessage(msg) {
+    const btn = document.getElementById('start-btn');
+
+    switch (msg.type) {
+
+      case 'tournament_start':
+        feedLine(`[ TOURNAMENT ] ${msg.technique} · ${msg.rounds} rounds · ${msg.defenders.length} defenders`, 'done');
+        feedLine(`  Defenders: ${msg.defenders.join(' | ')}`, 'info');
+        // Pre-initialise charts
+        msg.defenders.forEach(m => { liveData[m] = { rounds: [] }; });
+        renderCharts();
+        break;
+
+      case 'attack_phase_start':
+        feedLine(`[ ATTACK ] Round ${msg.round}/${msg.total_rounds} — generating telemetry…`, 'atk');
+        setStatus('active', `attack telemetry round ${msg.round}/${msg.total_rounds}`);
+        break;
+
+      case 'attack_phase_done':
+        feedLine(`  ✓ ${msg.log_count} logs generated for round ${msg.round}`, 'info');
+        break;
+
+      case 'defender_battle_start':
+        feedLine(``, 'info');
+        feedLine(`[ DEFENDER ] ${msg.defender}`, 'def');
+        setStatus('active', `${msg.defender} — battle starting`);
+        break;
+
+      case 'defender_round_start':
+        feedLine(`  Round ${msg.round}/${msg.total_rounds} — KQL generating…`, 'def');
+        setStatus('active', `${msg.defender} round ${msg.round}/${msg.total_rounds}`);
+        break;
+
+      case 'defender_round_done': {
+        const pct = Math.round(msg.detection_rate * 100);
+        const col = msg.detection_rate >= 0.5 ? 'ok' : 'warn';
+        feedLine(
+          `  Round ${msg.round}: ${pct}% detected (${msg.detected}↑ ${msg.evaded}↓)${msg.kql_valid ? '' : ' [INVALID KQL]'}`,
+          col
+        );
+        // Show first 120 chars of KQL
+        const preview = msg.kql.replace(/\n/g, ' ').substring(0, 120);
+        feedLine(`  ↳ ${preview}${msg.kql.length > 120 ? '…' : ''}`, 'rule');
+        updateChartForModel(msg.defender, msg.round, msg.detection_rate, msg.kql_valid);
+        break;
+      }
+
+      case 'defender_battle_done': {
+        const total = Object.keys(liveData).length;
+        const allLogs = Object.values(liveData).reduce((s, d) => s + d.rounds.length, 0);
+        feedLine(
+          `  ✓ ${msg.defender} done — def ${msg.defender_score} pts / atk ${msg.attacker_score} pts`,
+          'done'
+        );
+        break;
+      }
+
+      case 'tournament_complete': {
+        feedLine(``, 'info');
+        feedLine(`[ TOURNAMENT COMPLETE ]`, 'done');
+        const r = msg.rankings;
+        if (r && r.length) {
+          feedLine(`  1st: ${r[0].model}  ${Math.round(r[0].avg_detection_rate * 100)}% avg detection`, 'ok');
+          if (r.length > 1)
+            feedLine(`  Last: ${r[r.length-1].model}  ${Math.round(r[r.length-1].avg_detection_rate * 100)}% avg detection`, 'warn');
+          renderLeaderboard(r);
+          // Update charts with final data from rankings
+          r.forEach(entry => {
+            liveData[entry.model] = { rounds: entry.per_round };
+          });
+          renderCharts();
+        }
+        setStatus('done', 'tournament complete');
+        btn.disabled = false;
+        break;
+      }
+
+      case 'error':
+        feedLine(`[ERROR] ${msg.message}`, 'warn');
+        setStatus('error', `error: ${msg.message.substring(0, 60)}`);
+        btn.disabled = false;
+        break;
+    }
+  }
+</script>
+</body>
+</html>
