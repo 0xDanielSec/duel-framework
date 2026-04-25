@@ -13,7 +13,7 @@
 ![DUEL in action](demo.gif)
 
 <!-- weekly-badge-start -->
-*No weekly battle run yet — trigger the workflow manually or wait for Monday 08:00 UTC.*
+**Last Weekly Battle:** 2026-04-25 &nbsp;|&nbsp; Techniques: 8 &nbsp;|&nbsp; Avg Evasion: 0.0% &nbsp;|&nbsp; Attacker 0 – Defender 0
 <!-- weekly-badge-end -->
 
 ---
