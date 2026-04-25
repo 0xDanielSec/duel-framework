@@ -742,6 +742,139 @@
       padding: 1px 6px;
       font-family: var(--mono);
     }
+
+    /* ── CRT scanline overlay ─────────────────────────────────────────────── */
+    body { position: relative; }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 9999;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.13) 2px, rgba(0,0,0,0.13) 4px
+      );
+      animation: crtScroll 10s linear infinite;
+    }
+    @keyframes crtScroll {
+      from { background-position: 0 0; }
+      to   { background-position: 0 40px; }
+    }
+
+    /* ── Animated dot grid background ────────────────────────────────────── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0;
+      background-image: radial-gradient(circle, rgba(60,142,255,0.045) 1px, transparent 1px);
+      background-size: 26px 26px;
+      animation: gridDrift 25s linear infinite;
+    }
+    @keyframes gridDrift {
+      from { background-position: 0 0; }
+      to   { background-position: 26px 26px; }
+    }
+
+    /* ── Logo glitch chromatic aberration ────────────────────────────────── */
+    @keyframes logoGlitch {
+      0%, 88%, 100% { text-shadow: none; clip-path: none; }
+      89% { text-shadow: -3px 0 var(--red); transform: skewX(-2deg) translateX(2px); }
+      90% { text-shadow:  3px 0 var(--blue); transform: skewX(1deg) translateX(-1px); }
+      91% { text-shadow: -2px 0 var(--red),  2px 0 var(--blue); transform: none; }
+      92% { text-shadow: none; transform: skewX(0.5deg); }
+    }
+    #logo { animation: logoGlitch 7s ease-in-out infinite; }
+
+    /* ── Panel idle glow ─────────────────────────────────────────────────── */
+    @keyframes idleGlowRed {
+      0%, 100% { box-shadow: inset 0 0 0px rgba(255,60,60,0); }
+      50%       { box-shadow: inset 0 0 40px rgba(255,60,60,0.07); }
+    }
+    @keyframes idleGlowBlue {
+      0%, 100% { box-shadow: inset 0 0 0px rgba(60,142,255,0); }
+      50%       { box-shadow: inset 0 0 40px rgba(60,142,255,0.07); }
+    }
+    #attacker-panel { animation: idleGlowRed  5s ease-in-out infinite; }
+    #defender-panel { animation: idleGlowBlue 5s ease-in-out infinite; }
+
+    /* ── Panel thinking state (fast intense pulse) ────────────────────────── */
+    @keyframes thinkGlowRed {
+      0%, 100% { box-shadow: inset 0 0 50px rgba(255,60,60,0.22), 0 0 25px rgba(255,60,60,0.35); }
+      50%       { box-shadow: inset 0 0 90px rgba(255,60,60,0.40), 0 0 50px rgba(255,60,60,0.55); }
+    }
+    @keyframes thinkGlowBlue {
+      0%, 100% { box-shadow: inset 0 0 50px rgba(60,142,255,0.22), 0 0 25px rgba(60,142,255,0.35); }
+      50%       { box-shadow: inset 0 0 90px rgba(60,142,255,0.40), 0 0 50px rgba(60,142,255,0.55); }
+    }
+    #attacker-panel.thinking { animation: thinkGlowRed  0.75s ease-in-out infinite !important; }
+    #defender-panel.thinking { animation: thinkGlowBlue 0.75s ease-in-out infinite !important; }
+
+    /* ── Center feed scanline sweep ──────────────────────────────────────── */
+    #feed-col { position: relative; }
+    #feed-col::before {
+      content: '';
+      position: absolute; left: 0; right: 0; height: 80px;
+      background: linear-gradient(transparent, rgba(60,142,255,0.045), transparent);
+      animation: feedScan 5s linear infinite;
+      pointer-events: none; z-index: 2;
+    }
+    @keyframes feedScan {
+      from { top: -80px; }
+      to   { top: 100%; }
+    }
+
+    /* ── Feed items: directional slide-in ────────────────────────────────── */
+    @keyframes slideLeft {
+      from { opacity: 0; transform: translateX(-18px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideRight {
+      from { opacity: 0; transform: translateX(18px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .fi.attack { animation: slideLeft  0.28s ease-out both; }
+    .fi.evade  { animation: slideLeft  0.28s ease-out both; }
+    .fi.defense { animation: slideRight 0.28s ease-out both; }
+    .fi.detect  { animation: slideRight 0.28s ease-out both; }
+
+    /* ── Panel header animated underline ─────────────────────────────────── */
+    .panel-header { position: relative; }
+    .panel-header::after {
+      content: '';
+      position: absolute; bottom: -1px; left: 0;
+      height: 1px; width: 0;
+      background: currentColor; opacity: 0.6;
+      animation: headerLine 2s ease-out 0.3s forwards;
+    }
+    @keyframes headerLine {
+      from { width: 0; }
+      to   { width: 100%; }
+    }
+
+    /* ── Score roll-up animation ─────────────────────────────────────────── */
+    @keyframes scoreRoll {
+      0%   { transform: translateY(-60%) scale(1.3); opacity: 0; }
+      60%  { transform: translateY(8%)  scale(1.15); opacity: 1; }
+      100% { transform: translateY(0)   scale(1);    opacity: 1; }
+    }
+    .score-val.roll { animation: scoreRoll 0.4s cubic-bezier(0.22,1,0.36,1) both; }
+
+    /* ── Blinking cursor for MONITORING state ────────────────────────────── */
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    .monitor-cursor {
+      display: inline-block;
+      animation: blink 1s step-end infinite;
+      color: var(--blue);
+    }
+
+    /* ── Particle canvas (battle result explosion) ───────────────────────── */
+    #particle-canvas {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 198;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -894,6 +1027,9 @@
   </div>
 </div>
 
+<!-- ── Particle canvas ──────────────────────────────────────────────────────── -->
+<canvas id="particle-canvas"></canvas>
+
 <!-- ── Battle banner ────────────────────────────────────────────────────────── -->
 <div id="banner" onclick="this.style.display='none'">
   <div id="banner-title">BATTLE COMPLETE</div>
@@ -1038,14 +1174,98 @@ function setStatus(id, cls, text, spin) {
   el.innerHTML = (spin ? '<span class="spin"></span> ' : '') + esc(text);
 }
 
-/* ── Score bump animation ────────────────────────────────────────────────────── */
+/* ── Score roll-up animation ─────────────────────────────────────────────────── */
 function setScore(id, val) {
   const el = document.getElementById(id);
+  el.classList.remove('roll', 'bump');
+  void el.offsetWidth;
   el.textContent = val;
-  el.classList.remove('bump');
-  void el.offsetWidth; // reflow
-  el.classList.add('bump');
-  setTimeout(() => el.classList.remove('bump'), 200);
+  el.classList.add('roll');
+  setTimeout(() => el.classList.remove('roll'), 420);
+}
+
+/* ── Idle text animations ─────────────────────────────────────────────────────── */
+const ATT_IDLE_MSGS = [
+  'SCANNING...', 'ENUMERATING...', 'PROBING NETWORK...',
+  'MAPPING TARGETS...', 'AWAITING ORDERS...'
+];
+let _attIdleTimer = null;
+let _attIdleIdx   = 0;
+
+function startIdleAnimations() {
+  stopIdleAnimations();
+  _attIdleIdx = 0;
+  const attEl = document.getElementById('att-strategy');
+  const defEl = document.getElementById('def-reasoning');
+
+  function tickAtt() {
+    attEl.innerHTML =
+      '<span style="color:var(--red);opacity:0.65">' +
+      ATT_IDLE_MSGS[_attIdleIdx % ATT_IDLE_MSGS.length] + '</span>';
+    _attIdleIdx++;
+  }
+  tickAtt();
+  _attIdleTimer = setInterval(tickAtt, 1800);
+
+  defEl.innerHTML = 'MONITORING<span class="monitor-cursor">_</span>';
+}
+
+function stopIdleAnimations() {
+  if (_attIdleTimer) { clearInterval(_attIdleTimer); _attIdleTimer = null; }
+}
+
+/* ── Particle explosion ──────────────────────────────────────────────────────── */
+function triggerParticles(winner) {
+  const canvas = document.getElementById('particle-canvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.display = 'block';
+
+  const color = winner === 'Attacker' ? '#ff3c3c'
+              : winner === 'Defender' ? '#3c8eff'
+              : '#ffd700';
+  const particles = [];
+
+  for (let i = 0; i < 130; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 9;
+    particles.push({
+      x:     canvas.width  / 2,
+      y:     canvas.height / 2,
+      vx:    Math.cos(angle) * speed,
+      vy:    Math.sin(angle) * speed - 4,
+      size:  1.5 + Math.random() * 4,
+      alpha: 1,
+      decay: 0.011 + Math.random() * 0.009,
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    for (const p of particles) {
+      if (p.alpha <= 0) continue;
+      alive = true;
+      p.x  += p.vx;
+      p.y  += p.vy;
+      p.vy += 0.2;
+      p.alpha -= p.decay;
+      ctx.globalAlpha = Math.max(0, p.alpha);
+      ctx.fillStyle   = color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (alive) {
+      requestAnimationFrame(draw);
+    } else {
+      canvas.style.display = 'none';
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  requestAnimationFrame(draw);
 }
 
 /* ── UI reset ────────────────────────────────────────────────────────────────── */
@@ -1063,6 +1283,9 @@ function resetUI() {
   setStatus('att-status', '', 'IDLE', false);
   setStatus('def-status', '', 'IDLE', false);
   document.getElementById('conn-dot').className = '';
+  document.getElementById('attacker-panel').classList.remove('thinking');
+  document.getElementById('defender-panel').classList.remove('thinking');
+  startIdleAnimations();
 }
 
 /* ── Message handler ─────────────────────────────────────────────────────────── */
@@ -1070,6 +1293,7 @@ function handle(data) {
   switch (data.type) {
 
     case 'round_start':
+      stopIdleAnimations();
       currentTechnique = data.technique;
       document.getElementById('round-counter').textContent =
         'ROUND ' + data.round + ' / ' + data.total;
@@ -1080,6 +1304,7 @@ function handle(data) {
       break;
 
     case 'attacker_thinking':
+      document.getElementById('attacker-panel').classList.add('thinking');
       setStatus('att-status', 'thinking', 'GENERATING LOGS', true);
       setStatus('def-status', '', 'WAITING', false);
       addFeed('Attacker generating synthetic telemetry\u2026', 'think');
@@ -1087,6 +1312,7 @@ function handle(data) {
       break;
 
     case 'attacker_done':
+      document.getElementById('attacker-panel').classList.remove('thinking');
       setStatus('att-status', 'done', '\u2713 LOGS READY', false);
       document.getElementById('att-strategy').textContent = data.strategy || '\u2014';
       document.getElementById('att-logs').innerHTML = renderLogs(data.logs_sample);
@@ -1094,12 +1320,14 @@ function handle(data) {
       break;
 
     case 'defender_thinking':
+      document.getElementById('defender-panel').classList.add('thinking');
       setStatus('def-status', 'thinking', 'GENERATING KQL', true);
       addFeed('Defender analysing attack pattern\u2026', 'think');
       document.getElementById('def-reasoning').textContent = 'Analysing attack vectors\u2026';
       break;
 
     case 'defender_done':
+      document.getElementById('defender-panel').classList.remove('thinking');
       setStatus('def-status', 'done', '\u2713 RULE READY', false);
       document.getElementById('def-reasoning').textContent = data.reasoning || '\u2014';
       document.getElementById('def-kql').innerHTML =
@@ -1132,6 +1360,9 @@ function handle(data) {
       active = false;
       document.getElementById('start-btn').disabled = false;
       document.getElementById('conn-dot').className = 'on';
+      document.getElementById('attacker-panel').classList.remove('thinking');
+      document.getElementById('defender-panel').classList.remove('thinking');
+      triggerParticles(data.winner);
 
       addFeed('\u2500\u2500 BATTLE COMPLETE \u2500\u2500', 'sys');
       addFeed(
