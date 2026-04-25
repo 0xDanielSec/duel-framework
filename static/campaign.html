@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — Campaign Mode</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ─────────────────────────────────────────────────────── */
+    :root {
+      --bg:      #07090f;
+      --bg2:     #0d1117;
+      --bg3:     #111827;
+      --red:     #ff3c3c;
+      --blue:    #3c8eff;
+      --green:   #00ff88;
+      --yellow:  #ffd700;
+      --orange:  #ff8c00;
+      --dim:     #4a5568;
+      --muted:   #718096;
+      --text:    #e2e8f0;
+      --border:  #1a2236;
+      --mono:    'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    body { display: flex; flex-direction: column; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--orange) 0%, var(--yellow) 50%, var(--red) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+    }
+
+    #mode-badge {
+      padding: 2px 10px;
+      border: 1px solid rgba(255, 140, 0, 0.5);
+      background: rgba(255, 140, 0, 0.08);
+      border-radius: 3px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--orange);
+      white-space: nowrap;
+    }
+
+    #nav-links {
+      margin-left: auto;
+      display: flex;
+      gap: 12px;
+      font-size: 11px;
+    }
+
+    #nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    #nav-links a:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── Main layout ─────────────────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px 1fr 250px;
+      overflow: hidden;
+    }
+
+    /* ── Left panel: config ──────────────────────────────────────────────── */
+    #left-panel {
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      background: var(--bg2);
+    }
+
+    #config {
+      padding: 14px;
+    }
+
+    #config h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: var(--orange);
+      margin-bottom: 12px;
+    }
+
+    .field { margin-bottom: 9px; }
+    .field label {
+      display: block;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .field input, .field select {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 5px 8px;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .field input:focus, .field select:focus {
+      border-color: var(--orange);
+    }
+
+    #start-btn {
+      width: 100%;
+      margin-top: 10px;
+      padding: 9px;
+      background: linear-gradient(135deg, rgba(255,140,0,0.15), rgba(255,60,60,0.1));
+      border: 1px solid rgba(255, 140, 0, 0.5);
+      color: var(--orange);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    #start-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(255,140,0,0.25), rgba(255,60,60,0.18));
+    }
+
+    #start-btn:active:not(:disabled) { transform: scale(0.98); }
+    #start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #campaign-desc {
+      margin-top: 12px;
+      padding: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── Center panel ────────────────────────────────────────────────────── */
+    #center-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Kill chain timeline */
+    #kill-chain-strip {
+      flex-shrink: 0;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+
+    #kill-chain-strip h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    #stages-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .stage-card {
+      flex-shrink: 0;
+      width: 155px;
+      padding: 9px 10px;
+      border: 1px solid var(--dim);
+      border-radius: 4px;
+      background: var(--bg3);
+      transition: border-color 0.3s, background 0.3s;
+      position: relative;
+    }
+
+    .stage-card.pending  { border-color: var(--dim); }
+    .stage-card.running  { border-color: var(--yellow); background: rgba(255,215,0,0.04); }
+    .stage-card.attacker { border-color: var(--red);    background: rgba(255,60,60,0.06); }
+    .stage-card.defender { border-color: var(--green);  background: rgba(0,255,136,0.05); }
+
+    .stage-num {
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .stage-tech-id {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stage-tech-name {
+      font-size: 9px;
+      color: var(--muted);
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stage-status {
+      margin-top: 6px;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .stage-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--dim);
+      flex-shrink: 0;
+    }
+
+    .stage-card.running  .stage-dot { background: var(--yellow); animation: pulse 1s infinite; }
+    .stage-card.attacker .stage-dot { background: var(--red); }
+    .stage-card.defender .stage-dot { background: var(--green); }
+
+    .stage-card.running  .stage-status-text { color: var(--yellow); }
+    .stage-card.attacker .stage-status-text { color: var(--red); }
+    .stage-card.defender .stage-status-text { color: var(--green); }
+
+    .stage-eva-rate {
+      margin-top: 4px;
+      font-size: 9px;
+      color: var(--muted);
+    }
+
+    .stage-arrow {
+      flex-shrink: 0;
+      width: 28px;
+      text-align: center;
+      color: var(--dim);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* ── Active battle panel ─────────────────────────────────────────────── */
+    #battle-panel {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+    }
+
+    .battle-half {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .battle-half:first-child { border-right: 1px solid var(--border); }
+
+    .battle-half-header {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .attacker-header { color: var(--red); }
+    .defender-header { color: var(--blue); }
+
+    .battle-half-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 9px;
+      letter-spacing: 1px;
+    }
+
+    .pill-idle    { border: 1px solid var(--dim);    color: var(--dim); }
+    .pill-active  { border: 1px solid var(--yellow); color: var(--yellow); animation: pulse 1s infinite; }
+    .pill-done    { border: 1px solid var(--green);  color: var(--green); }
+
+    .section-label {
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      margin-top: 10px;
+    }
+
+    .strategy-text {
+      font-size: 11px;
+      color: var(--text);
+      line-height: 1.5;
+      padding: 6px 8px;
+      background: var(--bg2);
+      border-left: 2px solid var(--red);
+      border-radius: 0 3px 3px 0;
+    }
+
+    .reasoning-text {
+      font-size: 11px;
+      color: var(--text);
+      line-height: 1.5;
+      padding: 6px 8px;
+      background: var(--bg2);
+      border-left: 2px solid var(--blue);
+      border-radius: 0 3px 3px 0;
+    }
+
+    .logs-preview {
+      font-size: 10px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 6px 8px;
+      overflow-x: auto;
+      white-space: pre;
+      color: var(--yellow);
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .kql-preview {
+      font-size: 10px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 6px 8px;
+      overflow: auto;
+      white-space: pre;
+      max-height: 140px;
+      line-height: 1.5;
+    }
+
+    /* KQL syntax highlight */
+    .kw  { color: #c792ea; }
+    .tbl { color: #82aaff; font-weight: bold; }
+    .str { color: #c3e88d; }
+    .op  { color: #89ddff; }
+    .num { color: #f78c6c; }
+
+    .det-bar-wrap {
+      margin-top: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      height: 14px;
+    }
+
+    .det-bar-fill {
+      height: 100%;
+      transition: width 0.5s ease;
+      border-radius: 2px;
+    }
+
+    .score-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 11px;
+    }
+
+    .score-chip {
+      padding: 2px 10px;
+      border-radius: 3px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .score-atk { background: rgba(255,60,60,0.15);  color: var(--red);  border: 1px solid rgba(255,60,60,0.3); }
+    .score-def { background: rgba(60,142,255,0.15); color: var(--blue); border: 1px solid rgba(60,142,255,0.3); }
+
+    /* ── Right panel: live feed ──────────────────────────────────────────── */
+    #right-panel {
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #feed-header {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+
+    #feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .feed-line { margin-bottom: 1px; }
+    .feed-line.info  { color: var(--muted); }
+    .feed-line.atk   { color: var(--red); }
+    .feed-line.def   { color: var(--blue); }
+    .feed-line.ok    { color: var(--green); }
+    .feed-line.warn  { color: var(--yellow); }
+    .feed-line.stage { color: var(--orange); font-weight: bold; }
+    .feed-line.kql   { color: #7dd3fc; font-size: 10px; padding-left: 10px; }
+    .feed-line.done  { color: #ffd700; }
+
+    /* ── Campaign report (bottom, hidden until complete) ─────────────────── */
+    #report-section {
+      display: none;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: var(--bg2);
+      padding: 12px 20px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    #report-section h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: var(--orange);
+      margin-bottom: 10px;
+    }
+
+    #report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    #report-table th {
+      text-align: left;
+      padding: 3px 10px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #report-table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(26,34,54,0.6);
+    }
+
+    .winner-atk { color: var(--red); }
+    .winner-def { color: var(--green); }
+    .winner-draw { color: var(--yellow); }
+
+    /* ── Status bar ─────────────────────────────────────────────────────── */
+    #status-bar {
+      flex-shrink: 0;
+      padding: 5px 20px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--dim);
+      flex-shrink: 0;
+    }
+
+    #status-dot.active { background: var(--green); animation: pulse 1s infinite; }
+    #status-dot.done   { background: var(--orange); animation: none; }
+    #status-dot.error  { background: var(--red); animation: none; }
+
+    .placeholder {
+      color: var(--dim);
+      font-size: 11px;
+      padding: 16px 0;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<div id="header">
+  <div id="logo">DUEL</div>
+  <div id="mode-badge">CAMPAIGN</div>
+  <div id="nav-links">
+    <a href="/">⚔ BATTLE</a>
+    <a href="/heatmap">◈ HEATMAP</a>
+    <a href="/tournament">⚡ TOURNAMENT</a>
+  </div>
+</div>
+
+<!-- ── Main ───────────────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- Left: config -->
+  <div id="left-panel">
+    <div id="config">
+      <h3>CAMPAIGN CONFIG</h3>
+
+      <div class="field">
+        <label>CAMPAIGN</label>
+        <select id="cfg-campaign" onchange="updateCampaignDesc()">
+          <option value="cloud-takeover">cloud-takeover</option>
+          <option value="identity-attack">identity-attack</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>ROUNDS PER STAGE</label>
+        <input id="cfg-rounds" type="number" value="3" min="1" max="10" />
+      </div>
+
+      <div class="field">
+        <label>LOGS PER ROUND</label>
+        <input id="cfg-logs" type="number" value="10" min="5" max="50" />
+      </div>
+
+      <div class="field">
+        <label>ATTACKER MODEL</label>
+        <input id="cfg-attacker" type="text" value="llama3.1:8b" />
+      </div>
+
+      <div class="field">
+        <label>DEFENDER MODEL</label>
+        <input id="cfg-defender" type="text" value="mistral:7b" />
+      </div>
+
+      <button id="start-btn" onclick="startCampaign()">▶ LAUNCH CAMPAIGN</button>
+
+      <div id="campaign-desc"></div>
+    </div>
+  </div>
+
+  <!-- Center: kill chain + battle panels -->
+  <div id="center-panel">
+
+    <!-- Kill chain timeline -->
+    <div id="kill-chain-strip">
+      <h3>KILL CHAIN</h3>
+      <div id="stages-row">
+        <div class="placeholder">— select a campaign and launch —</div>
+      </div>
+    </div>
+
+    <!-- Active battle details -->
+    <div id="battle-panel">
+
+      <!-- Attacker half -->
+      <div class="battle-half">
+        <div class="battle-half-header attacker-header">
+          <span>⚔ ATTACKER</span>
+          <span id="atk-pill" class="status-pill pill-idle">IDLE</span>
+        </div>
+        <div class="battle-half-body" id="atk-body">
+          <div class="placeholder">— awaiting battle —</div>
+        </div>
+      </div>
+
+      <!-- Defender half -->
+      <div class="battle-half">
+        <div class="battle-half-header defender-header">
+          <span>🛡 DEFENDER</span>
+          <span id="def-pill" class="status-pill pill-idle">IDLE</span>
+        </div>
+        <div class="battle-half-body" id="def-body">
+          <div class="placeholder">— awaiting battle —</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Right: live feed -->
+  <div id="right-panel">
+    <div id="feed-header">LIVE FEED</div>
+    <div id="feed">
+      <div class="feed-line info">Configure campaign and click Launch.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Campaign report (bottom, hidden until complete) ────────────────── -->
+<div id="report-section">
+  <h3>CAMPAIGN REPORT</h3>
+  <div id="report-container"></div>
+</div>
+
+<!-- ── Status bar ─────────────────────────────────────────────────────── -->
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <span id="status-text">idle</span>
+</div>
+
+<script>
+  // ── Campaign definitions (mirrors server) ──────────────────────────────
+  const CAMPAIGN_DESCS = {
+    'cloud-takeover': {
+      desc: 'T1078.004 → T1528 → T1098.001 → T1114.002\nValid Accounts → Token Theft → Credential Add → Email Collection',
+      labels: ['Valid Accounts', 'Token Theft', 'Cred Add', 'Email Collect'],
+    },
+    'identity-attack': {
+      desc: 'T1110.003 → T1556.006 → T1136.003 → T1069.003\nPassword Spray → MFA Bypass → Account Create → Group Discovery',
+      labels: ['Pwd Spray', 'MFA Bypass', 'Acct Create', 'Grp Discovery'],
+    },
+  };
+
+  // ── State ──────────────────────────────────────────────────────────────
+  let ws = null;
+  let stageData = [];   // [{stage, technique_id, technique_name, state, evasion_rate, winner}]
+  let curKql      = null;
+  let curReasoning = null;
+  let curDetected  = 0;
+  let curEvaded    = 0;
+  let curRate      = 0;
+
+  // ── Campaign desc ───────────────────────────────────────────────────────
+  function updateCampaignDesc() {
+    const name = document.getElementById('cfg-campaign').value;
+    const info = CAMPAIGN_DESCS[name];
+    document.getElementById('campaign-desc').textContent = info ? info.desc : '';
+  }
+  updateCampaignDesc();
+
+  // ── Feed helpers ────────────────────────────────────────────────────────
+  function feedLine(text, cls = 'info') {
+    const feed = document.getElementById('feed');
+    const d = document.createElement('div');
+    d.className = `feed-line ${cls}`;
+    d.textContent = text;
+    feed.appendChild(d);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  function feedClear() { document.getElementById('feed').innerHTML = ''; }
+
+  function setStatus(state, text) {
+    const dot = document.getElementById('status-dot');
+    dot.className = '';
+    if (state) dot.classList.add(state);
+    document.getElementById('status-text').textContent = text;
+  }
+
+  // ── KQL syntax highlighter ──────────────────────────────────────────────
+  const KQL_KEYWORDS = /\b(where|summarize|by|project|extend|limit|order|count|distinct|top|has|contains|startswith|endswith|in|and|or|not|isempty|isnotempty)\b/gi;
+  const KQL_TABLES   = /\b(SigninLogs|SecurityEvent|AuditLogs|AADNonInteractiveUserSignInLogs|OfficeActivity)\b/g;
+  const KQL_STRING   = /"[^"]*"/g;
+  const KQL_NUMBER   = /\b(\d+(\.\d+)?)\b/g;
+  const KQL_OP       = /(\|)/g;
+
+  function highlightKql(kql) {
+    return kql
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(KQL_TABLES,   m => `<span class="tbl">${m}</span>`)
+      .replace(KQL_STRING,   m => `<span class="str">${m}</span>`)
+      .replace(KQL_KEYWORDS, m => `<span class="kw">${m}</span>`)
+      .replace(KQL_NUMBER,   (m, p1) => `<span class="num">${p1}</span>`)
+      .replace(KQL_OP,       m => `<span class="op">${m}</span>`);
+  }
+
+  // ── Stage card builders ─────────────────────────────────────────────────
+  function buildStageCards(techniques) {
+    const row = document.getElementById('stages-row');
+    row.innerHTML = '';
+    stageData = techniques.map((t, i) => ({
+      stage: i + 1,
+      technique_id: t.id,
+      technique_name: t.name,
+      state: 'pending',
+      evasion_rate: null,
+      winner: null,
+    }));
+
+    stageData.forEach((s, i) => {
+      if (i > 0) {
+        const arrow = document.createElement('div');
+        arrow.className = 'stage-arrow';
+        arrow.textContent = '→';
+        row.appendChild(arrow);
+      }
+
+      const card = document.createElement('div');
+      card.className = 'stage-card pending';
+      card.id = `stage-card-${s.stage}`;
+      card.innerHTML = `
+        <div class="stage-num">STAGE ${s.stage}</div>
+        <div class="stage-tech-id">${s.technique_id}</div>
+        <div class="stage-tech-name">${s.technique_name}</div>
+        <div class="stage-status">
+          <div class="stage-dot"></div>
+          <span class="stage-status-text">pending</span>
+        </div>
+        <div class="stage-eva-rate" id="eva-${s.stage}"></div>
+      `;
+      row.appendChild(card);
+    });
+  }
+
+  function setStageState(stageNum, state, statusText, evaText) {
+    const card = document.getElementById(`stage-card-${stageNum}`);
+    if (!card) return;
+    card.className = `stage-card ${state}`;
+    card.querySelector('.stage-status-text').textContent = statusText;
+    if (evaText) {
+      document.getElementById(`eva-${stageNum}`).textContent = evaText;
+    }
+  }
+
+  // ── Attacker / Defender panel updaters ──────────────────────────────────
+  function setPill(id, cls, text) {
+    const p = document.getElementById(id);
+    p.className = `status-pill ${cls}`;
+    p.textContent = text;
+  }
+
+  function updateAttacker(strategy, logsSample) {
+    const body = document.getElementById('atk-body');
+    let html = '';
+
+    if (strategy) {
+      html += `<div class="section-label">STRATEGY</div>
+               <div class="strategy-text">${escHtml(strategy)}</div>`;
+    }
+
+    if (logsSample && logsSample.length) {
+      const preview = JSON.stringify(logsSample[0], null, 2).substring(0, 400);
+      html += `<div class="section-label">TELEMETRY SAMPLE</div>
+               <div class="logs-preview">${escHtml(preview)}</div>`;
+    }
+
+    body.innerHTML = html || '<div class="placeholder">—</div>';
+  }
+
+  function updateDefender(kql, reasoning, detected, evaded, rate, atkScore, defScore) {
+    const body = document.getElementById('def-body');
+    let html = '';
+
+    if (reasoning) {
+      html += `<div class="section-label">REASONING</div>
+               <div class="reasoning-text">${escHtml(reasoning)}</div>`;
+    }
+
+    if (kql) {
+      html += `<div class="section-label">KQL RULE</div>
+               <div class="kql-preview">${highlightKql(kql)}</div>`;
+    }
+
+    if (detected !== undefined) {
+      const total = detected + evaded;
+      const pct   = total ? Math.round(rate * 100) : 0;
+      const col   = rate >= 0.5 ? 'var(--green)' : 'var(--red)';
+      html += `
+        <div class="section-label">DETECTION  ${detected}↑ ${evaded}↓ (${pct}%)</div>
+        <div class="det-bar-wrap">
+          <div class="det-bar-fill" style="width:${pct}%;background:${col}"></div>
+        </div>
+        <div class="score-row">
+          <div class="score-chip score-atk">ATK ${atkScore}</div>
+          <div class="score-chip score-def">DEF ${defScore}</div>
+        </div>`;
+    }
+
+    body.innerHTML = html || '<div class="placeholder">—</div>';
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Report builder ──────────────────────────────────────────────────────
+  function renderReport(stages, attackerWins, successRate) {
+    const section = document.getElementById('report-section');
+    section.style.display = 'block';
+
+    const total = stages.length;
+    const pct = Math.round(successRate * 100);
+
+    // Sort by evasion rate for priority order
+    const sorted = [...stages].sort((a, b) => b.evasion_rate - a.evasion_rate);
+
+    let rows = stages.map((s, i) => {
+      const icon = s.winner === 'Attacker' ? '🔴' : s.winner === 'Defender' ? '🟢' : '🟡';
+      const wCls = s.winner === 'Attacker' ? 'winner-atk' : s.winner === 'Defender' ? 'winner-def' : 'winner-draw';
+      const eva  = Math.round(s.evasion_rate * 100);
+      const pri  = sorted.findIndex(x => x.technique_id === s.technique_id) + 1;
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${s.technique_id}</td>
+        <td class="${wCls}">${icon} ${s.winner}</td>
+        <td>${eva}%</td>
+        <td style="color:var(--muted)">Priority #${pri}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('report-container').innerHTML = `
+      <div style="margin-bottom:8px;font-size:11px">
+        Campaign success rate (Attacker): <strong style="color:${pct >= 50 ? 'var(--red)' : 'var(--green)'}">${pct}%</strong>
+        &nbsp;|&nbsp; Attacker won ${attackerWins}/${total} stages
+      </div>
+      <table id="report-table">
+        <thead>
+          <tr><th>STAGE</th><th>TECHNIQUE</th><th>WINNER</th><th>EVASION</th><th>DETECTION PRIORITY</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // ── WebSocket ───────────────────────────────────────────────────────────
+  function startCampaign() {
+    if (ws && ws.readyState === WebSocket.OPEN) return;
+
+    const campaign  = document.getElementById('cfg-campaign').value;
+    const rounds    = parseInt(document.getElementById('cfg-rounds').value)   || 3;
+    const logs      = parseInt(document.getElementById('cfg-logs').value)     || 10;
+    const attacker  = document.getElementById('cfg-attacker').value.trim()   || 'llama3.1:8b';
+    const defender  = document.getElementById('cfg-defender').value.trim()   || 'mistral:7b';
+
+    feedClear();
+    curKql = null; curReasoning = null;
+    curDetected = 0; curEvaded = 0; curRate = 0;
+    document.getElementById('report-section').style.display = 'none';
+    document.getElementById('stages-row').innerHTML = '<div class="placeholder">— loading —</div>';
+    document.getElementById('atk-body').innerHTML   = '<div class="placeholder">— awaiting battle —</div>';
+    document.getElementById('def-body').innerHTML   = '<div class="placeholder">— awaiting battle —</div>';
+    setPill('atk-pill', 'pill-idle', 'IDLE');
+    setPill('def-pill', 'pill-idle', 'IDLE');
+
+    const btn = document.getElementById('start-btn');
+    btn.disabled = true;
+    setStatus('active', 'connecting…');
+
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws/campaign`);
+
+    ws.onopen = () => {
+      setStatus('active', 'connected — launching campaign');
+      ws.send(JSON.stringify({
+        campaign, rounds, logs_per_round: logs,
+        attacker_model: attacker, defender_model: defender,
+      }));
+    };
+
+    ws.onmessage = (evt) => handleMessage(JSON.parse(evt.data));
+
+    ws.onerror = () => {
+      feedLine('WebSocket error.', 'warn');
+      setStatus('error', 'connection error');
+      btn.disabled = false;
+    };
+
+    ws.onclose = () => {
+      if (btn.disabled) {
+        btn.disabled = false;
+        setStatus('done', 'done');
+      }
+    };
+  }
+
+  // ── Message handler ─────────────────────────────────────────────────────
+  function handleMessage(msg) {
+    const btn = document.getElementById('start-btn');
+
+    switch (msg.type) {
+
+      case 'campaign_start':
+        feedLine(`[ CAMPAIGN ] ${msg.campaign_name}  —  ${msg.total_stages} stages`, 'stage');
+        buildStageCards(msg.techniques);
+        setStatus('active', `${msg.campaign_name} — stage 1/${msg.total_stages}`);
+        break;
+
+      case 'stage_start':
+        feedLine('', 'info');
+        feedLine(
+          `[ STAGE ${msg.stage}/${msg.total_stages} ] ${msg.technique_id} — ${msg.technique_name}`,
+          'stage'
+        );
+        feedLine(`  ${msg.narrative}`, 'info');
+        setStageState(msg.stage, 'running', 'running…', '');
+        setStatus('active', `stage ${msg.stage}/${msg.total_stages} — ${msg.technique_id}`);
+        break;
+
+      case 'round_start':
+        feedLine(
+          `  Round ${msg.round}/${msg.total_rounds}`,
+          'info'
+        );
+        setStageState(msg.stage, 'running', `round ${msg.round}/${msg.total_rounds}`, '');
+        break;
+
+      case 'attacker_thinking':
+        setPill('atk-pill', 'pill-active', 'THINKING');
+        break;
+
+      case 'attacker_done':
+        setPill('atk-pill', 'pill-done', 'DONE');
+        feedLine(`  ⚔ ${msg.strategy}`, 'atk');
+        updateAttacker(msg.strategy, msg.logs_sample);
+        break;
+
+      case 'defender_thinking':
+        setPill('def-pill', 'pill-active', 'THINKING');
+        break;
+
+      case 'defender_done': {
+        setPill('def-pill', 'pill-done', 'DONE');
+        feedLine(`  🛡 ${msg.reasoning}`, 'def');
+        const kqlPreview = msg.kql.replace(/\n/g, ' ').substring(0, 100);
+        feedLine(`  ↳ ${kqlPreview}${msg.kql.length > 100 ? '…' : ''}`, 'kql');
+        curKql = msg.kql;
+        curReasoning = msg.reasoning;
+        updateDefender(curKql, curReasoning, undefined, undefined, undefined, undefined, undefined);
+        break;
+      }
+
+      case 'detection_result': {
+        const pct = Math.round(msg.rate * 100);
+        const cls = msg.rate >= 0.5 ? 'ok' : 'warn';
+        feedLine(`  🔍 ${pct}% detected (${msg.detected}↑ ${msg.evaded}↓)`, cls);
+        curDetected = msg.detected;
+        curEvaded   = msg.evaded;
+        curRate     = msg.rate;
+        break;
+      }
+
+      case 'round_result': {
+        const cls = msg.result === 'detected' ? 'ok' : 'warn';
+        feedLine(
+          `  → ${msg.result.toUpperCase()}  atk ${msg.attacker_score} / def ${msg.defender_score}`,
+          cls
+        );
+        updateDefender(curKql, curReasoning, curDetected, curEvaded, curRate,
+                       msg.attacker_score, msg.defender_score);
+        break;
+      }
+
+      case 'stage_complete': {
+        const icon = msg.winner === 'Attacker' ? '🔴' : msg.winner === 'Defender' ? '🟢' : '🟡';
+        const stateClass = msg.winner === 'Attacker' ? 'attacker' :
+                           msg.winner === 'Defender' ? 'defender' : 'running';
+        const evaPct = Math.round(msg.evasion_rate * 100);
+        setStageState(
+          msg.stage, stateClass,
+          msg.winner,
+          `${evaPct}% evaded  ${msg.surviving_kql_count} KQL`,
+        );
+        feedLine(
+          `  ${icon} Stage ${msg.stage} complete — ${msg.winner} wins | evasion ${evaPct}%`,
+          msg.winner === 'Attacker' ? 'atk' : 'ok'
+        );
+        setPill('atk-pill', 'pill-idle', 'IDLE');
+        setPill('def-pill', 'pill-idle', 'IDLE');
+        break;
+      }
+
+      case 'campaign_complete': {
+        const pct = Math.round(msg.overall_success_rate * 100);
+        feedLine('', 'info');
+        feedLine(`[ CAMPAIGN COMPLETE ] Attacker success: ${pct}%  (${msg.attacker_wins}/${msg.stages.length} stages)`, 'done');
+        setStatus('done', `campaign complete — attacker won ${pct}%`);
+        renderReport(msg.stages, msg.attacker_wins, msg.overall_success_rate);
+        btn.disabled = false;
+        break;
+      }
+
+      case 'error':
+        feedLine(`[ERROR] ${msg.message}`, 'warn');
+        setStatus('error', `error — ${msg.message.substring(0, 50)}`);
+        btn.disabled = false;
+        break;
+    }
+  }
+</script>
+</body>
+</html>

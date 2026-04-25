@@ -103,13 +103,15 @@ class AttackerAgent:
         last_kql: str | None = None,
         detected_logs: list[dict] | None = None,
         evaded_logs: list[dict] | None = None,
+        campaign_context: str | None = None,
     ) -> list[dict]:
         """
         Generate synthetic attack telemetry for one round.
         Mutates strategy based on previous detection results.
+        campaign_context carries kill-chain state across technique stages.
         """
         if round_num == 1 or last_kql is None:
-            prompt = self._build_initial_prompt(technique, round_num, total_rounds)
+            prompt = self._build_initial_prompt(technique, round_num, total_rounds, campaign_context)
         else:
             prompt = self._build_mutation_prompt(
                 technique, round_num, total_rounds,
@@ -145,10 +147,14 @@ class AttackerAgent:
     # Prompt builders
     # ------------------------------------------------------------------
 
-    def _build_initial_prompt(self, technique: dict, round_num: int, total_rounds: int) -> str:
-        prev_context = (
-            "This is the FIRST round. Generate a representative initial attack pattern."
-        )
+    def _build_initial_prompt(
+        self, technique: dict, round_num: int, total_rounds: int,
+        campaign_context: str | None = None,
+    ) -> str:
+        if campaign_context:
+            prev_context = campaign_context
+        else:
+            prev_context = "This is the FIRST round. Generate a representative initial attack pattern."
         return ATTACKER_PROMPT_TEMPLATE.format(
             technique_id=technique["technique_id"],
             technique_name=technique["name"],
