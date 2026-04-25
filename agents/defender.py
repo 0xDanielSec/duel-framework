@@ -9,6 +9,8 @@ import re
 
 import ollama
 
+from engine.threat_intel import ThreatIntelFeed
+
 logger = logging.getLogger(__name__)
 
 DEFENDER_SYSTEM = """\
@@ -67,6 +69,7 @@ Distinct field values observed across all {total_logs} attack logs:
 Conceptual detection hints (implement as simple where conditions only):
 {detection_hints}
 
+{threat_intel}
 INSTRUCTIONS:
   1. Start with one of the AVAILABLE TABLES above — no other table name.
   2. Use ONLY the operators listed in the system prompt.
@@ -110,6 +113,7 @@ New attack logs this round:
 Distinct field values in new attack logs:
 {new_field_summary}
 
+{threat_intel}
 INSTRUCTIONS:
   1. Start with one of the AVAILABLE TABLES above — no other table name.
   2. Use ONLY the operators listed in the system prompt — NO subqueries, NO
@@ -133,6 +137,11 @@ class DefenderAgent:
         self.model = model
         self.round_history: list[dict] = []
         self.last_kql: str | None = None
+        try:
+            self.threat_intel: ThreatIntelFeed | None = ThreatIntelFeed()
+        except Exception as exc:
+            logger.warning("ThreatIntelFeed init failed: %s — continuing without TI", exc)
+            self.threat_intel = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -151,12 +160,15 @@ class DefenderAgent:
         Generate a KQL detection rule for this round.
         Returns a KQL string.
         """
+        ioc_match = self.threat_intel.match_logs(attack_logs) if self.threat_intel else {}
+        ti_block  = self._build_ti_block(ioc_match)
+
         if round_num == 1 or self.last_kql is None:
-            prompt = self._build_initial_prompt(technique, round_num, total_rounds, attack_logs)
+            prompt = self._build_initial_prompt(technique, round_num, total_rounds, attack_logs, ti_block)
         else:
             prompt = self._build_hardening_prompt(
                 technique, round_num, total_rounds, attack_logs,
-                detected_logs or [], evaded_logs or [],
+                detected_logs or [], evaded_logs or [], ti_block,
             )
 
         raw = self._call_ollama(prompt)
@@ -176,8 +188,33 @@ class DefenderAgent:
     # Prompt builders
     # ------------------------------------------------------------------
 
+    def _build_ti_block(self, ioc_match: dict) -> str:
+        """Build the THREAT INTELLIGENCE prompt section from live feed + match results."""
+        base = (self.threat_intel.get_sentinel_context() if self.threat_intel else "") or ""
+        parts = [base] if base else []
+
+        if ioc_match.get("has_c2_match"):
+            matched = ", ".join(f'"{ip}"' for ip in ioc_match["matched_ips"][:5])
+            parts += [
+                "",
+                f"⚠ HIGH-CONFIDENCE C2 MATCH: attack logs contain KNOWN C2 IPs: {matched}",
+                "  IMMEDIATE ACTION — make this your first where condition:",
+                f"  | where IPAddress in ({matched})",
+            ]
+
+        if ioc_match.get("matched_uas"):
+            uas = ", ".join(f'"{ua}"' for ua in ioc_match["matched_uas"][:3])
+            parts += [
+                "",
+                f"⚠ MALICIOUS USER AGENT in attack logs: {uas}",
+                f"  ADD: | where UserAgent has_any ({uas})",
+            ]
+
+        return "\n".join(parts)
+
     def _build_initial_prompt(
-        self, technique: dict, round_num: int, total_rounds: int, attack_logs: list[dict]
+        self, technique: dict, round_num: int, total_rounds: int,
+        attack_logs: list[dict], ti_block: str = "",
     ) -> str:
         samples = attack_logs[:5]
         return INITIAL_PROMPT_TEMPLATE.format(
@@ -194,6 +231,7 @@ class DefenderAgent:
             detection_hints="\n".join(
                 f"- {h}" for h in technique.get("detection_kql_hints", [])
             ),
+            threat_intel=ti_block,
         )
 
     def _build_hardening_prompt(
@@ -204,6 +242,7 @@ class DefenderAgent:
         attack_logs: list[dict],
         detected: list[dict],
         evaded: list[dict],
+        ti_block: str = "",
     ) -> str:
         return HARDENING_PROMPT_TEMPLATE.format(
             technique_id=technique["technique_id"],
@@ -220,6 +259,7 @@ class DefenderAgent:
             detected_samples=_format_logs(detected, n=2),
             new_attack_samples=_format_logs(attack_logs, n=4),
             new_field_summary=_field_value_summary(attack_logs),
+            threat_intel=ti_block,
         )
 
     # ------------------------------------------------------------------

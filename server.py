@@ -150,6 +150,17 @@ async def api_export(severity: str = "", ids: str = ""):
     )
 
 
+@app.get("/api/threatintel")
+async def api_threatintel():
+    """Return current cached threat intel summary (sources, IOC counts, samples)."""
+    from engine.threat_intel import ThreatIntelFeed
+    try:
+        feed = ThreatIntelFeed()
+        return JSONResponse(feed.get_status())
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
 @app.get("/api/memory")
 async def api_memory():
     """Return current attacker memory as JSON (per-technique intel)."""

@@ -613,6 +613,135 @@
       vertical-align: middle;
     }
     @keyframes rot { to { transform: rotate(360deg); } }
+
+    /* ── Threat intel badge ─────────────────────────────────────────────── */
+    .ti-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: 8px;
+      cursor: pointer;
+      padding: 2px 8px;
+      border: 1px solid rgba(60,142,255,0.25);
+      border-radius: 20px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .ti-badge:hover {
+      border-color: var(--blue);
+      color: var(--text);
+      background: rgba(60,142,255,0.07);
+    }
+
+    .ti-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--dim);
+      flex-shrink: 0;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .ti-dot.live {
+      background: var(--green);
+      box-shadow: 0 0 5px var(--green);
+    }
+    .ti-dot.stale {
+      background: var(--yellow);
+    }
+
+    /* ── Threat intel modal ─────────────────────────────────────────────── */
+    #ti-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #ti-modal-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--blue);
+      border-radius: 6px;
+      padding: 18px 20px 14px;
+      width: 420px;
+      max-height: 80vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .ti-modal-head {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--blue);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ti-close {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--dim);
+      cursor: pointer;
+      padding: 2px 8px;
+      border: 1px solid var(--dim);
+      border-radius: 2px;
+      font-family: var(--mono);
+      transition: all 0.15s;
+    }
+    .ti-close:hover { color: var(--text); border-color: var(--muted); }
+
+    .ti-section {
+      font-size: 8.5px;
+      letter-spacing: 2px;
+      color: var(--dim);
+      padding: 8px 0 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    .ti-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 3px 0;
+      font-size: 10.5px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .ti-k { color: #8a9ab5; }
+    .ti-v { color: var(--text); font-size: 10px; }
+    .ti-v.ok  { color: var(--green); }
+    .ti-v.err { color: var(--red); }
+    .ti-v.warn { color: var(--yellow); }
+
+    .ti-ioc-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px 0;
+    }
+
+    .ti-ioc {
+      font-size: 9.5px;
+      color: var(--blue);
+      background: rgba(60,142,255,0.07);
+      border: 1px solid rgba(60,142,255,0.2);
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-family: var(--mono);
+    }
   </style>
 </head>
 <body>
@@ -726,6 +855,10 @@
     <div class="panel-header">
       <div class="ph-dot"></div>
       DEFENDER
+      <div class="ti-badge" id="ti-badge" onclick="showTiModal()" title="Threat Intelligence">
+        <div class="ti-dot" id="ti-dot"></div>
+        <span id="ti-count">loading&hellip;</span>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -746,6 +879,19 @@
     </div>
   </div>
 
+</div>
+
+<!-- ── Threat intel modal ───────────────────────────────────────────────────── -->
+<div id="ti-modal" onclick="if(event.target===this)this.style.display='none'">
+  <div id="ti-modal-box">
+    <div class="ti-modal-head">
+      THREAT INTELLIGENCE
+      <span class="ti-close" onclick="document.getElementById('ti-modal').style.display='none'">CLOSE</span>
+    </div>
+    <div id="ti-modal-content">
+      <div class="ti-row"><span class="ti-k">Status</span><span class="ti-v">Loading&hellip;</span></div>
+    </div>
+  </div>
 </div>
 
 <!-- ── Battle banner ────────────────────────────────────────────────────────── -->
@@ -1157,6 +1303,100 @@ async function loadMemory(techniqueId) {
     });
   });
 })();
+
+/* ── Threat intelligence ──────────────────────────────────────────────────────── */
+let _tiData = null;
+
+async function loadThreatIntel() {
+  try {
+    const resp = await fetch('/api/threatintel');
+    if (!resp.ok) return;
+    _tiData = await resp.json();
+
+    const dot   = document.getElementById('ti-dot');
+    const count = document.getElementById('ti-count');
+    const total = (_tiData.ip_count || 0) + (_tiData.domain_count || 0);
+
+    if (_tiData.error) {
+      dot.className   = 'ti-dot';
+      count.textContent = 'error';
+      return;
+    }
+
+    if (total > 0) {
+      dot.className   = 'ti-dot live';
+      count.textContent = total.toLocaleString() + ' IOCs';
+      document.getElementById('ti-badge').title =
+        `IPs: ${_tiData.ip_count}  Domains: ${_tiData.domain_count}  — click for details`;
+    } else {
+      dot.className   = 'ti-dot stale';
+      count.textContent = 'no data';
+    }
+  } catch (e) {
+    document.getElementById('ti-count').textContent = 'offline';
+    console.warn('TI fetch failed:', e);
+  }
+}
+
+function showTiModal() {
+  const modal = document.getElementById('ti-modal');
+  modal.style.display = 'flex';
+  const el = document.getElementById('ti-modal-content');
+
+  if (!_tiData || _tiData.error) {
+    el.innerHTML = '<div class="ti-row"><span class="ti-k">Status</span><span class="ti-v err">' +
+      esc(_tiData ? _tiData.error : 'Not loaded') + '</span></div>';
+    return;
+  }
+
+  const updated = (_tiData.last_updated || '—').replace('T', ' ').slice(0, 19) + ' UTC';
+  let html = '';
+
+  // Overview
+  html += '<div class="ti-section">OVERVIEW</div>';
+  html += tiRow('Last updated', updated, '');
+  html += tiRow('IPs indexed',     _tiData.ip_count     || 0, 'ok');
+  html += tiRow('Domains indexed', _tiData.domain_count || 0, 'ok');
+  html += tiRow('UA patterns',     _tiData.ua_count     || 0, 'ok');
+
+  // Source status
+  html += '<div class="ti-section">SOURCES</div>';
+  for (const [src, status] of Object.entries(_tiData.source_status || {})) {
+    const cls = status === 'ok' ? 'ok'
+              : status === 'auth_required' ? 'warn'
+              : 'err';
+    html += tiRow(src.toUpperCase(), status, cls);
+  }
+
+  // Sample IPs
+  const sips = _tiData.sample_ips || [];
+  if (sips.length) {
+    html += '<div class="ti-section">SAMPLE C2 IPs</div>';
+    html += '<div class="ti-ioc-grid">' +
+      sips.map(ip => `<span class="ti-ioc">${esc(ip)}</span>`).join('') +
+      '</div>';
+  }
+
+  // Sample domains
+  const sdoms = (_tiData.sample_domains || []).slice(0, 8);
+  if (sdoms.length) {
+    html += '<div class="ti-section">SAMPLE DOMAINS</div>';
+    html += '<div class="ti-ioc-grid">' +
+      sdoms.map(d => `<span class="ti-ioc">${esc(d)}</span>`).join('') +
+      '</div>';
+  }
+
+  el.innerHTML = html;
+
+  function tiRow(key, val, cls) {
+    return '<div class="ti-row">' +
+      '<span class="ti-k">' + esc(String(key)) + '</span>' +
+      '<span class="ti-v ' + cls + '">' + esc(String(val)) + '</span>' +
+      '</div>';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadThreatIntel);
 
 /* ── Start battle ─────────────────────────────────────────────────────────────── */
 function startBattle() {
