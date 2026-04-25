@@ -60,13 +60,20 @@
       background: rgba(167,139,250,.07);
       border-radius: 3px; font-size: 10px; letter-spacing: 2px; color: var(--purple);
     }
-    #nav-links { margin-left: auto; display: flex; gap: 10px; font-size: 11px; }
-    #nav-links a {
-      color: var(--muted); text-decoration: none; padding: 3px 8px;
-      border: 1px solid transparent; border-radius: 3px; transition: all .15s;
-    }
-    #nav-links a:hover { color: var(--text); border-color: var(--dim); }
-    #nav-links a.active { color: var(--purple); border-color: rgba(167,139,250,.4); }
+    #nav-links { margin-left: auto; display: flex; gap: 8px; font-size: 11px; letter-spacing: 1px; }
+    #nav-links a { color: var(--muted); text-decoration: none; padding: 3px 9px; border: 1px solid transparent; border-radius: 3px; transition: all .15s; white-space: nowrap; }
+    #nav-links a.nav-warroom:hover    { color: var(--text);   border-color: var(--dim); }
+    #nav-links a.nav-heatmap:hover    { color: var(--yellow); border-color: var(--dim); }
+    #nav-links a.nav-tournament:hover { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-campaign:hover   { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-export:hover     { color: var(--blue);   border-color: var(--dim); }
+    #nav-links a.nav-autonomous:hover { color: var(--purple); border-color: var(--dim); }
+    #nav-links a.active.nav-warroom    { color: var(--text);   border-color: rgba(226,232,240,.35); }
+    #nav-links a.active.nav-heatmap    { color: var(--yellow); border-color: rgba(255,215,0,.4); }
+    #nav-links a.active.nav-tournament { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-campaign   { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-export     { color: var(--blue);   border-color: rgba(60,142,255,.4); }
+    #nav-links a.active.nav-autonomous { color: var(--purple); border-color: rgba(167,139,250,.4); }
 
     /* ── Controls ────────────────────────────────────────────────────── */
     #controls {
@@ -270,12 +277,12 @@
   <div id="logo">DUEL</div>
   <div id="mode-badge">AUTONOMOUS</div>
   <nav id="nav-links">
-    <a href="/">WAR ROOM</a>
-    <a href="/heatmap">HEATMAP</a>
-    <a href="/tournament">TOURNAMENT</a>
-    <a href="/campaign">CAMPAIGN</a>
-    <a href="/export">EXPORT</a>
-    <a href="/autonomous" class="active">AUTONOMOUS</a>
+    <a href="/" class="nav-warroom">⚔ WAR ROOM</a>
+    <a href="/heatmap" class="nav-heatmap">◈ HEATMAP</a>
+    <a href="/tournament" class="nav-tournament">⚡ TOURNAMENT</a>
+    <a href="/campaign" class="nav-campaign">⛓ CAMPAIGN</a>
+    <a href="/export" class="nav-export">⬇ EXPORT</a>
+    <a href="/autonomous" class="nav-autonomous active">★ AUTONOMOUS</a>
   </nav>
 </div>
 

@@ -198,47 +198,20 @@
     }
     #start-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    #export-btn {
-      padding: 7px 16px;
-      border: 1px solid rgba(167,139,250,0.4);
-      background: rgba(167,139,250,0.06);
-      color: #a78bfa;
-      font-family: var(--mono);
-      font-size: 12px;
-      font-weight: bold;
-      letter-spacing: 2px;
-      cursor: pointer;
-      border-radius: 3px;
-      transition: all 0.2s;
-      white-space: nowrap;
-      text-decoration: none;
-    }
-    #export-btn:hover {
-      background: rgba(167,139,250,0.14);
-      border-color: #a78bfa;
-      color: #fff;
-    }
-    #heatmap-btn {
-      padding: 7px 16px;
-      border: 1px solid rgba(255,215,0,0.4);
-      background: rgba(255,215,0,0.06);
-      color: var(--yellow);
-      font-family: var(--mono);
-      font-size: 12px;
-      font-weight: bold;
-      letter-spacing: 2px;
-      cursor: pointer;
-      border-radius: 3px;
-      transition: all 0.2s;
-      white-space: nowrap;
-      text-decoration: none;
-    }
-    #heatmap-btn:hover {
-      background: rgba(255,215,0,0.14);
-      border-color: var(--yellow);
-      color: #fff;
-      box-shadow: 0 0 10px rgba(255,215,0,0.25);
-    }
+    #nav-links { margin-left: auto; display: flex; gap: 8px; font-size: 11px; letter-spacing: 1px; }
+    #nav-links a { color: var(--muted); text-decoration: none; padding: 3px 9px; border: 1px solid transparent; border-radius: 3px; transition: all .15s; white-space: nowrap; }
+    #nav-links a.nav-warroom:hover    { color: var(--text);   border-color: var(--dim); }
+    #nav-links a.nav-heatmap:hover    { color: var(--yellow); border-color: var(--dim); }
+    #nav-links a.nav-tournament:hover { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-campaign:hover   { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-export:hover     { color: var(--blue);   border-color: var(--dim); }
+    #nav-links a.nav-autonomous:hover { color: var(--purple); border-color: var(--dim); }
+    #nav-links a.active.nav-warroom    { color: var(--text);   border-color: rgba(226,232,240,.35); }
+    #nav-links a.active.nav-heatmap    { color: var(--yellow); border-color: rgba(255,215,0,.4); }
+    #nav-links a.active.nav-tournament { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-campaign   { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-export     { color: var(--blue);   border-color: rgba(60,142,255,.4); }
+    #nav-links a.active.nav-autonomous { color: var(--purple); border-color: rgba(167,139,250,.4); }
 
     /* ── Main grid ───────────────────────────────────────────────────────── */
     #main {
@@ -901,6 +874,14 @@
   </div>
 
   <div id="conn-dot" title="Connection status"></div>
+  <nav id="nav-links">
+    <a href="/" class="nav-warroom active">⚔ WAR ROOM</a>
+    <a href="/heatmap" class="nav-heatmap">◈ HEATMAP</a>
+    <a href="/tournament" class="nav-tournament">⚡ TOURNAMENT</a>
+    <a href="/campaign" class="nav-campaign">⛓ CAMPAIGN</a>
+    <a href="/export" class="nav-export">⬇ EXPORT</a>
+    <a href="/autonomous" class="nav-autonomous">★ AUTONOMOUS</a>
+  </nav>
 </div>
 
 <!-- ── Controls ────────────────────────────────────────────────────────────── -->
@@ -930,8 +911,6 @@
   </div>
 
   <button id="start-btn" onclick="startBattle()">&#9654; START BATTLE</button>
-  <a href="/heatmap" id="heatmap-btn">&#9632; VIEW HEATMAP</a>
-  <a href="/export" id="export-btn">&#11015; EXPORT</a>
 </div>
 
 <!-- ── Main ────────────────────────────────────────────────────────────────── -->
