@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import random
 
-import ollama
+from engine import groq_client as ollama
 
 from engine.attacker_memory import MemoryStore
 

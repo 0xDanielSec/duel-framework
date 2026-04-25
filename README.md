@@ -8,8 +8,13 @@
 ![Ollama](https://img.shields.io/badge/Ollama-local%20inference-black?logo=ollama)
 ![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red)
 ![License MIT](https://img.shields.io/badge/License-MIT-green)
+[![Weekly DUEL](https://github.com/0xDanielSec/duel-framework/actions/workflows/weekly-duel.yml/badge.svg)](https://github.com/0xDanielSec/duel-framework/actions/workflows/weekly-duel.yml)
 
 ![DUEL in action](demo.gif)
+
+<!-- weekly-badge-start -->
+*No weekly battle run yet — trigger the workflow manually or wait for Monday 08:00 UTC.*
+<!-- weekly-badge-end -->
 
 ---
 

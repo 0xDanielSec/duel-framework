@@ -7,7 +7,7 @@ import json
 import logging
 import re
 
-import ollama
+from engine import groq_client as ollama
 
 from engine.threat_intel import ThreatIntelFeed
 
