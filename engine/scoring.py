@@ -111,6 +111,19 @@ class BattleScorer:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(record, f, indent=2, default=str)
 
+    @classmethod
+    def from_log(cls, data: dict) -> "BattleScorer":
+        """Reconstruct a BattleScorer from a saved full_battle_log dict."""
+        scorer = cls(
+            total_rounds=data.get("total_rounds", len(data.get("rounds", []))),
+            technique_id=data["technique_id"],
+        )
+        scorer.rounds = data.get("rounds", [])
+        scorer.attacker_score = data.get("final_attacker_score", 0)
+        scorer.defender_score = data.get("final_defender_score", 0)
+        scorer.surviving_kql = data.get("surviving_kql_rules", [])
+        return scorer
+
     def save_full_battle_log(self) -> Path:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         battle = {

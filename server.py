@@ -121,6 +121,11 @@ async def export_page():
     return FileResponse(str(STATIC_DIR / "export.html"))
 
 
+@app.get("/autonomous")
+async def autonomous_page():
+    return FileResponse(str(STATIC_DIR / "autonomous.html"))
+
+
 @app.get("/api/export/rules")
 async def api_export_rules():
     """Return all exportable rules as JSON for the export UI table."""
@@ -147,6 +152,32 @@ async def api_export(severity: str = "", ids: str = ""):
         content=json.dumps(arm, indent=2),
         media_type="application/json",
         headers={"Content-Disposition": 'attachment; filename="sentinel_export.json"'},
+    )
+
+
+@app.get("/api/report/{technique_id}")
+async def api_report(technique_id: str):
+    """Generate and return the PDF battle report for the given technique."""
+    from engine.report_generator import ReportGenerator
+    from engine.scoring import BattleScorer
+
+    log_path = OUTPUT_DIR / f"full_battle_log_{technique_id}.json"
+    if not log_path.exists():
+        return JSONResponse(
+            {"error": f"No battle log found for technique {technique_id}"},
+            status_code=404,
+        )
+
+    with open(log_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    scorer = BattleScorer.from_log(data)
+    pdf_path = await _in_thread(ReportGenerator(scorer).generate)
+    filename = f"duel_report_{technique_id}.pdf"
+    return FileResponse(
+        str(pdf_path),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -764,6 +795,237 @@ async def ws_campaign(websocket: WebSocket):
             "stages": stage_results,
             "attacker_wins": attacker_wins,
             "overall_success_rate": round(overall_success, 4),
+        })
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as exc:
+        try:
+            await send({"type": "error", "message": str(exc)})
+        except Exception:
+            pass
+
+
+# ── WebSocket autonomous loop ────────────────────────────────────────────────
+
+
+@app.websocket("/ws/autonomous")
+async def ws_autonomous(websocket: WebSocket):
+    await websocket.accept()
+
+    async def send(payload: dict):
+        await websocket.send_text(json.dumps(payload, default=str))
+
+    try:
+        cfg = await websocket.receive_json()
+        objective:      str = cfg.get("objective", "full-compromise")
+        max_techniques: int = max(1, min(6, int(cfg.get("max_techniques", 4))))
+        logs_per_round: int = max(5, int(cfg.get("logs_per_round", 10)))
+        attacker_model: str = cfg.get("attacker_model", "llama3.1:8b")
+        defender_model: str = cfg.get("defender_model", "mistral:7b")
+
+        from engine.autonomous_attacker import AutonomousRedTeam
+        from campaign import build_campaign_context
+
+        Path("output").mkdir(exist_ok=True)
+
+        # ── Plan campaign ───────────────────────────────────────────────
+        await send({"type": "planning", "objective": objective})
+        red_team = AutonomousRedTeam(model=attacker_model)
+        plan = await _in_thread(red_team.plan_campaign, objective, max_techniques)
+        await send({"type": "plan_ready", "objective": objective, "plan": plan})
+
+        # ── Execute each stage ──────────────────────────────────────────
+        attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
+        stage_results: list[dict] = []
+        campaign_context: str | None = None
+
+        for idx, stage_plan in enumerate(plan):
+            technique_id = stage_plan["technique_id"]
+            rounds       = stage_plan["rounds"]
+
+            await send({
+                "type":            "decision",
+                "stage":           idx + 1,
+                "total_stages":    len(plan),
+                "technique_id":    technique_id,
+                "reasoning":       stage_plan["reasoning"],
+                "suggested_rounds": rounds,
+                "priority":        stage_plan.get("priority", "explore"),
+            })
+
+            try:
+                technique = await _in_thread(_load_technique, technique_id)
+            except FileNotFoundError:
+                await send({"type": "error", "message": f"Technique {technique_id} not found."})
+                continue
+
+            await send({
+                "type":           "technique_start",
+                "stage":          idx + 1,
+                "total_stages":   len(plan),
+                "technique_id":   technique_id,
+                "technique_name": technique["name"],
+                "rounds":         rounds,
+            })
+
+            defender_agent = DefenderAgent(model=defender_model)
+            scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id)
+
+            for round_num in range(1, rounds + 1):
+                last_kql      = scorer.rounds[-1]["kql_rule"] if scorer.rounds else None
+                detected_logs = scorer.get_last_detected_logs()
+                evaded_logs   = scorer.get_last_evaded_logs()
+
+                await send({
+                    "type":    "round_start",
+                    "stage":   idx + 1,
+                    "round":   round_num,
+                    "total":   rounds,
+                    "technique": technique_id,
+                })
+
+                # Attacker
+                await send({"type": "attacker_thinking", "stage": idx + 1})
+                try:
+                    attack_logs = await _in_thread(
+                        attacker.generate_logs,
+                        technique=technique,
+                        round_num=round_num,
+                        total_rounds=rounds,
+                        last_kql=last_kql,
+                        detected_logs=detected_logs,
+                        evaded_logs=evaded_logs,
+                        campaign_context=campaign_context if round_num == 1 else None,
+                    )
+                except Exception as exc:
+                    await send({"type": "error", "message": f"Attacker error: {exc}"})
+                    return
+
+                strategy = _attacker_strategy(round_num, last_kql, evaded_logs, detected_logs)
+                logs_sample = [
+                    {k: v for k, v in log.items() if not k.startswith("_duel")}
+                    for log in attack_logs[:3]
+                ]
+                await send({
+                    "type":        "attacker_done",
+                    "stage":       idx + 1,
+                    "strategy":    strategy,
+                    "logs_sample": logs_sample,
+                })
+
+                # Defender
+                await send({"type": "defender_thinking", "stage": idx + 1})
+                try:
+                    kql_rule = await _in_thread(
+                        defender_agent.generate_rule,
+                        technique=technique,
+                        round_num=round_num,
+                        total_rounds=rounds,
+                        attack_logs=attack_logs,
+                        detected_logs=detected_logs,
+                        evaded_logs=evaded_logs,
+                    )
+                except Exception as exc:
+                    kql_rule = "SigninLogs | where ResultType != 0"
+                    await send({"type": "error", "message": f"Defender fallback: {exc}"})
+
+                reasoning = _defender_reasoning(round_num, evaded_logs, detected_logs)
+                await send({
+                    "type":      "defender_done",
+                    "stage":     idx + 1,
+                    "kql":       kql_rule,
+                    "reasoning": reasoning,
+                })
+
+                # Detection
+                det_result  = DetectionEngine(attack_logs).run(kql_rule)
+                total_count = len(attack_logs)
+                detected_n  = len(det_result["detected_ids"])
+                evaded_n    = total_count - detected_n
+                rate        = detected_n / total_count if total_count else 0.0
+
+                await send({
+                    "type":     "detection_result",
+                    "stage":    idx + 1,
+                    "detected": detected_n,
+                    "evaded":   evaded_n,
+                    "rate":     rate,
+                })
+
+                record = scorer.record_round(
+                    round_num=round_num,
+                    attack_logs=attack_logs,
+                    kql_rule=kql_rule,
+                    detected_ids=det_result["detected_ids"],
+                    kql_valid=det_result["kql_valid"],
+                )
+
+                round_result = "detected" if detected_n >= evaded_n else "evaded"
+                await send({
+                    "type":           "round_result",
+                    "stage":          idx + 1,
+                    "result":         round_result,
+                    "attacker_score": scorer.attacker_score,
+                    "defender_score": scorer.defender_score,
+                })
+
+            # Stage complete
+            scorer.save_full_battle_log()
+            total_stage_logs   = sum(r["attack_log_count"] for r in scorer.rounds)
+            total_stage_evaded = sum(r["evaded_count"]     for r in scorer.rounds)
+            evasion_rate = total_stage_evaded / total_stage_logs if total_stage_logs else 0.0
+
+            if scorer.attacker_score > scorer.defender_score:
+                stage_winner = "Attacker"
+            elif scorer.defender_score > scorer.attacker_score:
+                stage_winner = "Defender"
+            else:
+                stage_winner = "Draw"
+
+            stage_result = {
+                "stage":               idx + 1,
+                "technique_id":        technique_id,
+                "technique_name":      technique["name"],
+                "winner":              stage_winner,
+                "evasion_rate":        round(evasion_rate, 4),
+                "attacker_score":      scorer.attacker_score,
+                "defender_score":      scorer.defender_score,
+                "surviving_kql_count": len(scorer.surviving_kql),
+                "surviving_kql":       scorer.surviving_kql,
+            }
+            stage_results.append(stage_result)
+
+            await send({
+                "type":                "technique_complete",
+                "stage":               idx + 1,
+                "technique_id":        technique_id,
+                "winner":              stage_winner,
+                "evasion_rate":        round(evasion_rate, 4),
+                "attacker_score":      scorer.attacker_score,
+                "defender_score":      scorer.defender_score,
+                "surviving_kql_count": len(scorer.surviving_kql),
+            })
+
+            if idx + 1 < len(plan):
+                campaign_context = build_campaign_context(technique, scorer, idx + 1)
+
+        # ── Report + complete ───────────────────────────────────────────
+        report_path = await _in_thread(
+            red_team.generate_report, objective, plan, stage_results
+        )
+
+        attacker_wins  = sum(1 for s in stage_results if s["winner"] == "Attacker")
+        overall_success = attacker_wins / len(stage_results) if stage_results else 0.0
+
+        await send({
+            "type":         "autonomous_complete",
+            "objective":    objective,
+            "stages":       [{k: v for k, v in s.items() if k != "surviving_kql"}
+                             for s in stage_results],
+            "decisions":    red_team._decisions,
+            "success_rate": round(overall_success, 4),
+            "report_path":  str(report_path),
         })
 
     except WebSocketDisconnect:

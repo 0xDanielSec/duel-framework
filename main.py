@@ -193,6 +193,15 @@ def run_duel(
     log_path      = scorer.save_full_battle_log()
     report_path   = scorer.generate_report()
     analysis_path = scorer.generate_analysis()
+
+    try:
+        from engine.report_generator import ReportGenerator
+        pdf_path = ReportGenerator(scorer).generate()
+        console.print(f"[dim]PDF report     → {pdf_path}[/dim]")
+    except Exception as exc:
+        logger.warning("PDF generation skipped: %s", exc)
+        pdf_path = None
+
     console.print(f"\n[dim]Battle log     → {log_path}[/dim]")
     console.print(f"[dim]Final report   → {report_path}[/dim]")
     console.print(f"[dim]Battle analysis → {analysis_path}[/dim]")

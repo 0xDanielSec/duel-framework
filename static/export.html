@@ -157,6 +157,15 @@
 
     #btn-export-sel:hover { background: rgba(60,142,255,0.2); }
 
+    #btn-dl-report {
+      background: rgba(255,215,0,0.08);
+      border: 1px solid rgba(255,215,0,0.4);
+      color: var(--yellow);
+    }
+
+    #btn-dl-report:hover { background: rgba(255,215,0,0.16); }
+    #btn-dl-report:disabled { opacity: 0.35; cursor: not-allowed; }
+
     .export-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
     #rule-count {
@@ -410,6 +419,10 @@
   <button class="export-btn" id="btn-export-all" onclick="exportAll()">⬇ EXPORT ALL</button>
   <button class="export-btn" id="btn-export-sel" onclick="exportSelected()" disabled>⬇ EXPORT SELECTED</button>
 
+  <span style="width:1px;background:var(--border);height:18px;margin:0 4px"></span>
+
+  <button class="export-btn" id="btn-dl-report" onclick="downloadReport()" disabled title="Download PDF report for selected technique">⬇ PDF REPORT</button>
+
   <span id="rule-count">— rules</span>
 </div>
 
@@ -463,6 +476,7 @@
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       allRules = await r.json();
       renderTable();
+      if (allRules.length) document.getElementById('btn-dl-report').disabled = false;
       setStatus('ok', `${allRules.length} surviving rule${allRules.length !== 1 ? 's' : ''} loaded`);
     } catch (err) {
       setStatus('error', `Failed to load rules: ${err.message}`);
@@ -631,6 +645,21 @@
     if (!checked.length) return;
     const ids = checked.map(c => c.dataset.id).join(',');
     triggerDownload(`/api/export?ids=${encodeURIComponent(ids)}`, 'sentinel_export.json');
+  }
+
+  function downloadReport() {
+    // Pick technique from first visible checked rule, or first visible rule
+    let techId = null;
+    const checked = [...document.querySelectorAll('.rule-check:checked')];
+    if (checked.length) {
+      techId = checked[0].closest('tr').dataset.group;
+    } else {
+      const first = document.querySelector('tr[data-group]:not(.hidden):not(.group-header)');
+      if (first) techId = first.dataset.group;
+    }
+    if (!techId) { showToast('No technique selected'); return; }
+    triggerDownload(`/api/report/${encodeURIComponent(techId)}`, `duel_report_${techId}.pdf`);
+    showToast(`Generating PDF for ${techId}…`);
   }
 
   function triggerDownload(url, filename) {

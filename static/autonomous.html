@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — Autonomous Red Team</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:      #07090f;
+      --bg2:     #0d1117;
+      --bg3:     #111827;
+      --red:     #ff3c3c;
+      --blue:    #3c8eff;
+      --green:   #00ff88;
+      --yellow:  #ffd700;
+      --purple:  #a78bfa;
+      --purple2: #7c3aed;
+      --dim:     #4a5568;
+      --muted:   #718096;
+      --text:    #e2e8f0;
+      --border:  #1a2236;
+      --mono:    'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      overflow: hidden;
+    }
+    body { display: flex; flex-direction: column; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      display: flex; align-items: center; gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px; font-weight: 700; letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--purple) 0%, var(--blue) 60%, var(--green) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    #mode-badge {
+      padding: 2px 10px;
+      border: 1px solid rgba(167,139,250,.5);
+      background: rgba(167,139,250,.07);
+      border-radius: 3px; font-size: 10px; letter-spacing: 2px; color: var(--purple);
+    }
+    #nav-links { margin-left: auto; display: flex; gap: 10px; font-size: 11px; }
+    #nav-links a {
+      color: var(--muted); text-decoration: none; padding: 3px 8px;
+      border: 1px solid transparent; border-radius: 3px; transition: all .15s;
+    }
+    #nav-links a:hover { color: var(--text); border-color: var(--dim); }
+    #nav-links a.active { color: var(--purple); border-color: rgba(167,139,250,.4); }
+
+    /* ── Controls ────────────────────────────────────────────────────── */
+    #controls {
+      flex-shrink: 0;
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 20px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+    }
+    #controls label { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+    #controls select, #controls input[type=number] {
+      background: var(--bg2); color: var(--text);
+      border: 1px solid var(--dim); border-radius: 3px;
+      padding: 4px 8px; font-family: var(--mono); font-size: 12px;
+    }
+    #controls select:focus, #controls input:focus {
+      outline: none; border-color: var(--purple);
+    }
+    #launch-btn {
+      padding: 6px 22px;
+      background: linear-gradient(135deg, var(--purple2), var(--purple));
+      border: none; border-radius: 4px;
+      color: #fff; font-family: 'Rajdhani', sans-serif;
+      font-size: 13px; font-weight: 700; letter-spacing: 2px;
+      cursor: pointer; transition: opacity .15s;
+    }
+    #launch-btn:hover { opacity: .85; }
+    #launch-btn:disabled { opacity: .4; cursor: not-allowed; }
+    #status-pill {
+      margin-left: auto; font-size: 11px; letter-spacing: 1px;
+      padding: 3px 10px; border-radius: 3px;
+      border: 1px solid var(--dim); color: var(--muted);
+    }
+    #status-pill.planning  { border-color: rgba(167,139,250,.5); color: var(--purple); }
+    #status-pill.running   { border-color: rgba(255,215,0,.4);   color: var(--yellow); }
+    #status-pill.complete  { border-color: rgba(0,255,136,.4);   color: var(--green);  }
+    #status-pill.error     { border-color: rgba(255,60,60,.4);   color: var(--red);    }
+
+    /* ── Three-panel main area ───────────────────────────────────────── */
+    #main {
+      flex: 1; display: grid;
+      grid-template-columns: 300px 1fr 300px;
+      overflow: hidden;
+    }
+
+    .panel {
+      display: flex; flex-direction: column;
+      overflow: hidden; border-right: 1px solid var(--border);
+    }
+    .panel:last-child { border-right: none; }
+
+    .panel-header {
+      flex-shrink: 0; padding: 8px 12px;
+      background: var(--bg2); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px; font-weight: 700; letter-spacing: 2px;
+    }
+    .panel-body { flex: 1; overflow-y: auto; padding: 10px; }
+
+    /* Left panel — purple autonomous reasoning */
+    #panel-left .panel-header { border-left: 3px solid var(--purple); }
+    #panel-left .panel-title  { color: var(--purple); }
+
+    /* Center panel — battle feed */
+    #panel-center .panel-header { border-left: 3px solid var(--yellow); }
+    #panel-center .panel-title  { color: var(--yellow); }
+
+    /* Right panel — KQL + stats */
+    #panel-right .panel-header { border-left: 3px solid var(--blue); }
+    #panel-right .panel-title  { color: var(--blue); }
+
+    /* ── Kill chain timeline ─────────────────────────────────────────── */
+    #timeline {
+      display: flex; flex-direction: column; gap: 6px;
+      margin-bottom: 14px;
+    }
+    .tc-stage {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid var(--border); border-radius: 4px;
+      background: var(--bg3);
+      font-size: 11px; transition: border-color .3s;
+    }
+    .tc-stage.active  { border-color: var(--yellow); }
+    .tc-stage.success { border-color: var(--red); }
+    .tc-stage.blocked { border-color: var(--blue); }
+    .tc-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--dim); flex-shrink: 0;
+    }
+    .tc-stage.active  .tc-dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+    .tc-stage.success .tc-dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .tc-stage.blocked .tc-dot { background: var(--blue); box-shadow: 0 0 6px var(--blue); }
+    .tc-tid  { color: var(--purple); font-weight: bold; }
+    .tc-name { color: var(--muted); }
+    .tc-badge {
+      margin-left: auto; font-size: 10px; letter-spacing: 1px;
+      padding: 1px 6px; border-radius: 2px;
+    }
+    .tc-badge.evaded   { background: rgba(255,60,60,.15);  color: var(--red);   border: 1px solid rgba(255,60,60,.3); }
+    .tc-badge.detected { background: rgba(60,142,255,.15); color: var(--blue);  border: 1px solid rgba(60,142,255,.3); }
+    .tc-badge.running  { background: rgba(255,215,0,.1);   color: var(--yellow); border: 1px solid rgba(255,215,0,.3); }
+    .tc-badge.pending  { background: transparent; color: var(--dim); border: 1px solid var(--border); }
+
+    /* ── Battle event feed ───────────────────────────────────────────── */
+    #battle-feed { display: flex; flex-direction: column; gap: 5px; }
+    .feed-item {
+      padding: 5px 8px; border-radius: 3px;
+      border-left: 2px solid var(--dim);
+      font-size: 11px; line-height: 1.5;
+      background: rgba(255,255,255,.02);
+    }
+    .feed-item.stage  { border-color: var(--purple); color: var(--purple); font-weight: bold; font-size: 12px; }
+    .feed-item.round  { border-color: var(--yellow); color: var(--yellow); }
+    .feed-item.atk    { border-color: var(--red);    color: var(--muted); }
+    .feed-item.def    { border-color: var(--blue);   color: var(--muted); }
+    .feed-item.result-evaded   { border-color: var(--red);   color: var(--red); }
+    .feed-item.result-detected { border-color: var(--blue);  color: var(--blue); }
+    .feed-item.complete { border-color: var(--green); color: var(--green); font-weight: bold; }
+    .feed-item.error   { border-color: var(--red);   color: var(--red); }
+
+    /* ── Decision cards (left panel) ─────────────────────────────────── */
+    #decision-log { display: flex; flex-direction: column; gap: 8px; }
+    .decision-card {
+      padding: 8px 10px;
+      border: 1px solid rgba(167,139,250,.25);
+      border-radius: 4px; background: rgba(167,139,250,.04);
+    }
+    .decision-card .dc-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 5px;
+    }
+    .decision-card .dc-tid  { color: var(--purple); font-weight: bold; font-size: 12px; }
+    .decision-card .dc-prio {
+      font-size: 10px; letter-spacing: 1px; padding: 1px 6px; border-radius: 2px;
+    }
+    .dc-prio.exploit { background: rgba(255,60,60,.2);   color: var(--red);    border: 1px solid rgba(255,60,60,.3); }
+    .dc-prio.explore { background: rgba(60,142,255,.15); color: var(--blue);   border: 1px solid rgba(60,142,255,.3); }
+    .dc-prio.improve { background: rgba(255,215,0,.1);   color: var(--yellow); border: 1px solid rgba(255,215,0,.3); }
+    .decision-card .dc-reason { color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .decision-card .dc-rounds { color: var(--dim); font-size: 10px; margin-top: 4px; }
+
+    .planning-spinner {
+      color: var(--purple); font-size: 12px; padding: 8px 0;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── KQL panel (right) ───────────────────────────────────────────── */
+    .kql-block {
+      background: rgba(60,142,255,.04);
+      border: 1px solid rgba(60,142,255,.2);
+      border-left: 3px solid var(--blue);
+      border-radius: 4px; padding: 8px 10px;
+      font-size: 11px; line-height: 1.6; white-space: pre-wrap;
+      word-break: break-all; margin-bottom: 10px;
+      max-height: 240px; overflow-y: auto;
+    }
+    .kql-label {
+      font-size: 10px; letter-spacing: 1px;
+      color: var(--muted); margin-bottom: 4px;
+    }
+
+    /* ── Stats grid ──────────────────────────────────────────────────── */
+    .stats-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;
+    }
+    .stat-box {
+      padding: 7px 10px; border-radius: 4px;
+      border: 1px solid var(--border); background: var(--bg3); text-align: center;
+    }
+    .stat-box .sv { font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; }
+    .stat-box .sk { font-size: 10px; color: var(--muted); letter-spacing: 1px; margin-top: 1px; }
+    .sv.red    { color: var(--red); }
+    .sv.blue   { color: var(--blue); }
+    .sv.green  { color: var(--green); }
+    .sv.purple { color: var(--purple); }
+
+    /* ── Completion overlay ──────────────────────────────────────────── */
+    #complete-banner {
+      display: none; margin-top: 10px; padding: 10px 12px;
+      border: 1px solid rgba(0,255,136,.3); border-radius: 4px;
+      background: rgba(0,255,136,.05); color: var(--green);
+      font-size: 12px; line-height: 1.6;
+    }
+
+    /* ── Separator inside panels ─────────────────────────────────────── */
+    .section-label {
+      font-size: 10px; letter-spacing: 2px; color: var(--dim);
+      margin: 10px 0 5px; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<div id="header">
+  <div id="logo">DUEL</div>
+  <div id="mode-badge">AUTONOMOUS</div>
+  <nav id="nav-links">
+    <a href="/">WAR ROOM</a>
+    <a href="/heatmap">HEATMAP</a>
+    <a href="/tournament">TOURNAMENT</a>
+    <a href="/campaign">CAMPAIGN</a>
+    <a href="/export">EXPORT</a>
+    <a href="/autonomous" class="active">AUTONOMOUS</a>
+  </nav>
+</div>
+
+<!-- ── Controls ────────────────────────────────────────────────────────── -->
+<div id="controls">
+  <label>OBJECTIVE</label>
+  <select id="sel-objective">
+    <option value="persistence">persistence</option>
+    <option value="exfiltration">exfiltration</option>
+    <option value="credential-access">credential-access</option>
+    <option value="full-compromise" selected>full-compromise</option>
+  </select>
+
+  <label>MAX TECHNIQUES</label>
+  <input id="inp-max" type="number" min="1" max="6" value="4" style="width:56px" />
+
+  <label>LOGS/ROUND</label>
+  <input id="inp-logs" type="number" min="5" max="30" value="10" style="width:56px" />
+
+  <button id="launch-btn" onclick="launch()">⚡ LAUNCH AUTONOMOUS</button>
+
+  <div id="status-pill">IDLE</div>
+</div>
+
+<!-- ── Three-panel main area ───────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- LEFT — Autonomous reasoning -->
+  <div class="panel" id="panel-left">
+    <div class="panel-header">
+      <div class="panel-title">⚡ AUTONOMOUS REASONING</div>
+    </div>
+    <div class="panel-body">
+      <div class="section-label">Kill Chain Plan</div>
+      <div id="timeline"></div>
+      <div class="section-label">Decision Log</div>
+      <div id="decision-log">
+        <div style="color:var(--dim);font-size:11px">
+          Launch a campaign to see autonomous decisions here.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER — Battle feed -->
+  <div class="panel" id="panel-center">
+    <div class="panel-header">
+      <div class="panel-title">⚔ BATTLE FEED</div>
+      <span id="stage-counter" style="margin-left:auto;font-size:11px;color:var(--muted)"></span>
+    </div>
+    <div class="panel-body">
+      <div id="battle-feed">
+        <div style="color:var(--dim);font-size:11px">
+          Waiting for autonomous campaign to start…
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT — Defender KQL + stats -->
+  <div class="panel" id="panel-right">
+    <div class="panel-header">
+      <div class="panel-title">🛡 DEFENDER KQL</div>
+    </div>
+    <div class="panel-body">
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="sv red"   id="sv-stages">—</div>
+          <div class="sk">STAGES</div>
+        </div>
+        <div class="stat-box">
+          <div class="sv purple" id="sv-success">—</div>
+          <div class="sk">SUCCESS RATE</div>
+        </div>
+        <div class="stat-box">
+          <div class="sv red"  id="sv-att">0</div>
+          <div class="sk">ATT SCORE</div>
+        </div>
+        <div class="stat-box">
+          <div class="sv blue" id="sv-def">0</div>
+          <div class="sk">DEF SCORE</div>
+        </div>
+      </div>
+
+      <div class="kql-label">CURRENT KQL RULE</div>
+      <div class="kql-block" id="kql-display">
+        Waiting for Defender…
+      </div>
+
+      <div class="section-label">Detection Results</div>
+      <div id="det-log" style="display:flex;flex-direction:column;gap:4px;font-size:11px">
+      </div>
+
+      <div id="complete-banner"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let ws = null;
+let attScore = 0, defScore = 0;
+let stageCount = 0, attackerWins = 0;
+const stageNodes = {};
+
+function setStatus(text, cls) {
+  const el = document.getElementById('status-pill');
+  el.textContent = text;
+  el.className = cls || '';
+}
+
+function feedItem(text, cls) {
+  const feed = document.getElementById('battle-feed');
+  const d = document.createElement('div');
+  d.className = `feed-item ${cls || ''}`;
+  d.textContent = text;
+  feed.appendChild(d);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+function addDecision(d) {
+  const log = document.getElementById('decision-log');
+  // Remove placeholder
+  const ph = log.querySelector('div[style]');
+  if (ph) ph.remove();
+
+  const card = document.createElement('div');
+  card.className = 'decision-card';
+  const prioClass = d.priority || 'explore';
+  card.innerHTML = `
+    <div class="dc-header">
+      <span class="dc-tid">${d.technique_id}</span>
+      <span class="dc-prio ${prioClass}">${(d.priority || 'explore').toUpperCase()}</span>
+    </div>
+    <div class="dc-reason">${d.reasoning || ''}</div>
+    <div class="dc-rounds">Rounds: ${d.suggested_rounds || d.rounds || '?'} · Stage ${d.stage || '?'}</div>
+  `;
+  log.appendChild(card);
+  log.scrollTop = log.scrollHeight;
+}
+
+function buildTimeline(plan) {
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  plan.forEach((stage, i) => {
+    const node = document.createElement('div');
+    node.className = 'tc-stage';
+    node.id = `tc-${stage.technique_id}`;
+    node.innerHTML = `
+      <div class="tc-dot"></div>
+      <span class="tc-tid">${stage.technique_id}</span>
+      <span class="tc-name">&nbsp;·&nbsp;${stage.rounds}r</span>
+      <span class="tc-badge pending" id="badge-${stage.technique_id}">PENDING</span>
+    `;
+    tl.appendChild(node);
+    stageNodes[stage.technique_id] = node;
+  });
+}
+
+function setStageActive(tid) {
+  Object.values(stageNodes).forEach(n => n.classList.remove('active'));
+  const node = stageNodes[tid];
+  if (node) {
+    node.classList.add('active');
+    const badge = document.getElementById(`badge-${tid}`);
+    if (badge) { badge.className = 'tc-badge running'; badge.textContent = 'RUNNING'; }
+  }
+}
+
+function setStageResult(tid, winner) {
+  const node = stageNodes[tid];
+  if (!node) return;
+  node.classList.remove('active');
+  const isAttacker = winner === 'Attacker';
+  node.classList.add(isAttacker ? 'success' : 'blocked');
+  const badge = document.getElementById(`badge-${tid}`);
+  if (badge) {
+    badge.className = `tc-badge ${isAttacker ? 'evaded' : 'detected'}`;
+    badge.textContent = isAttacker ? 'EVADED' : 'DETECTED';
+  }
+}
+
+function updateStats() {
+  document.getElementById('sv-att').textContent = attScore;
+  document.getElementById('sv-def').textContent = defScore;
+  const rate = stageCount ? Math.round((attackerWins / stageCount) * 100) + '%' : '—';
+  document.getElementById('sv-stages').textContent = stageCount || '—';
+  document.getElementById('sv-success').textContent = rate;
+}
+
+function launch() {
+  if (ws) { ws.close(); ws = null; }
+
+  const objective    = document.getElementById('sel-objective').value;
+  const maxTech      = parseInt(document.getElementById('inp-max').value)  || 4;
+  const logsPerRound = parseInt(document.getElementById('inp-logs').value) || 10;
+
+  // Reset UI
+  document.getElementById('battle-feed').innerHTML = '';
+  document.getElementById('decision-log').innerHTML =
+    '<div class="planning-spinner">🧠 AUTONOMOUS ATTACKER REASONING…</div>';
+  document.getElementById('timeline').innerHTML = '';
+  document.getElementById('kql-display').textContent = 'Waiting for Defender…';
+  document.getElementById('det-log').innerHTML = '';
+  document.getElementById('complete-banner').style.display = 'none';
+  document.getElementById('stage-counter').textContent = '';
+  attScore = 0; defScore = 0; stageCount = 0; attackerWins = 0;
+  updateStats();
+
+  document.getElementById('launch-btn').disabled = true;
+  setStatus('PLANNING…', 'planning');
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/autonomous`);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({
+      objective,
+      max_techniques: maxTech,
+      logs_per_round: logsPerRound,
+      attacker_model: 'llama3.1:8b',
+      defender_model: 'mistral:7b',
+    }));
+  };
+
+  ws.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    handle(msg);
+  };
+
+  ws.onerror = () => {
+    setStatus('ERROR', 'error');
+    feedItem('WebSocket error — is the server running?', 'error');
+    document.getElementById('launch-btn').disabled = false;
+  };
+
+  ws.onclose = () => {
+    if (!document.getElementById('complete-banner').style.display === 'none') return;
+    document.getElementById('launch-btn').disabled = false;
+  };
+}
+
+function handle(msg) {
+  switch (msg.type) {
+
+    case 'planning':
+      feedItem(`Planning kill chain for objective: ${msg.objective}`, 'stage');
+      break;
+
+    case 'plan_ready': {
+      const log = document.getElementById('decision-log');
+      log.innerHTML = '';
+      buildTimeline(msg.plan);
+      feedItem(`Kill chain planned: ${msg.plan.map(s => s.technique_id).join(' → ')}`, 'stage');
+      setStatus('RUNNING', 'running');
+      document.getElementById('sv-stages').textContent = msg.plan.length;
+      break;
+    }
+
+    case 'decision':
+      addDecision(msg);
+      setStageActive(msg.technique_id);
+      feedItem(
+        `⚡ Decision: ${msg.technique_id} [${(msg.priority||'explore').toUpperCase()}] — ${msg.suggested_rounds} rounds`,
+        'stage'
+      );
+      break;
+
+    case 'technique_start':
+      document.getElementById('stage-counter').textContent =
+        `Stage ${msg.stage}/${msg.total_stages}`;
+      feedItem(`▶ Starting ${msg.technique_id} — ${msg.technique_name}`, 'stage');
+      break;
+
+    case 'round_start':
+      feedItem(`Round ${msg.round}/${msg.total} · ${msg.technique}`, 'round');
+      break;
+
+    case 'attacker_thinking':
+      feedItem('⚔ Attacker generating telemetry…', 'atk');
+      break;
+
+    case 'attacker_done':
+      feedItem(`  Strategy: ${msg.strategy}`, 'atk');
+      break;
+
+    case 'defender_thinking':
+      feedItem('🛡 Defender generating KQL rule…', 'def');
+      break;
+
+    case 'defender_done':
+      document.getElementById('kql-display').textContent = msg.kql || '';
+      feedItem(`  Rule written · ${msg.reasoning}`, 'def');
+      break;
+
+    case 'detection_result': {
+      const det = document.getElementById('det-log');
+      const d = document.createElement('div');
+      const pct = Math.round(msg.rate * 100);
+      const color = msg.rate >= 0.5 ? 'var(--blue)' : 'var(--red)';
+      d.innerHTML =
+        `Stage ${msg.stage} · <span style="color:${color}">${pct}% detected</span>` +
+        ` (${msg.detected}↑ ${msg.evaded}↓)`;
+      det.appendChild(d);
+      det.scrollTop = det.scrollHeight;
+      break;
+    }
+
+    case 'round_result':
+      attScore = msg.attacker_score;
+      defScore = msg.defender_score;
+      updateStats();
+      feedItem(
+        `  Result: ${msg.result.toUpperCase()} · Att ${msg.attacker_score} – Def ${msg.defender_score}`,
+        msg.result === 'evaded' ? 'result-evaded' : 'result-detected',
+      );
+      break;
+
+    case 'technique_complete':
+      stageCount++;
+      if (msg.winner === 'Attacker') attackerWins++;
+      setStageResult(msg.technique_id, msg.winner);
+      feedItem(
+        `✓ ${msg.technique_id} complete · ${msg.winner} wins · evasion ${Math.round(msg.evasion_rate * 100)}%`,
+        msg.winner === 'Attacker' ? 'result-evaded' : 'result-detected',
+      );
+      updateStats();
+      break;
+
+    case 'autonomous_complete': {
+      const rate = Math.round(msg.success_rate * 100);
+      const banner = document.getElementById('complete-banner');
+      banner.style.display = 'block';
+      banner.innerHTML =
+        `<b>AUTONOMOUS CAMPAIGN COMPLETE</b><br>` +
+        `Success rate: <b>${rate}%</b> · Stages: ${msg.stages.length}<br>` +
+        `Report saved to <span style="color:var(--purple)">${msg.report_path}</span>`;
+      feedItem(`Campaign complete · Success rate: ${rate}%`, 'complete');
+      setStatus('COMPLETE', 'complete');
+      document.getElementById('launch-btn').disabled = false;
+      break;
+    }
+
+    case 'error':
+      feedItem(`ERROR: ${msg.message}`, 'error');
+      setStatus('ERROR', 'error');
+      document.getElementById('launch-btn').disabled = false;
+      break;
+  }
+}
+</script>
+</body>
+</html>
