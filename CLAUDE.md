@@ -27,6 +27,29 @@ each round.
 - Battle logs must include: technique, round, attacker_strategy, 
   defender_reasoning, detection_result, evasion_rate
 
+## KQL Engine — Supported Operators
+
+`engine/detection.py` implements a pandas-backed KQL executor.
+Tests live in `engine/test_detection.py` (`python -m pytest engine/test_detection.py -v`).
+
+| Operator | Notes |
+|---|---|
+| `where` | `==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `has`, `startswith`, `endswith`, `in`, `in~`, `!in`, `has_any`, `matches regex`, `isempty`, `isnotempty`, `isnull`, `isnotnull`, `and`/`or`/`not` |
+| `project` / `project-away` | Column selection / removal |
+| `summarize` | `count()`, `dcount()`, `make_list()`, `make_set()`, `arg_max()`, `arg_min()` — with or without `by` grouping |
+| `extend` | Simple column assignment |
+| `top N by col` | Sort + head |
+| `limit` / `take` | Row cap |
+| `order by` / `sort by` | Ascending/descending |
+| `distinct` | Deduplication |
+| `let` | Scalar numbers, strings, and `dynamic([...])` lists; variables substituted before execution |
+| `join` | `kind=` inner / leftouter / rightouter / fullouter / leftanti / rightanti; `$left.col == $right.col` syntax; subquery failure is graceful |
+| `make-series count() on T step Xh by col` | Maps to pandas resample; units s/m/h/d |
+| `mv-expand col` | Explodes list-valued column into individual rows |
+| `parse col with * "lit" name:type *` | Regex-based named field extraction; types string / int / real |
+
+`union` is not supported (silently skipped). Unknown operators pass the DataFrame through unchanged.
+
 ## What NOT to do
 - Do not add external API calls
 - Do not hallucinate Sentinel table schemas — use only real documented schemas

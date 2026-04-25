@@ -115,10 +115,14 @@ class KQLExecutor:
 
     def __init__(self, tables: dict[str, pd.DataFrame]):
         self.tables = tables
+        self._let_bindings: dict = {}
 
     def execute(self, query: str) -> tuple[pd.DataFrame, bool]:
         try:
             clean = self._strip_comments(query).strip()
+            self._let_bindings, clean = self._extract_let_bindings(clean)
+            if self._let_bindings:
+                clean = self._substitute_vars(clean, self._let_bindings)
             clean = self._sanitize(clean)
             result = self._run_pipeline(clean)
             return result, True
@@ -128,22 +132,15 @@ class KQLExecutor:
 
     def _sanitize(self, query: str) -> str:
         """
-        Guard against two failure modes that produce silent 0% detection:
-
-        1. Query starts with a table that has no data (e.g. SecurityEvent when
-           only SigninLogs are populated). Redirect to the first available table
-           and log a warning so the LLM's prompt can be corrected.
-
-        2. join / union stages reference unpopulated tables. Strip them — the
-           pipeline will keep whatever rows survived earlier stages.
+        Guard against the primary failure mode: query starts with a table that
+        has no data. Redirect to the first available table and log a warning.
+        join / union are now handled by _dispatch, not stripped here.
         """
         stages = self._split_pipeline(query)
-        # Strip leading/trailing backticks and quotes that LLMs sometimes emit
-        # (e.g. `SigninLogs` → SigninLogs) before any table lookup occurs.
+        # Strip leading/trailing backticks and quotes that LLMs sometimes emit.
         primary = stages[0].strip().strip("`'\"")
         stages[0] = primary
 
-        # Redirect if primary table is missing
         if primary not in self.tables and self.tables:
             fallback = next(iter(self.tables))
             logger.warning(
@@ -153,17 +150,7 @@ class KQLExecutor:
             )
             stages[0] = fallback
 
-        # Drop join / union stages to prevent cross-table failures
-        def _is_join_or_union(s: str) -> bool:
-            low = s.strip().lower()
-            return low.startswith("join ") or low.startswith("union ")
-
-        filtered = [s for s in stages if not _is_join_or_union(s)]
-        if len(filtered) < len(stages):
-            dropped = [s.strip()[:60] for s in stages if _is_join_or_union(s)]
-            logger.warning("Stripped unsupported join/union stage(s): %s", dropped)
-
-        return "\n| ".join(filtered)
+        return "\n| ".join(stages)
 
     # ------------------------------------------------------------------
     # Pipeline runner
@@ -238,8 +225,16 @@ class KQLExecutor:
             return df[valid].drop_duplicates() if valid else df.drop_duplicates()
         if low.strip() == "count":
             return pd.DataFrame({"Count": [len(df)]})
-        if low.startswith("mv-expand ") or low.startswith("join ") or low.startswith("union "):
-            logger.debug("Skipping unsupported operator: %s", stage[:40])
+        if low.startswith("join "):
+            return self._op_join(df, stage[5:])
+        if low.startswith("make-series "):
+            return self._op_make_series(df, stage[12:])
+        if low.startswith("mv-expand "):
+            return self._op_mv_expand(df, stage[10:])
+        if low.startswith("parse "):
+            return self._op_parse(df, stage[6:])
+        if low.startswith("union "):
+            logger.debug("Skipping unsupported union: %s", stage[:40])
             return df
         logger.debug("Unknown KQL operator: %s", stage[:40])
         return df
@@ -485,6 +480,34 @@ class KQLExecutor:
             if valid and val_col in df.columns:
                 return df.groupby(valid)[val_col].apply(list).reset_index(name=alias)
 
+        # summarize arg_max/arg_min(sort_col, *) by group
+        m = re.match(
+            r'^arg_(max|min)\s*\(\s*(\w+)\s*,\s*.+\)\s+by\s+(.+)$',
+            expr.strip(), re.IGNORECASE,
+        )
+        if m:
+            fn, sort_col, by_raw = m.groups()
+            by_cols  = [c.strip() for c in by_raw.split(",")]
+            valid_by = [c for c in by_cols if c in df.columns]
+            if valid_by and sort_col in df.columns:
+                asc = fn.lower() == "min"
+                return (
+                    df.sort_values(sort_col, ascending=asc)
+                      .drop_duplicates(subset=valid_by, keep="first")
+                      .reset_index(drop=True)
+                )
+
+        # summarize arg_max/arg_min without grouping (whole-table extremal row)
+        m = re.match(
+            r'^arg_(max|min)\s*\(\s*(\w+)\s*,\s*.+\)$',
+            expr.strip(), re.IGNORECASE,
+        )
+        if m:
+            fn, sort_col = m.groups()
+            if sort_col in df.columns:
+                asc = fn.lower() == "min"
+                return df.sort_values(sort_col, ascending=asc).head(1).reset_index(drop=True)
+
         return df
 
     def _op_extend(self, df: pd.DataFrame, expr: str) -> pd.DataFrame:
@@ -515,6 +538,274 @@ class KQLExecutor:
             if col in df.columns:
                 return df.sort_values(col, ascending=asc)
         return df
+
+    # ------------------------------------------------------------------
+    # let — variable binding
+    # ------------------------------------------------------------------
+
+    def _extract_let_bindings(self, query: str) -> tuple[dict, str]:
+        """Parse leading `let name = value;` blocks; return bindings + remaining query."""
+        bindings: dict = {}
+        remaining: list[str] = []
+        let_buf: list[str] = []
+        paren_depth = 0
+
+        for line in query.splitlines():
+            stripped = line.strip()
+            if let_buf:
+                let_buf.append(line)
+                paren_depth += line.count("(") - line.count(")")
+                if paren_depth <= 0 and stripped.endswith(";"):
+                    self._parse_let_stmt(" ".join(let_buf), bindings)
+                    let_buf = []
+                    paren_depth = 0
+            elif re.match(r"^let\s+\w+\s*=", stripped, re.IGNORECASE):
+                let_buf.append(line)
+                paren_depth += stripped.count("(") - stripped.count(")")
+                if stripped.endswith(";"):
+                    self._parse_let_stmt(" ".join(let_buf), bindings)
+                    let_buf = []
+                    paren_depth = 0
+            else:
+                remaining.append(line)
+
+        return bindings, "\n".join(remaining).strip()
+
+    def _parse_let_stmt(self, stmt: str, bindings: dict) -> None:
+        m = re.match(
+            r"let\s+(\w+)\s*=\s*(.+?);\s*$",
+            stmt.strip(), re.IGNORECASE | re.DOTALL,
+        )
+        if not m:
+            return
+        name, val_raw = m.group(1), m.group(2).strip()
+
+        # dynamic([item, ...])
+        dm = re.match(r"dynamic\s*\(\s*\[(.+)]\s*\)", val_raw, re.IGNORECASE | re.DOTALL)
+        if dm:
+            bindings[name] = [v.strip().strip("\"'") for v in self._csv_split(dm.group(1))]
+            return
+
+        # Quoted string
+        if len(val_raw) >= 2 and val_raw[0] in ('"', "'") and val_raw[-1] == val_raw[0]:
+            bindings[name] = val_raw[1:-1]
+            return
+
+        # Integer / float
+        try:
+            bindings[name] = int(val_raw) if re.fullmatch(r"-?\d+", val_raw) else float(val_raw)
+            return
+        except ValueError:
+            pass
+
+        bindings[name] = val_raw
+
+    def _substitute_vars(self, query: str, bindings: dict) -> str:
+        for name, val in bindings.items():
+            if isinstance(val, list):
+                replacement = "(" + ", ".join(f'"{v}"' for v in val) + ")"
+                # Substitute inside `in (varname)` first
+                query = re.sub(
+                    r"\bin\s*\(\s*" + re.escape(name) + r"\s*\)",
+                    "in " + replacement,
+                    query, flags=re.IGNORECASE,
+                )
+                query = re.sub(r"\b" + re.escape(name) + r"\b", replacement, query)
+            else:
+                query = re.sub(r"\b" + re.escape(name) + r"\b", str(val), query)
+        return query
+
+    # ------------------------------------------------------------------
+    # join
+    # ------------------------------------------------------------------
+
+    def _op_join(self, df: pd.DataFrame, expr: str) -> pd.DataFrame:
+        m = re.match(
+            r"^(?:kind\s*=\s*(\w+)\s*)?\((.+)\)\s+on\s+(.+)$",
+            expr.strip(), re.IGNORECASE | re.DOTALL,
+        )
+        if not m:
+            logger.warning("Could not parse join expression: %s", expr[:80])
+            return df
+
+        kind_str  = (m.group(1) or "inner").lower()
+        subquery  = m.group(2).strip()
+        on_clause = m.group(3).strip()
+
+        try:
+            sub_clean = self._strip_comments(subquery).strip()
+            if self._let_bindings:
+                sub_clean = self._substitute_vars(sub_clean, self._let_bindings)
+            sub_clean = self._sanitize(sub_clean)
+            right_df  = self._run_pipeline(sub_clean)
+        except Exception as exc:
+            logger.warning("Join subquery failed (%s) — skipping join stage", exc)
+            return df
+
+        left_col, right_col = self._parse_join_on(on_clause)
+        if left_col is None:
+            logger.warning("Unrecognised join on clause: %s", on_clause)
+            return df
+        if left_col not in df.columns or right_col not in right_df.columns:
+            logger.warning(
+                "Join column missing — left:%r right:%r", left_col, right_col
+            )
+            return df
+
+        renames = {
+            c: c + "_right"
+            for c in right_df.columns
+            if c != right_col and c in df.columns
+        }
+        right_df = right_df.rename(columns=renames)
+
+        kind_to_how = {
+            "inner":      "inner",
+            "leftouter":  "left",
+            "rightouter": "right",
+            "fullouter":  "outer",
+            "leftanti":   "left",
+            "rightanti":  "right",
+        }
+        how = kind_to_how.get(kind_str, "inner")
+
+        if kind_str in ("leftanti", "rightanti"):
+            keep_side = "left_only" if kind_str == "leftanti" else "right_only"
+            merged = df.merge(
+                right_df[[right_col]], left_on=left_col, right_on=right_col,
+                how=how, indicator=True,
+            )
+            merged = merged[merged["_merge"] == keep_side].drop(columns=["_merge"])
+        else:
+            merged = df.merge(right_df, left_on=left_col, right_on=right_col, how=how)
+
+        return merged.reset_index(drop=True)
+
+    def _parse_join_on(self, on_clause: str) -> tuple[Optional[str], Optional[str]]:
+        m = re.match(r"\$left\.(\w+)\s*==\s*\$right\.(\w+)", on_clause, re.IGNORECASE)
+        if m:
+            return m.group(1), m.group(2)
+        m = re.match(r"^(\w+)$", on_clause.strip())
+        if m:
+            col = m.group(1)
+            return col, col
+        return None, None
+
+    # ------------------------------------------------------------------
+    # make-series
+    # ------------------------------------------------------------------
+
+    def _op_make_series(self, df: pd.DataFrame, expr: str) -> pd.DataFrame:
+        m = re.match(
+            r"count\(\)\s+on\s+(\w+)\s+step\s+(\d+)\s*([smhd])\s+by\s+(.+)",
+            expr.strip(), re.IGNORECASE,
+        )
+        if not m:
+            logger.warning("Unsupported make-series syntax: %s", expr[:80])
+            return df
+
+        time_col, step_n, step_unit, by_raw = m.groups()
+        by_cols  = [c.strip() for c in by_raw.split(",")]
+        valid_by = [c for c in by_cols if c in df.columns]
+
+        if time_col not in df.columns:
+            logger.warning("make-series: time column %r not found", time_col)
+            return df
+
+        freq_map = {"s": "s", "m": "min", "h": "h", "d": "D"}
+        freq = f"{step_n}{freq_map.get(step_unit.lower(), 'h')}"
+
+        try:
+            df = df.copy()
+            df[time_col] = pd.to_datetime(df[time_col], utc=True, errors="coerce")
+            df = df.dropna(subset=[time_col])
+            if valid_by:
+                result = (
+                    df.set_index(time_col)
+                      .groupby(valid_by)
+                      .resample(freq)
+                      .size()
+                      .reset_index(name="count_")
+                )
+            else:
+                result = df.resample(freq, on=time_col).size().reset_index(name="count_")
+            return result
+        except Exception as exc:
+            logger.warning("make-series failed: %s", exc)
+            return df
+
+    # ------------------------------------------------------------------
+    # mv-expand
+    # ------------------------------------------------------------------
+
+    def _op_mv_expand(self, df: pd.DataFrame, expr: str) -> pd.DataFrame:
+        col = expr.strip().split()[0]
+        if col not in df.columns:
+            logger.warning("mv-expand: column %r not found", col)
+            return df
+        try:
+            return df.explode(col).reset_index(drop=True)
+        except Exception as exc:
+            logger.warning("mv-expand failed on %r: %s", col, exc)
+            return df
+
+    # ------------------------------------------------------------------
+    # parse
+    # ------------------------------------------------------------------
+
+    def _op_parse(self, df: pd.DataFrame, expr: str) -> pd.DataFrame:
+        m = re.match(r"^(\w+)\s+with\s+(.+)$", expr.strip(), re.IGNORECASE | re.DOTALL)
+        if not m:
+            return df
+        col, pattern_str = m.group(1), m.group(2).strip()
+        if col not in df.columns:
+            logger.warning("parse: column %r not found", col)
+            return df
+        try:
+            regex, field_names = self._parse_kql_pattern(pattern_str)
+        except Exception as exc:
+            logger.warning("parse: pattern compilation failed: %s", exc)
+            return df
+        if not field_names:
+            return df
+        try:
+            extracted = df[col].astype(str).str.extract(regex, expand=True)
+            extracted.columns = field_names
+            df = df.copy()
+            for fc in field_names:
+                df[fc] = extracted[fc]
+            return df
+        except Exception as exc:
+            logger.warning("parse: extraction failed: %s", exc)
+            return df
+
+    def _parse_kql_pattern(self, pattern_str: str) -> tuple[str, list[str]]:
+        """Convert a KQL parse-with pattern string into a Python regex."""
+        tokens = re.findall(r'\*|"[^"]*"|\w+:\w+', pattern_str)
+        regex_parts: list[str] = []
+        field_names: list[str] = []
+
+        for i, tok in enumerate(tokens):
+            if tok == "*":
+                regex_parts.append(".*?")
+            elif tok.startswith('"'):
+                regex_parts.append(re.escape(tok[1:-1]))
+            elif ":" in tok:
+                name, typ = tok.split(":", 1)
+                field_names.append(name)
+                next_tok = tokens[i + 1] if i + 1 < len(tokens) else None
+                if typ.lower() in ("int", "long"):
+                    regex_parts.append(r"(\d+)")
+                elif typ.lower() in ("real", "double"):
+                    regex_parts.append(r"([\d.]+)")
+                else:
+                    if next_tok and next_tok.startswith('"'):
+                        stop = re.escape(next_tok[1:-1])
+                        regex_parts.append(f"(.+?)(?={stop}|$)")
+                    else:
+                        regex_parts.append(r"(\S+)")
+
+        return "".join(regex_parts), field_names
 
 
 # ---------------------------------------------------------------------------
