@@ -150,6 +150,14 @@ async def api_export(severity: str = "", ids: str = ""):
     )
 
 
+@app.get("/api/memory")
+async def api_memory():
+    """Return current attacker memory as JSON (per-technique intel)."""
+    from engine.attacker_memory import MemoryStore
+    store = MemoryStore()
+    return JSONResponse(store.get_all())
+
+
 @app.get("/coverage")
 async def coverage():
     """Aggregate all full battle logs in /output and return per-technique stats."""

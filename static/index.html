@@ -470,6 +470,138 @@
       letter-spacing: 1px;
     }
 
+    /* ── Memory panel ───────────────────────────────────────────────────── */
+    #memory-section {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      height: 200px;
+      min-height: 60px;
+      border-top: 1px solid var(--border);
+      margin-top: 6px;
+    }
+
+    #memory-resize {
+      flex-shrink: 0;
+      height: 7px;
+      cursor: ns-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #memory-resize::before {
+      content: '';
+      width: 36px;
+      height: 2px;
+      background: var(--dim);
+      border-radius: 1px;
+      transition: background 0.15s;
+    }
+    #memory-resize:hover::before { background: var(--yellow); }
+
+    #memory-header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding-bottom: 5px;
+    }
+
+    #memory-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--yellow);
+    }
+
+    #memory-stats {
+      font-size: 9px;
+      color: var(--dim);
+      letter-spacing: 0.5px;
+    }
+
+    #memory-size-btn {
+      margin-left: auto;
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding: 2px 9px;
+      border: 1px solid rgba(255,215,0,0.3);
+      background: rgba(255,215,0,0.05);
+      color: var(--yellow);
+      cursor: pointer;
+      border-radius: 2px;
+      font-family: var(--mono);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    #memory-size-btn:hover {
+      background: rgba(255,215,0,0.14);
+      border-color: var(--yellow);
+    }
+
+    #memory-body {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .mem-stats-row {
+      display: flex;
+      gap: 14px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 5px;
+    }
+    .mem-stat-item { font-size: 8.5px; color: var(--dim); letter-spacing: 1px; }
+    .mem-stat-item span { color: var(--yellow); margin-left: 3px; font-size: 9.5px; }
+
+    .mem-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0 8px;
+    }
+
+    .mem-col-title {
+      font-size: 8px;
+      letter-spacing: 2px;
+      font-weight: bold;
+      padding: 1px 0 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+    .mem-col-title.safe   { color: var(--green); }
+    .mem-col-title.danger { color: var(--red); }
+
+    .mem-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .mem-field {
+      display: block;
+      font-size: 8.5px;
+      color: #8a9ab5;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mem-val-safe   { font-size: 9px; color: var(--green); }
+    .mem-val-danger { font-size: 9px; color: var(--red); }
+    .mem-count { font-size: 8px; color: var(--dim); margin-left: 3px; }
+
+    .mem-pattern-list {
+      margin-top: 6px;
+      border-top: 1px solid var(--border);
+      padding-top: 4px;
+    }
+    .mem-pattern-title { font-size: 8px; letter-spacing: 2px; color: var(--dim); margin-bottom: 3px; }
+    .mem-pattern { font-size: 9px; color: #8a9ab5; padding: 1px 0; }
+
+    .mem-empty { font-size: 9px; color: var(--dim); font-style: italic; }
+
     /* ── Spinner ─────────────────────────────────────────────────────────── */
     .spin {
       display: inline-block;
@@ -566,6 +698,21 @@
         <span class="empty-hint">No logs generated yet.</span>
       </div>
     </div>
+
+    <div id="memory-section">
+      <div id="memory-resize" title="Drag to resize"></div>
+      <div id="memory-header">
+        <div class="ph-dot" style="background:var(--yellow)"></div>
+        <span id="memory-title">ATTACKER MEMORY</span>
+        <span id="memory-stats"></span>
+        <button id="memory-size-btn" onclick="toggleMemorySize()">EXPAND</button>
+      </div>
+      <div id="memory-body">
+        <div id="memory-content">
+          <span class="mem-empty">Run a battle to populate memory.</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Center feed -->
@@ -625,6 +772,7 @@
 /* ── State ─────────────────────────────────────────────────────────────────── */
 let ws = null;
 let active = false;
+let currentTechnique = null;
 
 /* ── KQL syntax highlighting ────────────────────────────────────────────────── */
 function esc(s) {
@@ -776,6 +924,7 @@ function handle(data) {
   switch (data.type) {
 
     case 'round_start':
+      currentTechnique = data.technique;
       document.getElementById('round-counter').textContent =
         'ROUND ' + data.round + ' / ' + data.total;
       document.getElementById('technique-badge').textContent = data.technique;
@@ -844,6 +993,7 @@ function handle(data) {
         ' | Defender: ' + data.final_defender,
         'sys'
       );
+      if (currentTechnique) loadMemory(currentTechnique);
 
       {
         const banner = document.getElementById('banner');
@@ -867,6 +1017,146 @@ function handle(data) {
       break;
   }
 }
+
+/* ── Attacker memory panel ─────────────────────────────────────────────────────── */
+const MEM_DEFAULT  = 200;
+const MEM_EXPANDED = 400;
+let _memExpanded   = false;
+
+function toggleMemorySize() {
+  _memExpanded = !_memExpanded;
+  const section = document.getElementById('memory-section');
+  const btn     = document.getElementById('memory-size-btn');
+  section.style.transition = 'height 0.2s ease';
+  section.style.height     = (_memExpanded ? MEM_EXPANDED : MEM_DEFAULT) + 'px';
+  btn.textContent          = _memExpanded ? 'COLLAPSE' : 'EXPAND';
+}
+
+function renderMemory(memory, techniqueId) {
+  const el   = document.getElementById('memory-content');
+  const tech = memory[techniqueId];
+
+  if (!tech || tech.total_rounds === 0) {
+    document.getElementById('memory-stats').textContent = '';
+    el.innerHTML = '<span class="mem-empty">No memory for ' + esc(techniqueId) + ' — run more battles to build intel.</span>';
+    return;
+  }
+
+  document.getElementById('memory-stats').textContent =
+    tech.total_battles + ' battles · ' + tech.evasion_count + ' evasions';
+
+  function entryHtml(field, val, cnt, cls) {
+    return (
+      '<div class="mem-entry">' +
+        '<span class="mem-field">' + esc(field) + '</span>' +
+        '<span class="' + cls + '">' + esc(String(val)) +
+          '<span class="mem-count">×' + cnt + '</span>' +
+        '</span>' +
+      '</div>'
+    );
+  }
+
+  // Safe column — stable_signatures: {field: [[val, count], ...]}
+  const stable = tech.stable_signatures || {};
+  let safeHtml = '';
+  Object.keys(stable).slice(0, 12).forEach(field => {
+    (stable[field] || []).slice(0, 2).forEach(([val, cnt]) => {
+      safeHtml += entryHtml(field, val, cnt, 'mem-val-safe');
+    });
+  });
+  if (!safeHtml) safeHtml = '<div class="mem-empty">none yet</div>';
+
+  // Dangerous column — dangerous_fields: {field: [[val, count], ...]}
+  const danger = tech.dangerous_fields || {};
+  let dangerHtml = '';
+  Object.keys(danger).slice(0, 12).forEach(field => {
+    (danger[field] || []).slice(0, 2).forEach(([val, cnt]) => {
+      dangerHtml += entryHtml(field, val, cnt, 'mem-val-danger');
+    });
+  });
+  if (!dangerHtml) dangerHtml = '<div class="mem-empty">none identified</div>';
+
+  // Patterns
+  const patterns = tech.evasion_patterns || [];
+  const patternHtml = patterns.length
+    ? '<div class="mem-pattern-list"><div class="mem-pattern-title">EVASION PATTERNS</div>' +
+      patterns.slice(-3).map(p => '<div class="mem-pattern">&bull; ' + esc(p) + '</div>').join('') +
+      '</div>'
+    : '';
+
+  el.innerHTML =
+    '<div class="mem-stats-row">' +
+      '<div class="mem-stat-item">BATTLES<span>' + tech.total_battles + '</span></div>' +
+      '<div class="mem-stat-item">ROUNDS<span>'  + tech.total_rounds  + '</span></div>' +
+      '<div class="mem-stat-item">EVASIONS<span>' + tech.evasion_count + '</span></div>' +
+    '</div>' +
+    '<div class="mem-cols">' +
+      '<div>' +
+        '<div class="mem-col-title safe">SAFE FIELDS</div>' +
+        safeHtml +
+      '</div>' +
+      '<div>' +
+        '<div class="mem-col-title danger">DANGEROUS</div>' +
+        dangerHtml +
+      '</div>' +
+    '</div>' +
+    patternHtml;
+}
+
+async function loadMemory(techniqueId) {
+  try {
+    const resp = await fetch('/api/memory');
+    if (!resp.ok) return;
+    const memory = await resp.json();
+    renderMemory(memory, techniqueId);
+    // Ensure the panel is at least at default height
+    const section = document.getElementById('memory-section');
+    if (section.offsetHeight < MEM_DEFAULT) {
+      section.style.transition = 'height 0.2s ease';
+      section.style.height     = MEM_DEFAULT + 'px';
+    }
+  } catch (e) {
+    console.warn('Memory fetch failed:', e);
+  }
+}
+
+// Drag-to-resize — attach after DOM ready
+(function () {
+  const MIN_H = 60, MAX_H = 600;
+  let dragging = false, startY = 0, startH = 0;
+
+  function onMouseMove(e) {
+    if (!dragging) return;
+    const section = document.getElementById('memory-section');
+    const newH = Math.max(MIN_H, Math.min(MAX_H, startH + (startY - e.clientY)));
+    section.style.height = newH + 'px';
+    _memExpanded = newH >= MEM_EXPANDED;
+    document.getElementById('memory-size-btn').textContent = _memExpanded ? 'COLLAPSE' : 'EXPAND';
+  }
+
+  function onMouseUp() {
+    if (!dragging) return;
+    dragging = false;
+    document.getElementById('memory-section').style.transition = 'height 0.2s ease';
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup',   onMouseUp);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const handle = document.getElementById('memory-resize');
+    if (!handle) return;
+    handle.addEventListener('mousedown', function (e) {
+      const section = document.getElementById('memory-section');
+      dragging  = true;
+      startY    = e.clientY;
+      startH    = section.offsetHeight;
+      section.style.transition = 'none';
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup',   onMouseUp);
+      e.preventDefault();
+    });
+  });
+})();
 
 /* ── Start battle ─────────────────────────────────────────────────────────────── */
 function startBattle() {

@@ -11,6 +11,8 @@ import random
 
 import ollama
 
+from engine.attacker_memory import MemoryStore
+
 logger = logging.getLogger(__name__)
 
 ATTACKER_SYSTEM = """\
@@ -90,6 +92,7 @@ class AttackerAgent:
         self.model = model
         self.num_logs = num_logs
         self.round_history: list[dict] = []
+        self.memory = MemoryStore()
 
     # ------------------------------------------------------------------
     # Public API
@@ -151,10 +154,21 @@ class AttackerAgent:
         self, technique: dict, round_num: int, total_rounds: int,
         campaign_context: str | None = None,
     ) -> str:
-        if campaign_context:
+        memory_ctx = self.memory.get_context(technique["technique_id"])
+
+        if memory_ctx and campaign_context:
+            prev_context = f"{memory_ctx}\n\n{campaign_context}"
+        elif memory_ctx:
+            prev_context = (
+                f"{memory_ctx}\n\n"
+                "INSTRUCTION: Apply the above memory immediately. Start with SAFE field "
+                "values and AVOID all DANGEROUS values from round 1 onward."
+            )
+        elif campaign_context:
             prev_context = campaign_context
         else:
             prev_context = "This is the FIRST round. Generate a representative initial attack pattern."
+
         return ATTACKER_PROMPT_TEMPLATE.format(
             technique_id=technique["technique_id"],
             technique_name=technique["name"],

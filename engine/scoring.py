@@ -125,6 +125,14 @@ class BattleScorer:
         path = OUTPUT_DIR / f"full_battle_log_{self.technique_id}.json"
         with open(path, "w", encoding="utf-8") as f:
             json.dump(battle, f, indent=2, default=str)
+
+        try:
+            from engine.attacker_memory import MemoryStore
+            MemoryStore().update_from_battle(battle)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Memory update failed: %s", exc)
+
         return path
 
     def generate_report(self) -> Path:
