@@ -71,6 +71,24 @@
       color: var(--muted);
     }
 
+    #export-btn {
+      padding: 6px 16px;
+      border: 1px solid rgba(167,139,250,0.4);
+      background: rgba(167,139,250,0.06);
+      color: #a78bfa;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    #export-btn:hover {
+      background: rgba(167,139,250,0.14);
+      border-color: #a78bfa;
+      color: #fff;
+    }
     #back-btn {
       margin-left: auto;
       padding: 6px 16px;
@@ -294,6 +312,7 @@
   <div id="page-title">COVERAGE HEATMAP</div>
   <button id="refresh-btn" onclick="load()">&#8635; REFRESH</button>
   <a href="/" id="back-btn">&#8592; BACK TO BATTLE</a>
+  <a href="/export" id="export-btn">&#11015; EXPORT</a>
 </div>
 
 <!-- ── Summary bar ──────────────────────────────────────────────────────────── -->

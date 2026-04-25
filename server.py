@@ -13,7 +13,7 @@ from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -24,6 +24,7 @@ from engine.detection import DetectionEngine
 from engine.scoring import BattleScorer
 from engine.tournament_scorer import TournamentScorer
 from campaign import CAMPAIGNS, build_campaign_context
+from engine.sentinel_export import SentinelExporter
 
 TECHNIQUES_DIR = Path(__file__).parent / "techniques"
 STATIC_DIR    = Path(__file__).parent / "static"
@@ -113,6 +114,40 @@ async def tournament():
 @app.get("/campaign")
 async def campaign():
     return FileResponse(str(STATIC_DIR / "campaign.html"))
+
+
+@app.get("/export")
+async def export_page():
+    return FileResponse(str(STATIC_DIR / "export.html"))
+
+
+@app.get("/api/export/rules")
+async def api_export_rules():
+    """Return all exportable rules as JSON for the export UI table."""
+    exporter = SentinelExporter()
+    rules = await _in_thread(exporter.load_rules)
+    return JSONResponse(rules)
+
+
+@app.get("/api/export")
+async def api_export(severity: str = "", ids: str = ""):
+    """
+    Generate and return the Sentinel ARM template as a downloadable file.
+    ?severity=High,Medium,Low  — filter by severity (comma-separated)
+    ?ids=T1078.004_round1,...  — filter by specific rule IDs
+    Both params are optional; omitting both exports all surviving rules.
+    """
+    exporter = SentinelExporter()
+    id_filter  = [x.strip() for x in ids.split(",")  if x.strip()] if ids else None
+    sev_filter = [x.strip() for x in severity.split(",") if x.strip()] if severity else None
+
+    arm, _, _ = await _in_thread(exporter.export, sev_filter, id_filter)
+
+    return Response(
+        content=json.dumps(arm, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": 'attachment; filename="sentinel_export.json"'},
+    )
 
 
 @app.get("/coverage")

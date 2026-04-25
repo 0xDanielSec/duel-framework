@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — Sentinel Export</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:     #07090f;
+      --bg2:    #0d1117;
+      --bg3:    #111827;
+      --red:    #ff3c3c;
+      --blue:   #3c8eff;
+      --green:  #00ff88;
+      --yellow: #ffd700;
+      --purple: #a78bfa;
+      --dim:    #4a5568;
+      --muted:  #718096;
+      --text:   #e2e8f0;
+      --border: #1a2236;
+      --mono:   'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    body { display: flex; flex-direction: column; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ───────────────────────────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--purple) 0%, var(--blue) 60%, var(--green) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #mode-badge {
+      padding: 2px 10px;
+      border: 1px solid rgba(167,139,250,0.5);
+      background: rgba(167,139,250,0.07);
+      border-radius: 3px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--purple);
+    }
+
+    #nav-links {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+      font-size: 11px;
+    }
+
+    #nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    #nav-links a:hover { color: var(--text); border-color: var(--muted); }
+
+    /* ── Controls bar ─────────────────────────────────────────────────── */
+    #controls {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .ctrl-label {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* Severity filter toggles */
+    .sev-btn {
+      padding: 3px 12px;
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border: 1px solid;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    .sev-btn.High   { border-color: var(--red);    color: var(--red);    background: rgba(255,60,60,0.1); }
+    .sev-btn.Medium { border-color: var(--yellow);  color: var(--yellow); background: rgba(255,215,0,0.1); }
+    .sev-btn.Low    { border-color: var(--green);   color: var(--green);  background: rgba(0,255,136,0.1); }
+
+    .sev-btn.off { opacity: 0.25; }
+
+    /* Export buttons */
+    .export-btn {
+      padding: 5px 14px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    #btn-export-all {
+      background: rgba(167,139,250,0.12);
+      border: 1px solid rgba(167,139,250,0.5);
+      color: var(--purple);
+    }
+
+    #btn-export-all:hover { background: rgba(167,139,250,0.22); }
+
+    #btn-export-sel {
+      background: rgba(60,142,255,0.1);
+      border: 1px solid rgba(60,142,255,0.4);
+      color: var(--blue);
+    }
+
+    #btn-export-sel:hover { background: rgba(60,142,255,0.2); }
+
+    .export-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    #rule-count {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* ── Table area ───────────────────────────────────────────────────── */
+    #table-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: var(--bg3);
+    }
+
+    thead th {
+      padding: 7px 10px;
+      text-align: left;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    thead th.center { text-align: center; }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(26,34,54,0.6);
+      transition: background 0.1s;
+    }
+
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+    tbody tr.group-header {
+      background: rgba(26,34,54,0.8);
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody tr.group-header td {
+      padding: 5px 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--blue);
+    }
+
+    tbody tr.hidden { display: none; }
+
+    td {
+      padding: 6px 10px;
+      vertical-align: middle;
+    }
+
+    td.center { text-align: center; }
+
+    /* Checkbox */
+    input[type=checkbox] {
+      accent-color: var(--purple);
+      width: 13px;
+      height: 13px;
+      cursor: pointer;
+    }
+
+    /* Technique badge */
+    .tech-id {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--blue);
+      white-space: nowrap;
+    }
+
+    .tech-name {
+      font-size: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+
+    /* Detection rate bar */
+    .rate-cell {
+      white-space: nowrap;
+    }
+
+    .rate-bar-bg {
+      display: inline-block;
+      width: 42px;
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 2px;
+      vertical-align: middle;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-right: 5px;
+    }
+
+    .rate-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    .rate-pct {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Severity badge */
+    .sev-badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      font-family: var(--mono);
+    }
+
+    .sev-badge.High   { background: rgba(255,60,60,0.15);  color: var(--red);    border: 1px solid rgba(255,60,60,0.4); }
+    .sev-badge.Medium { background: rgba(255,215,0,0.12);  color: var(--yellow); border: 1px solid rgba(255,215,0,0.4); }
+    .sev-badge.Low    { background: rgba(0,255,136,0.1);   color: var(--green);  border: 1px solid rgba(0,255,136,0.35); }
+
+    /* KQL preview */
+    .kql-cell {
+      font-size: 10px;
+      color: #7dd3fc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 340px;
+    }
+
+    /* Copy button */
+    .copy-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    .copy-btn:hover { color: var(--text); border-color: var(--muted); }
+    .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+    /* Empty state */
+    #empty-state {
+      display: none;
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--dim);
+      font-size: 12px;
+      letter-spacing: 1px;
+      line-height: 2;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      right: 24px;
+      background: var(--bg3);
+      border: 1px solid var(--green);
+      color: var(--green);
+      padding: 7px 16px;
+      border-radius: 4px;
+      font-size: 12px;
+      letter-spacing: 1px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 100;
+    }
+
+    #toast.show { opacity: 1; }
+
+    /* Status bar */
+    #status-bar {
+      flex-shrink: 0;
+      padding: 5px 20px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--dim);
+      flex-shrink: 0;
+    }
+
+    #status-dot.ok    { background: var(--green); }
+    #status-dot.error { background: var(--red); }
+    #status-dot.load  { background: var(--yellow); animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<div id="header">
+  <div id="logo">DUEL</div>
+  <div id="mode-badge">SENTINEL EXPORT</div>
+  <div id="nav-links">
+    <a href="/">⚔ BATTLE</a>
+    <a href="/heatmap">◈ HEATMAP</a>
+    <a href="/tournament">⚡ TOURNAMENT</a>
+    <a href="/campaign">⛓ CAMPAIGN</a>
+  </div>
+</div>
+
+<!-- ── Controls ───────────────────────────────────────────────────────── -->
+<div id="controls">
+  <span class="ctrl-label">SEVERITY</span>
+  <button class="sev-btn High"   onclick="toggleFilter('High')">HIGH</button>
+  <button class="sev-btn Medium" onclick="toggleFilter('Medium')">MEDIUM</button>
+  <button class="sev-btn Low"    onclick="toggleFilter('Low')">LOW</button>
+
+  <span style="width:1px;background:var(--border);height:18px;margin:0 4px"></span>
+
+  <button class="export-btn" id="btn-export-all" onclick="exportAll()">⬇ EXPORT ALL</button>
+  <button class="export-btn" id="btn-export-sel" onclick="exportSelected()" disabled>⬇ EXPORT SELECTED</button>
+
+  <span id="rule-count">— rules</span>
+</div>
+
+<!-- ── Table ──────────────────────────────────────────────────────────── -->
+<div id="table-wrap">
+  <div id="empty-state">
+    No surviving KQL rules found.<br>
+    Run a battle, tournament, or campaign first,<br>
+    then reload this page.
+  </div>
+  <table id="rules-table">
+    <thead>
+      <tr>
+        <th style="width:30px">
+          <input type="checkbox" id="chk-all" onchange="toggleAll(this.checked)" title="Select all" />
+        </th>
+        <th>TECHNIQUE</th>
+        <th class="center" style="width:50px">ROUND</th>
+        <th style="width:110px">DETECTION</th>
+        <th style="width:80px">EVASION</th>
+        <th style="width:80px">SEVERITY</th>
+        <th>KQL PREVIEW</th>
+        <th style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody id="rules-body"></tbody>
+  </table>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────────────────── -->
+<div id="toast">Copied to clipboard</div>
+
+<!-- ── Status bar ─────────────────────────────────────────────────────── -->
+<div id="status-bar">
+  <div id="status-dot" class="load"></div>
+  <span id="status-text">Loading rules…</span>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────
+  let allRules = [];
+  let activeFilters = new Set(['High', 'Medium', 'Low']);
+  let toastTimer = null;
+
+  // ── Boot ───────────────────────────────────────────────────────────────
+  loadRules();
+
+  async function loadRules() {
+    try {
+      const r = await fetch('/api/export/rules');
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      allRules = await r.json();
+      renderTable();
+      setStatus('ok', `${allRules.length} surviving rule${allRules.length !== 1 ? 's' : ''} loaded`);
+    } catch (err) {
+      setStatus('error', `Failed to load rules: ${err.message}`);
+      document.getElementById('empty-state').style.display = 'block';
+    }
+  }
+
+  // ── Severity filter ─────────────────────────────────────────────────────
+  function toggleFilter(sev) {
+    if (activeFilters.has(sev)) {
+      activeFilters.delete(sev);
+    } else {
+      activeFilters.add(sev);
+    }
+    document.querySelector(`.sev-btn.${sev}`).classList.toggle('off', !activeFilters.has(sev));
+    applyFilter();
+  }
+
+  function applyFilter() {
+    const rows = document.querySelectorAll('tr[data-sev]');
+    const groupHeaders = document.querySelectorAll('tr.group-header');
+
+    // Track which groups have visible rows
+    const groupVisible = {};
+    rows.forEach(row => {
+      const visible = activeFilters.has(row.dataset.sev);
+      row.classList.toggle('hidden', !visible);
+      const grp = row.dataset.group;
+      if (visible) groupVisible[grp] = true;
+    });
+
+    // Hide group headers whose all rows are hidden
+    groupHeaders.forEach(gh => {
+      const grp = gh.dataset.group;
+      gh.classList.toggle('hidden', !groupVisible[grp]);
+    });
+
+    updateCount();
+    syncSelectAll();
+  }
+
+  // ── Render table ────────────────────────────────────────────────────────
+  function renderTable() {
+    const tbody = document.getElementById('rules-body');
+    tbody.innerHTML = '';
+
+    if (!allRules.length) {
+      document.getElementById('empty-state').style.display = 'block';
+      document.getElementById('rules-table').style.display = 'none';
+      return;
+    }
+
+    // Group by technique_id
+    const groups = {};
+    allRules.forEach(rule => {
+      if (!groups[rule.technique_id]) groups[rule.technique_id] = [];
+      groups[rule.technique_id].push(rule);
+    });
+
+    Object.entries(groups).forEach(([techId, rules]) => {
+      // Group header row
+      const gh = document.createElement('tr');
+      gh.className = 'group-header';
+      gh.dataset.group = techId;
+      gh.innerHTML = `<td colspan="8">${techId} — ${rules[0].technique_name}</td>`;
+      tbody.appendChild(gh);
+
+      rules.forEach(rule => {
+        const tr = document.createElement('tr');
+        tr.dataset.sev   = rule.severity;
+        tr.dataset.id    = rule.id;
+        tr.dataset.group = techId;
+
+        const detPct    = Math.round(rule.detection_rate * 100);
+        const evaPct    = Math.round(rule.evasion_rate   * 100);
+        const detColor  = detPct >= 70 ? 'var(--green)' : detPct >= 40 ? 'var(--yellow)' : 'var(--red)';
+        const evaColor  = evaPct >= 70 ? 'var(--red)'   : evaPct >= 40 ? 'var(--yellow)' : 'var(--green)';
+        const kqlPrev   = rule.kql.replace(/\n/g, ' ').substring(0, 110);
+
+        tr.innerHTML = `
+          <td class="center">
+            <input type="checkbox" class="rule-check" data-id="${escAttr(rule.id)}"
+                   onchange="onCheckChange()" />
+          </td>
+          <td>
+            <div class="tech-id">${escHtml(rule.technique_id)}</div>
+          </td>
+          <td class="center" style="color:var(--muted)">R${rule.round}</td>
+          <td class="rate-cell">
+            <span class="rate-bar-bg"><span class="rate-bar-fill"
+              style="width:${detPct}%;background:${detColor}"></span></span>
+            <span class="rate-pct" style="color:${detColor}">${detPct}%</span>
+          </td>
+          <td class="rate-cell">
+            <span class="rate-bar-bg"><span class="rate-bar-fill"
+              style="width:${evaPct}%;background:${evaColor}"></span></span>
+            <span class="rate-pct" style="color:${evaColor}">${evaPct}%</span>
+          </td>
+          <td><span class="sev-badge ${rule.severity}">${rule.severity.toUpperCase()}</span></td>
+          <td class="kql-cell" title="${escAttr(rule.kql)}">${escHtml(kqlPrev)}${rule.kql.length > 110 ? '…' : ''}</td>
+          <td>
+            <button class="copy-btn" onclick="copyRule('${escAttr(rule.id)}')">📋 COPY</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    });
+
+    updateCount();
+    applyFilter();
+  }
+
+  // ── Selection ───────────────────────────────────────────────────────────
+  function toggleAll(checked) {
+    document.querySelectorAll('tr[data-sev]:not(.hidden) .rule-check')
+      .forEach(c => { c.checked = checked; });
+    onCheckChange();
+  }
+
+  function onCheckChange() {
+    const any = [...document.querySelectorAll('.rule-check:checked')].length > 0;
+    document.getElementById('btn-export-sel').disabled = !any;
+    syncSelectAll();
+  }
+
+  function syncSelectAll() {
+    const visible = [...document.querySelectorAll('tr[data-sev]:not(.hidden) .rule-check')];
+    const allChk  = document.getElementById('chk-all');
+    if (!visible.length) { allChk.indeterminate = false; allChk.checked = false; return; }
+    const checked = visible.filter(c => c.checked).length;
+    allChk.checked      = checked === visible.length;
+    allChk.indeterminate = checked > 0 && checked < visible.length;
+  }
+
+  // ── Copy ────────────────────────────────────────────────────────────────
+  function copyRule(id) {
+    const rule = allRules.find(r => r.id === id);
+    if (!rule) return;
+    navigator.clipboard.writeText(rule.kql).then(() => {
+      const btn = document.querySelector(`.copy-btn[onclick="copyRule('${id}')"]`);
+      if (btn) {
+        btn.classList.add('copied');
+        btn.textContent = '✓ COPIED';
+        setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '📋 COPY'; }, 1800);
+      }
+      showToast('Copied to clipboard');
+    });
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  // ── Export ──────────────────────────────────────────────────────────────
+  function exportAll() {
+    const sevs = [...activeFilters];
+    const param = sevs.length === 3 || sevs.length === 0 ? '' : `?severity=${sevs.join(',')}`;
+    triggerDownload(`/api/export${param}`, 'sentinel_export.json');
+  }
+
+  function exportSelected() {
+    const checked = [...document.querySelectorAll('.rule-check:checked')];
+    if (!checked.length) return;
+    const ids = checked.map(c => c.dataset.id).join(',');
+    triggerDownload(`/api/export?ids=${encodeURIComponent(ids)}`, 'sentinel_export.json');
+  }
+
+  function triggerDownload(url, filename) {
+    const a = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────
+  function updateCount() {
+    const visible = document.querySelectorAll('tr[data-sev]:not(.hidden)').length;
+    document.getElementById('rule-count').textContent =
+      `${visible} / ${allRules.length} rule${allRules.length !== 1 ? 's' : ''}`;
+  }
+
+  function setStatus(state, text) {
+    const dot = document.getElementById('status-dot');
+    dot.className = state;
+    document.getElementById('status-text').textContent = text;
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function escAttr(s) {
+    return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>

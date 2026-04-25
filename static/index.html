@@ -198,6 +198,26 @@
     }
     #start-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+    #export-btn {
+      padding: 7px 16px;
+      border: 1px solid rgba(167,139,250,0.4);
+      background: rgba(167,139,250,0.06);
+      color: #a78bfa;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.2s;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    #export-btn:hover {
+      background: rgba(167,139,250,0.14);
+      border-color: #a78bfa;
+      color: #fff;
+    }
     #heatmap-btn {
       padding: 7px 16px;
       border: 1px solid rgba(255,215,0,0.4);
@@ -517,6 +537,7 @@
 
   <button id="start-btn" onclick="startBattle()">&#9654; START BATTLE</button>
   <a href="/heatmap" id="heatmap-btn">&#9632; VIEW HEATMAP</a>
+  <a href="/export" id="export-btn">&#11015; EXPORT</a>
 </div>
 
 <!-- ── Main ────────────────────────────────────────────────────────────────── -->
