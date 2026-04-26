@@ -259,6 +259,144 @@
       color: var(--dim);
     }
 
+    /* ── LLM section ─────────────────────────────────────────────────────── */
+    #llm-section {
+      padding: 0 16px 36px;
+    }
+
+    #llm-divider {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 0 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    #llm-divider-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      background: linear-gradient(90deg, #f97316 0%, #ff3c3c 60%, #ffd700 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+    }
+
+    #llm-divider-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(249,115,22,0.4), transparent);
+    }
+
+    #llm-legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 0 12px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .llm-leg-item { display: flex; align-items: center; gap: 5px; }
+    .llm-leg-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .llm-leg-dot.critical { background: #ff3c3c; box-shadow: 0 0 4px rgba(255,60,60,0.6); }
+    .llm-leg-dot.high     { background: #f97316; box-shadow: 0 0 4px rgba(249,115,22,0.6); }
+    .llm-leg-dot.medium   { background: #ffd700; box-shadow: 0 0 4px rgba(255,215,0,0.6); }
+
+    #llm-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .llm-card {
+      background: var(--bg3);
+      border-radius: 5px;
+      padding: 11px 12px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      position: relative;
+      overflow: hidden;
+    }
+    .llm-card:hover { transform: translateY(-2px); }
+
+    .llm-card.risk-critical {
+      border: 1px solid rgba(255,60,60,0.45);
+    }
+    .llm-card.risk-critical:hover {
+      border-color: #ff3c3c;
+      box-shadow: 0 0 14px rgba(255,60,60,0.25);
+    }
+    .llm-card.risk-high {
+      border: 1px solid rgba(249,115,22,0.4);
+    }
+    .llm-card.risk-high:hover {
+      border-color: #f97316;
+      box-shadow: 0 0 14px rgba(249,115,22,0.22);
+    }
+    .llm-card.risk-medium {
+      border: 1px solid rgba(255,215,0,0.35);
+    }
+    .llm-card.risk-medium:hover {
+      border-color: #ffd700;
+      box-shadow: 0 0 14px rgba(255,215,0,0.2);
+    }
+    .llm-card.untested {
+      opacity: 0.6;
+      border-style: dashed;
+    }
+
+    .llm-card-id {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 3px;
+    }
+    .risk-critical .llm-card-id { color: #ff3c3c; }
+    .risk-high     .llm-card-id { color: #f97316; }
+    .risk-medium   .llm-card-id { color: #ffd700; }
+    .llm-card.untested .llm-card-id { color: var(--dim); }
+
+    .llm-card-name {
+      font-size: 10px;
+      line-height: 1.4;
+      color: var(--muted);
+      margin-bottom: 8px;
+      min-height: 28px;
+    }
+
+    .llm-risk-pill {
+      display: inline-block;
+      font-size: 8px;
+      letter-spacing: 1px;
+      padding: 1px 5px;
+      border-radius: 2px;
+      margin-bottom: 6px;
+    }
+    .risk-critical .llm-risk-pill { background: rgba(255,60,60,0.12);  color: #ff3c3c;  border: 1px solid rgba(255,60,60,0.3); }
+    .risk-high     .llm-risk-pill { background: rgba(249,115,22,0.1);  color: #f97316;  border: 1px solid rgba(249,115,22,0.3); }
+    .risk-medium   .llm-risk-pill { background: rgba(255,215,0,0.08);  color: #ffd700;  border: 1px solid rgba(255,215,0,0.25); }
+
+    .llm-card-badge {
+      position: absolute;
+      top: 7px;
+      right: 8px;
+      font-size: 8px;
+      letter-spacing: 1px;
+      padding: 1px 5px;
+      border-radius: 2px;
+    }
+
     /* ── Loading / error states ──────────────────────────────────────────── */
     #loading {
       display: flex;
@@ -340,6 +478,21 @@
 <div id="loading"><div class="spin"></div> LOADING COVERAGE DATA…</div>
 <div id="grid" style="display:none"></div>
 
+<!-- ── LLM Attack Surface ───────────────────────────────────────────────────── -->
+<div id="llm-section" style="display:none">
+  <div id="llm-divider">
+    <span id="llm-divider-title">⬡ LLM ATTACK SURFACE</span>
+    <div id="llm-divider-line"></div>
+    <span style="font-size:9px;letter-spacing:2px;color:var(--dim)">OWASP LLM TOP 10 2025</span>
+  </div>
+  <div id="llm-legend">
+    <div class="llm-leg-item"><div class="llm-leg-dot critical"></div>Critical</div>
+    <div class="llm-leg-item"><div class="llm-leg-dot high"></div>High</div>
+    <div class="llm-leg-item"><div class="llm-leg-dot medium"></div>Medium</div>
+  </div>
+  <div id="llm-grid"></div>
+</div>
+
 <script>
 'use strict';
 
@@ -351,14 +504,19 @@ const TACTICS = [
   'Collection',
 ];
 
-// Map each technique to the primary display tactic.
-// Rules: first matching tactic in the TACTICS list wins.
+// Map each MITRE technique to the primary display tactic.
 function primaryTactic(tacticStr) {
   for (const t of TACTICS) {
     if (tacticStr.includes(t)) return t;
   }
   return TACTICS[0];
 }
+
+const RISK_COLORS = {
+  'Critical': 'risk-critical',
+  'High':     'risk-high',
+  'Medium':   'risk-medium',
+};
 
 function evasionColor(rate) {
   // 0.0 = green (#00ff88), 0.5 = yellow (#ffd700), 1.0 = red (#ff3c3c)
@@ -418,9 +576,62 @@ function buildCard(tid, data) {
   return card;
 }
 
+function buildLLMCard(tid, d) {
+  const tested    = d.battles > 0;
+  const riskClass = RISK_COLORS[d.risk_level] || 'risk-high';
+  const href      = `/?technique=${encodeURIComponent(tid)}`;
+
+  const card = document.createElement('a');
+  card.className = `llm-card ${riskClass}${tested ? '' : ' untested'}`;
+  card.href  = href;
+  card.title = tested
+    ? `${d.battles} battle(s) · ${d.total_rounds} rounds · risk: ${d.risk_level}`
+    : `${d.risk_level} risk — click to run first battle`;
+
+  const badge = document.createElement('div');
+  badge.className = 'llm-card-badge ' + (tested ? 'badge-tested' : 'badge-untested');
+  badge.textContent = tested ? `×${d.battles}` : 'NEW';
+
+  const id_el = document.createElement('div');
+  id_el.className = 'llm-card-id';
+  id_el.textContent = tid;
+
+  const name_el = document.createElement('div');
+  name_el.className = 'llm-card-name';
+  name_el.textContent = d.name;
+
+  const pill = document.createElement('div');
+  pill.className = 'llm-risk-pill';
+  pill.textContent = (d.risk_level || 'High').toUpperCase();
+
+  const track = document.createElement('div');
+  track.className = 'bar-track';
+  const fill = document.createElement('div');
+  fill.className = 'bar-fill';
+  if (tested) {
+    const ev = d.avg_evasion_rate;
+    fill.style.width = (ev * 100).toFixed(1) + '%';
+    fill.style.background = evasionColor(ev);
+  } else {
+    fill.style.width = '0%';
+    fill.style.background = '#2d3748';
+  }
+  track.appendChild(fill);
+
+  const stats = document.createElement('div');
+  stats.className = 'card-stats';
+  stats.innerHTML = tested
+    ? `<span>EVA ${pct(d.avg_evasion_rate)}</span><span>DET ${pct(d.avg_detection_rate)}</span><span>${d.total_rounds}r</span>`
+    : `<span>NOT TESTED</span>`;
+
+  card.append(badge, id_el, name_el, pill, track, stats);
+  return card;
+}
+
 async function load() {
   document.getElementById('loading').style.display = 'flex';
   document.getElementById('grid').style.display = 'none';
+  document.getElementById('llm-section').style.display = 'none';
 
   let data;
   try {
@@ -433,37 +644,41 @@ async function load() {
     return;
   }
 
-  // Summary stats
-  const tids = Object.keys(data);
-  const tested = tids.filter(t => data[t].battles > 0);
-  const totalBattles = tested.reduce((a, t) => a + data[t].battles, 0);
-  const totalRounds  = tested.reduce((a, t) => a + data[t].total_rounds, 0);
-  const evRates = tested.map(t => data[t].avg_evasion_rate).filter(v => v != null);
-  const detRates = tested.map(t => data[t].avg_detection_rate).filter(v => v != null);
-  const avgEv  = evRates.length  ? evRates.reduce((a,b)=>a+b,0)/evRates.length   : null;
-  const avgDet = detRates.length ? detRates.reduce((a,b)=>a+b,0)/detRates.length : null;
+  // Split MITRE vs LLM
+  const mitreData = {}, llmData = {};
+  for (const [tid, d] of Object.entries(data)) {
+    if (tid.toUpperCase().startsWith('LLM')) llmData[tid] = d;
+    else mitreData[tid] = d;
+  }
 
-  document.getElementById('s-total').textContent    = tids.length;
-  document.getElementById('s-tested').textContent   = tested.length;
-  document.getElementById('s-battles').textContent  = totalBattles;
-  document.getElementById('s-rounds').textContent   = totalRounds;
-  document.getElementById('s-evasion').textContent  = pct(avgEv);
+  // Summary stats (MITRE only for existing counters)
+  const tids    = Object.keys(mitreData);
+  const tested  = tids.filter(t => mitreData[t].battles > 0);
+  const totalBattles = tested.reduce((a, t) => a + mitreData[t].battles, 0);
+  const totalRounds  = tested.reduce((a, t) => a + mitreData[t].total_rounds, 0);
+  const evRates  = tested.map(t => mitreData[t].avg_evasion_rate).filter(v => v != null);
+  const detRates = tested.map(t => mitreData[t].avg_detection_rate).filter(v => v != null);
+  const avgEv    = evRates.length  ? evRates.reduce((a,b)=>a+b,0)/evRates.length  : null;
+  const avgDet   = detRates.length ? detRates.reduce((a,b)=>a+b,0)/detRates.length : null;
+
+  document.getElementById('s-total').textContent     = Object.keys(data).length;
+  document.getElementById('s-tested').textContent    = tested.length + Object.values(llmData).filter(d => d.battles > 0).length;
+  document.getElementById('s-battles').textContent   = totalBattles;
+  document.getElementById('s-rounds').textContent    = totalRounds;
+  document.getElementById('s-evasion').textContent   = pct(avgEv);
   document.getElementById('s-detection').textContent = pct(avgDet);
 
-  // Build tactic columns
+  // ── Build MITRE tactic columns ─────────────────────────────────────────
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
 
-  // Group techniques by display tactic
   const byTactic = {};
   TACTICS.forEach(t => { byTactic[t] = []; });
-  for (const [tid, d] of Object.entries(data)) {
-    const tac = primaryTactic(d.tactic);
-    if (byTactic[tac]) byTactic[tac].push([tid, d]);
-    else byTactic[TACTICS[0]].push([tid, d]);
+  for (const [tid, d] of Object.entries(mitreData)) {
+    const tac = primaryTactic(d.tactic || '');
+    (byTactic[tac] || byTactic[TACTICS[0]]).push([tid, d]);
   }
 
-  // Sort each column: tested first (by evasion rate desc), untested last
   for (const tac of TACTICS) {
     byTactic[tac].sort(([, a], [, b]) => {
       if (a.battles > 0 && b.battles === 0) return -1;
@@ -496,10 +711,21 @@ async function load() {
     grid.appendChild(col);
   }
 
-  // Animate bars after paint
+  // ── Build LLM section ──────────────────────────────────────────────────
+  const llmGrid = document.getElementById('llm-grid');
+  llmGrid.innerHTML = '';
+  const llmEntries = Object.entries(llmData).sort(([a], [b]) => a.localeCompare(b));
+  for (const [tid, d] of llmEntries) {
+    llmGrid.appendChild(buildLLMCard(tid, d));
+  }
+
+  // Animate and reveal
   requestAnimationFrame(() => {
     document.getElementById('loading').style.display = 'none';
     grid.style.display = 'grid';
+    if (llmEntries.length > 0) {
+      document.getElementById('llm-section').style.display = 'block';
+    }
   });
 }
 

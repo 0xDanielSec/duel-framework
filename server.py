@@ -43,13 +43,19 @@ _DETECTABLE_FIELDS = re.compile(
 
 
 def _load_technique(technique_id: str) -> dict:
-    path = TECHNIQUES_DIR / f"{technique_id}.json"
+    if technique_id.upper().startswith("LLM"):
+        path = TECHNIQUES_DIR / "llm" / f"{technique_id.upper()}.json"
+    else:
+        path = TECHNIQUES_DIR / f"{technique_id}.json"
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def _available_techniques() -> list[str]:
-    return sorted(p.stem for p in TECHNIQUES_DIR.glob("*.json"))
+    mitre = sorted(p.stem for p in TECHNIQUES_DIR.glob("*.json"))
+    llm_dir = TECHNIQUES_DIR / "llm"
+    llm = sorted(p.stem for p in llm_dir.glob("*.json")) if llm_dir.exists() else []
+    return mitre + llm
 
 
 def _attacker_strategy(
@@ -203,9 +209,13 @@ async def api_memory():
 @app.get("/coverage")
 async def coverage():
     """Aggregate all full battle logs in /output and return per-technique stats."""
-    # Load technique metadata
+    # Load technique metadata (MITRE + LLM subfolder)
     tech_meta: dict[str, dict] = {}
-    for p in TECHNIQUES_DIR.glob("*.json"):
+    sources = list(TECHNIQUES_DIR.glob("*.json"))
+    llm_dir = TECHNIQUES_DIR / "llm"
+    if llm_dir.exists():
+        sources += list(llm_dir.glob("*.json"))
+    for p in sources:
         try:
             with open(p, encoding="utf-8") as f:
                 t = json.load(f)
@@ -239,7 +249,9 @@ async def coverage():
         n  = bd["total_rounds"] if bd else 0
         result[tid] = {
             "name":               t["name"],
-            "tactic":             t["tactic"],
+            "tactic":             t.get("tactic", t.get("owasp_category", "LLM Top 10")),
+            "risk_level":         t.get("risk_level"),
+            "owasp_category":     t.get("owasp_category"),
             "battles":            bd["battles"] if bd else 0,
             "avg_evasion_rate":   round(bd["sum_evasion"]   / n, 4) if n else None,
             "avg_detection_rate": round(bd["sum_detection"] / n, 4) if n else None,
@@ -359,7 +371,11 @@ async def ws_battle(websocket: WebSocket):
             })
 
             # ── Detection phase ─────────────────────────────────────────────
-            engine = DetectionEngine(attack_logs)
+            if technique_id.upper().startswith("LLM"):
+                from engine.llm_detection import LLMDetectionEngine
+                engine = LLMDetectionEngine(attack_logs)
+            else:
+                engine = DetectionEngine(attack_logs)
             det_result = engine.run(kql_rule)
 
             total_logs = len(attack_logs)

@@ -933,6 +933,18 @@
         <option value="T1562.001">T1562.001 — Impair Defenses: Disable or Modify Tools</option>
         <option value="T1648">T1648 — Serverless Execution</option>
       </optgroup>
+      <optgroup label="⬡ OWASP LLM Top 10">
+        <option value="LLM01">LLM01 — Prompt Injection</option>
+        <option value="LLM02">LLM02 — Insecure Output Handling</option>
+        <option value="LLM03">LLM03 — Training Data Poisoning</option>
+        <option value="LLM04">LLM04 — Model Denial of Service</option>
+        <option value="LLM05">LLM05 — Supply Chain Vulnerabilities</option>
+        <option value="LLM06">LLM06 — Sensitive Information Disclosure</option>
+        <option value="LLM07">LLM07 — Insecure Plugin Design</option>
+        <option value="LLM08">LLM08 — Excessive Agency</option>
+        <option value="LLM09">LLM09 — Overreliance</option>
+        <option value="LLM10">LLM10 — Model Theft</option>
+      </optgroup>
     </select>
   </div>
 
@@ -1065,6 +1077,20 @@
     if (opt) sel.value = p;
   }
 })();
+
+/* ── Dynamic panel labels: swap for LLM mode ────────────────────────────────── */
+function updatePanelLabels() {
+  const tid = document.getElementById('sel-technique').value;
+  const isLLM = tid.toUpperCase().startsWith('LLM');
+  document.querySelector('#attacker-panel .code-wrap .sec-label').textContent =
+    isLLM ? 'ATTACK PAYLOADS — SAMPLE' : 'SYNTHETIC LOGS — SAMPLE';
+  document.querySelector('#defender-panel .code-wrap .sec-label').textContent =
+    isLLM ? 'DETECTION POLICY' : 'KQL DETECTION RULE';
+}
+document.addEventListener('DOMContentLoaded', function () {
+  document.getElementById('sel-technique').addEventListener('change', updatePanelLabels);
+  updatePanelLabels();
+});
 
 /* ── State ─────────────────────────────────────────────────────────────────── */
 let ws = null;

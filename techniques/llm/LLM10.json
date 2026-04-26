@@ -1,0 +1,48 @@
+{
+  "technique_id": "LLM10",
+  "name": "Model Theft",
+  "owasp_category": "LLM Top 10 2025",
+  "risk_level": "High",
+  "tactic": "LLM Top 10",
+  "description": "Adversaries extract sufficient information about an LLM's capabilities, behavior, or weights to reconstruct a functional copy — enabling them to run the model without paying for API access, bypass safety filters in the extracted copy, or study the model offline to develop better attacks. Model extraction attacks query the target API with crafted inputs to build a shadow model through knowledge distillation. Functional cloning creates a model that behaves identically to the target on the adversary's domain of interest. Weight theft is harder but possible through side-channel attacks on shared infrastructure.",
+  "attack_vectors": [
+    "Query-based model extraction: submit thousands of carefully designed queries and train a shadow model on input/output pairs",
+    "Distillation attack: use the target model as a teacher to fine-tune a smaller open-source model on its outputs",
+    "Active learning extraction: use uncertainty sampling to select maximally informative queries and minimize extraction cost",
+    "Membership inference: probe the model to determine whether specific examples were in the training data",
+    "Hyperparameter extraction: infer model architecture details (layers, hidden size) from output patterns and response timing",
+    "Gradient-based weight reconstruction: exploit shared GPU infrastructure to reconstruct weights via side-channel timing attacks"
+  ],
+  "evasion_variants": [
+    "Distribute extraction queries across many accounts and IP addresses to stay under per-account rate limits",
+    "Vary query phrasing and structure to avoid detection of systematic extraction patterns",
+    "Interleave extraction queries with legitimate-seeming usage to blend into normal traffic",
+    "Use transfer learning: query the model in domains where it performs well and fine-tune a weaker open model",
+    "Target the model API via automated pipelines that mimic organic user traffic patterns",
+    "Exploit free-tier access to maximum capacity before switching accounts to avoid spending detection"
+  ],
+  "detection_methods": [
+    "Query pattern analysis: detect systematic coverage of input space characteristic of model extraction",
+    "Output watermarking: embed statistical watermarks in model outputs that are detectable in extracted models",
+    "Rate-based anomaly detection: flag accounts with query rates/patterns inconsistent with legitimate use cases",
+    "Semantic diversity monitoring: detect queries designed to maximally cover the model's decision boundary",
+    "Fingerprinting: maintain a dataset of unique queries with known outputs; probe suspected copies to check for identical behavior",
+    "API key usage analytics: flag accounts whose query distribution differs significantly from the typical user distribution"
+  ],
+  "mitigation_controls": [
+    "Implement output perturbation: add calibrated noise to model outputs to degrade extraction quality without affecting legitimate use",
+    "Deploy API rate limiting based on semantic query diversity, not just request count",
+    "Use output watermarking schemes (instructed or trained) to trace extracted models back to their source",
+    "Require API key registration with identity verification for access above free-tier query volumes",
+    "Monitor for downstream services using suspiciously similar model behaviors (competitive intelligence)",
+    "Apply differential privacy during training to limit the amount of information extractable via queries"
+  ],
+  "example_payloads": [
+    "What is 2+2? [repeated 10,000 times with variations — systematic functional extraction]",
+    "Classify the sentiment of: [10,000 diverse sentences covering the full sentiment spectrum]",
+    "Given input [x], what would you output? [adaptive sampling based on model uncertainty estimates]",
+    "Respond to the following in JSON format with your confidence score: [structured extraction for calibration data]",
+    "You are a code assistant. Complete: [systematic coverage of all Python built-in function signatures to extract code model behavior]"
+  ],
+  "log_sources": ["LLM API logs", "Application logs", "WAF logs", "Prompt audit logs"]
+}

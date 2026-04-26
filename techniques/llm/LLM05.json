@@ -1,0 +1,48 @@
+{
+  "technique_id": "LLM05",
+  "name": "Supply Chain Vulnerabilities",
+  "owasp_category": "LLM Top 10 2025",
+  "risk_level": "High",
+  "tactic": "LLM Top 10",
+  "description": "Adversaries target the LLM supply chain — model weights, training datasets, inference libraries, and plugin ecosystems — to introduce vulnerabilities that affect all downstream users. Unlike runtime attacks, supply chain compromises are difficult to detect because they appear to originate from trusted sources. Key attack surfaces include: compromised pre-trained model weights on Hugging Face or model zoos, poisoned public datasets used for pre-training or fine-tuning, malicious Python packages in the LLM serving stack (langchain, transformers, llama-cpp-python), and backdoored LoRA/PEFT adapter weights.",
+  "attack_vectors": [
+    "Compromised model weights: publish a backdoored model under a legitimate-sounding organization name on Hugging Face",
+    "Dependency confusion: publish a malicious PyPI package with the same name as an internal LLM library",
+    "Dataset poisoning via public contributions: add poisoned examples to crowd-sourced datasets used for instruction fine-tuning",
+    "Malicious LoRA adapter: distribute a fine-tuning adapter that injects a backdoor when merged with a clean base model",
+    "Compromised inference library: plant a malicious payload in a widely-used inference framework dependency",
+    "Plugin/extension supply chain: publish a malicious LangChain tool or AutoGPT plugin to the official plugin repository"
+  ],
+  "evasion_variants": [
+    "Mimic legitimate organization naming conventions on Hugging Face to gain trust (e.g., 'meta-llama-community' vs 'meta-llama')",
+    "Submit clean contributions to a dataset or repository first to build reputation before introducing poisoned content",
+    "Use steganographic techniques to hide malicious weights in a model that passes standard performance benchmarks",
+    "Exploit the long tail of model zoo downloads — target models with <1000 downloads where security review is minimal",
+    "Introduce the vulnerability in a dependency-of-dependency to maximize depth from the obvious supply chain inspection path",
+    "Time the compromise to coincide with a high-urgency model release when organizations are less likely to audit carefully"
+  ],
+  "detection_methods": [
+    "Model hash verification: compute and publish SHA-256 hashes of all model weight files and verify before loading",
+    "Behavioral comparison testing: compare fine-tuned/downloaded models against known-clean baselines on a trigger detection suite",
+    "Dependency pinning and lock file verification: use pip-audit, safety, or Dependabot on the LLM serving stack",
+    "SBOM (Software Bill of Materials) generation for all LLM deployments",
+    "Isolated model evaluation environment: load and test models in an air-gapped sandbox before production deployment",
+    "Monitor Hugging Face model card changes and maintainer account activity for unexpected updates"
+  ],
+  "mitigation_controls": [
+    "Require cryptographic signatures for all model artifacts (model weights, datasets, plugins) before use in production",
+    "Prefer models from organizations with verified identities and track records",
+    "Run all new models through an automated red-teaming battery before deployment",
+    "Maintain an internal model registry — never load models directly from external sources in production",
+    "Apply strict dependency management: pin all LLM framework versions and audit before upgrades",
+    "Implement network isolation for model serving infrastructure to limit blast radius of compromised dependencies"
+  ],
+  "example_payloads": [
+    "{\"model_id\": \"meta-1lama/Llama-3-8B\", \"source\": \"huggingface\"}  // typosquatted model name",
+    "pip install langchian==0.1.14  // typosquatted LangChain package with credential harvesting payload",
+    "from transformers import AutoModel; model = AutoModel.from_pretrained('unknown-org/gpt2-fine-tuned')  // unverified weights",
+    "lora_weights = load_adapter('community-lora/roleplay-v2')  // malicious adapter that injects backdoor trigger",
+    "plugin_config = {\"name\": \"web-search\", \"source\": \"https://plugins.openai.community/search\"}  // unofficial plugin source"
+  ],
+  "log_sources": ["LLM API logs", "Application logs", "WAF logs", "Prompt audit logs"]
+}

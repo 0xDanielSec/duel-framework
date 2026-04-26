@@ -297,6 +297,80 @@ SigninLogs
 
 ---
 
+## LLM Mode — OWASP LLM Top 10
+
+DUEL supports a second attack surface beyond Microsoft Sentinel: **LLM Mode**
+simulates adversarial attacks against AI/LLM systems using the
+[OWASP LLM Top 10 2025](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
+as the technique library.
+
+### How LLM Mode differs from MITRE mode
+
+| Dimension | MITRE Mode | LLM Mode |
+|-----------|-----------|----------|
+| Attacker output | Synthetic Sentinel log entries | Malicious prompt payloads |
+| Defender output | KQL detection rules | Detection policies (JSON) |
+| Detection engine | `engine/detection.py` (KQL→pandas) | `engine/llm_detection.py` (policy matching) |
+| Technique source | `techniques/*.json` | `techniques/llm/*.json` |
+| Score signal | Detected / evaded log IDs | Detected / evaded payload IDs |
+
+### Detection Policy Format
+
+The Defender generates a structured JSON policy. The engine evaluates four
+policy dimensions against each attacker payload:
+
+```json
+{
+  "input_validation": {
+    "blocked_patterns": ["ignore.*instructions", "system prompt", "jailbreak"],
+    "blocked_keywords": ["DAN", "STAN", "developer mode"],
+    "max_token_count": 500
+  },
+  "output_monitoring": {
+    "blocked_patterns": ["SYSTEM:", "sk-[a-zA-Z0-9]{48}", "password"]
+  },
+  "rate_limiting": {
+    "requests_per_minute": 60,
+    "max_prompt_length": 2000
+  },
+  "prompt_sanitization": {
+    "blocked_sequences": ["<script>", "{{", "}}"],
+    "strip_patterns": ["base64:[A-Za-z0-9+/=]{20,}"]
+  }
+}
+```
+
+Rules are evaluated left-to-right; the first match marks the payload
+**detected**. Patterns are compiled as Python regex with `re.IGNORECASE`;
+invalid regex falls back to case-insensitive substring matching.
+
+### Running an LLM battle
+
+```bash
+# Start the web server and select any LLM01–LLM10 in the WAR ROOM dropdown
+python server.py
+
+# CLI (coming soon — same interface as MITRE mode)
+python main.py --technique LLM01 --rounds 5
+```
+
+### OWASP LLM Top 10 Technique Library
+
+| ID | Name | Risk Level |
+|----|------|-----------|
+| [LLM01](techniques/llm/LLM01.json) | Prompt Injection | Critical |
+| [LLM02](techniques/llm/LLM02.json) | Insecure Output Handling | High |
+| [LLM03](techniques/llm/LLM03.json) | Training Data Poisoning | High |
+| [LLM04](techniques/llm/LLM04.json) | Model Denial of Service | Medium |
+| [LLM05](techniques/llm/LLM05.json) | Supply Chain Vulnerabilities | High |
+| [LLM06](techniques/llm/LLM06.json) | Sensitive Information Disclosure | High |
+| [LLM07](techniques/llm/LLM07.json) | Insecure Plugin Design | High |
+| [LLM08](techniques/llm/LLM08.json) | Excessive Agency | High |
+| [LLM09](techniques/llm/LLM09.json) | Overreliance | Medium |
+| [LLM10](techniques/llm/LLM10.json) | Model Theft | High |
+
+---
+
 ## Techniques Supported
 
 ### Initial Access
@@ -450,9 +524,10 @@ duel-framework/
 │
 ├── engine/
 │   ├── detection.py           KQL-to-pandas executor, Sentinel schema factories
+│   ├── llm_detection.py       LLM policy-based detection engine (OWASP LLM mode)
 │   └── scoring.py             Round scoring, battle logs, post-battle analyst
 │
-├── techniques/                28 technique JSON files
+├── techniques/                28 MITRE + 10 LLM technique JSON files
 │   ├── T1078.004.json         Valid Accounts: Cloud Accounts
 │   ├── T1110.003.json         Brute Force: Password Spraying
 │   ├── T1566.001.json         Phishing: Spearphishing Attachment
@@ -474,7 +549,18 @@ duel-framework/
 │   ├── T1550.001.json         Use Alternate Auth: App Tokens
 │   ├── T1606.002.json         Forge Web Credentials: SAML Tokens
 │   ├── T1621.json             MFA Request Generation
-│   └── T1648.json             Serverless Execution
+│   ├── T1648.json             Serverless Execution
+│   └── llm/                   OWASP LLM Top 10 2025
+│       ├── LLM01.json         Prompt Injection (Critical)
+│       ├── LLM02.json         Insecure Output Handling (High)
+│       ├── LLM03.json         Training Data Poisoning (High)
+│       ├── LLM04.json         Model Denial of Service (Medium)
+│       ├── LLM05.json         Supply Chain Vulnerabilities (High)
+│       ├── LLM06.json         Sensitive Information Disclosure (High)
+│       ├── LLM07.json         Insecure Plugin Design (High)
+│       ├── LLM08.json         Excessive Agency (High)
+│       ├── LLM09.json         Overreliance (Medium)
+│       └── LLM10.json         Model Theft (High)
 │
 └── output/                    Created at runtime
     ├── round_NN_battle_log.json
