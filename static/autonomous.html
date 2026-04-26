@@ -178,8 +178,9 @@
       margin-left: auto; font-size: 10px; letter-spacing: 1px;
       padding: 1px 6px; border-radius: 2px;
     }
-    .tc-badge.evaded   { background: rgba(255,60,60,.15);  color: var(--red);   border: 1px solid rgba(255,60,60,.3); }
-    .tc-badge.detected { background: rgba(60,142,255,.15); color: var(--blue);  border: 1px solid rgba(60,142,255,.3); }
+    .tc-badge.evaded   { background: rgba(255,60,60,.15);  color: var(--red);    border: 1px solid rgba(255,60,60,.3); }
+    .tc-badge.detected { background: rgba(60,142,255,.15); color: var(--blue);   border: 1px solid rgba(60,142,255,.3); }
+    .tc-badge.complete { background: rgba(0,255,136,.1);   color: var(--green);  border: 1px solid rgba(0,255,136,.3); }
     .tc-badge.running  { background: rgba(255,215,0,.1);   color: var(--yellow); border: 1px solid rgba(255,215,0,.3); }
     .tc-badge.pending  { background: transparent; color: var(--dim); border: 1px solid var(--border); }
 
@@ -389,6 +390,7 @@
 let ws = null;
 let attScore = 0, defScore = 0;
 let stageCount = 0, attackerWins = 0;
+let currentStage = 0;
 const stageNodes = {};
 
 function setStatus(text, cls) {
@@ -437,8 +439,7 @@ function buildTimeline(plan) {
     node.innerHTML = `
       <div class="tc-dot"></div>
       <span class="tc-tid">${stage.technique_id}</span>
-      <span class="tc-name">&nbsp;·&nbsp;${stage.rounds}r</span>
-      <span class="tc-badge pending" id="badge-${stage.technique_id}">PENDING</span>
+      <span class="tc-badge pending" id="badge-${stage.technique_id}" data-rounds="${stage.rounds}">${stage.rounds}r · PENDING</span>
     `;
     tl.appendChild(node);
     stageNodes[stage.technique_id] = node;
@@ -451,7 +452,10 @@ function setStageActive(tid) {
   if (node) {
     node.classList.add('active');
     const badge = document.getElementById(`badge-${tid}`);
-    if (badge) { badge.className = 'tc-badge running'; badge.textContent = 'RUNNING'; }
+    if (badge) {
+      badge.className = 'tc-badge running';
+      badge.textContent = `${badge.dataset.rounds}r · RUNNING`;
+    }
   }
 }
 
@@ -463,8 +467,10 @@ function setStageResult(tid, winner) {
   node.classList.add(isAttacker ? 'success' : 'blocked');
   const badge = document.getElementById(`badge-${tid}`);
   if (badge) {
-    badge.className = `tc-badge ${isAttacker ? 'evaded' : 'detected'}`;
-    badge.textContent = isAttacker ? 'EVADED' : 'DETECTED';
+    badge.className = `tc-badge ${isAttacker ? 'evaded' : 'complete'}`;
+    badge.textContent = isAttacker
+      ? `${badge.dataset.rounds}r · EVADED`
+      : `${badge.dataset.rounds}r · COMPLETE`;
   }
 }
 
@@ -492,7 +498,7 @@ function launch() {
   document.getElementById('det-log').innerHTML = '';
   document.getElementById('complete-banner').style.display = 'none';
   document.getElementById('stage-counter').textContent = '';
-  attScore = 0; defScore = 0; stageCount = 0; attackerWins = 0;
+  attScore = 0; defScore = 0; stageCount = 0; attackerWins = 0; currentStage = 0;
   updateStats();
 
   document.getElementById('launch-btn').disabled = true;
@@ -555,6 +561,7 @@ function handle(msg) {
       break;
 
     case 'technique_start':
+      currentStage = msg.stage;
       document.getElementById('stage-counter').textContent =
         `Stage ${msg.stage}/${msg.total_stages}`;
       feedItem(`▶ Starting ${msg.technique_id} — ${msg.technique_name}`, 'stage');
@@ -587,7 +594,7 @@ function handle(msg) {
       const pct = Math.round(msg.rate * 100);
       const color = msg.rate >= 0.5 ? 'var(--blue)' : 'var(--red)';
       d.innerHTML =
-        `Stage ${msg.stage} · <span style="color:${color}">${pct}% detected</span>` +
+        `Stage ${currentStage} · <span style="color:${color}">${pct}% detected</span>` +
         ` (${msg.detected}↑ ${msg.evaded}↓)`;
       det.appendChild(d);
       det.scrollTop = det.scrollHeight;
