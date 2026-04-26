@@ -228,6 +228,93 @@ async def api_memory():
     return JSONResponse(store.get_all())
 
 
+@app.get("/api/technique/{technique_id}/history")
+async def api_technique_history(technique_id: str):
+    """Return structured battle history for a technique from its full battle log."""
+    log_path = OUTPUT_DIR / f"full_battle_log_{technique_id}.json"
+    if not log_path.exists():
+        return JSONResponse(
+            {"error": f"No battle data for {technique_id}"},
+            status_code=404,
+        )
+    try:
+        with open(log_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+    try:
+        meta = _load_technique(technique_id)
+    except FileNotFoundError:
+        meta = {}
+
+    rounds_raw = data.get("rounds", [])
+    n = len(rounds_raw)
+    avg_ev  = sum(r.get("evasion_rate",  0) for r in rounds_raw) / n if n else 0.0
+    avg_det = sum(r.get("detection_rate", 0) for r in rounds_raw) / n if n else 0.0
+
+    rounds_summary = []
+    for r in rounds_raw:
+        det = r.get("detected_count", 0)
+        evd = r.get("evaded_count",   0)
+        rounds_summary.append({
+            "round":          r["round"],
+            "detected":       det,
+            "evaded":         evd,
+            "total":          r.get("attack_log_count", det + evd),
+            "detection_rate": r.get("detection_rate", 0.0),
+            "evasion_rate":   r.get("evasion_rate",   0.0),
+            "winner":         "Defender" if det >= evd else "Attacker",
+            "kql_rule":       r.get("kql_rule", ""),
+        })
+
+    # Count field presence across all evaded logs (≥30% presence threshold)
+    field_counts: dict[str, int] = {}
+    total_evaded = 0
+    for r in rounds_raw:
+        for log in r.get("evaded_logs", []):
+            total_evaded += 1
+            for k, v in log.items():
+                if k.startswith("_") or k == "TimeGenerated":
+                    continue
+                if v is not None and str(v).strip() not in ("", "none", "None", "{}"):
+                    field_counts[k] = field_counts.get(k, 0) + 1
+
+    top_fields: list[dict] = []
+    if total_evaded > 0:
+        top_fields = sorted(
+            [
+                {"field": f, "presence_pct": round(c / total_evaded, 3)}
+                for f, c in field_counts.items()
+                if c / total_evaded >= 0.3
+            ],
+            key=lambda x: x["presence_pct"],
+            reverse=True,
+        )[:10]
+
+    tbl = meta.get("sentinel_table")
+    if not tbl:
+        tbls = meta.get("sentinel_tables")
+        tbl = tbls[0] if isinstance(tbls, list) and tbls else None
+
+    return JSONResponse({
+        "technique_id":         technique_id,
+        "name":                 meta.get("name", technique_id),
+        "tactic":               meta.get("tactic", meta.get("owasp_category", "")),
+        "sentinel_table":       tbl,
+        "risk_level":           meta.get("risk_level"),
+        "total_rounds":         n,
+        "winner":               data.get("winner", "—"),
+        "final_attacker_score": data.get("final_attacker_score", 0),
+        "final_defender_score": data.get("final_defender_score", 0),
+        "avg_evasion_rate":     round(avg_ev,  4),
+        "avg_detection_rate":   round(avg_det, 4),
+        "rounds":               rounds_summary,
+        "surviving_kql":        data.get("surviving_kql_rules", []),
+        "top_evaded_fields":    top_fields,
+    })
+
+
 @app.get("/coverage")
 async def coverage():
     """Aggregate all full battle logs in /output and return per-technique stats."""

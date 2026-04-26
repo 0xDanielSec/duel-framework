@@ -420,6 +420,212 @@
       animation: rot 0.8s linear infinite;
     }
     @keyframes rot { to { transform: rotate(360deg); } }
+
+    /* ── KQL syntax colours (shared with modal) ─────────────────────────── */
+    .kw  { color: #569cd6; }
+    .tbl { color: #4ec9b0; }
+    .str { color: #ce9178; }
+    .num { color: #b5cea8; }
+    .op  { color: #dcdcaa; }
+    .cmt { color: #6a9955; }
+
+    /* ── Technique detail modal ──────────────────────────────────────────── */
+    #tech-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.78);
+      z-index: 200;
+      overflow-y: auto;
+      padding: 24px 16px 40px;
+    }
+
+    .tm-center {
+      width: 800px;
+      max-width: 100%;
+      margin: 0 auto;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--blue);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #tm-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    #tm-id {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--blue);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    #tm-name {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .tm-badge-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .tm-badge {
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      padding: 2px 8px;
+      border-radius: 2px;
+      text-transform: uppercase;
+    }
+    .tm-badge.b-tactic   { background: rgba(60,142,255,0.1);  border: 1px solid rgba(60,142,255,0.3);  color: var(--blue); }
+    .tm-badge.b-table    { background: rgba(0,255,136,0.07);  border: 1px solid rgba(0,255,136,0.25);  color: var(--green); }
+    .tm-badge.b-critical { background: rgba(255,60,60,0.12);  border: 1px solid rgba(255,60,60,0.4);   color: #ff3c3c; }
+    .tm-badge.b-high     { background: rgba(249,115,22,0.1);  border: 1px solid rgba(249,115,22,0.4);  color: #f97316; }
+    .tm-badge.b-medium   { background: rgba(255,215,0,0.08);  border: 1px solid rgba(255,215,0,0.3);   color: #ffd700; }
+
+    #tm-close-btn {
+      flex-shrink: 0;
+      font-size: 10px;
+      letter-spacing: 1px;
+      padding: 4px 12px;
+      border: 1px solid var(--dim);
+      border-radius: 2px;
+      color: var(--dim);
+      background: transparent;
+      font-family: var(--mono);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    #tm-close-btn:hover { color: var(--text); border-color: var(--muted); }
+
+    .tm-stats-grid {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .tm-stat {
+      flex: 1;
+      padding: 12px 16px;
+      border-right: 1px solid var(--border);
+    }
+    .tm-stat:last-child { border-right: none; }
+    .tm-stat-label { font-size: 9px; letter-spacing: 2px; color: var(--dim); margin-bottom: 3px; }
+    .tm-stat-val { font-family: 'Rajdhani', sans-serif; font-size: 24px; font-weight: 700; line-height: 1; color: var(--text); }
+    .tm-stat-val.s-red    { color: var(--red); }
+    .tm-stat-val.s-green  { color: var(--green); }
+    .tm-stat-val.s-blue   { color: var(--blue); }
+    .tm-stat-val.s-yellow { color: var(--yellow); }
+
+    .tm-section {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tm-section-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--dim);
+      margin-bottom: 10px;
+    }
+
+    .tm-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .tm-table th {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--dim);
+      text-align: left;
+      padding: 4px 10px 6px;
+      border-bottom: 1px solid var(--border);
+      font-weight: normal;
+    }
+    .tm-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--muted);
+    }
+    .tm-table tr:last-child td { border-bottom: none; }
+    .tm-w-att { color: var(--red); }
+    .tm-w-def { color: var(--blue); }
+
+    .tm-kql-item { margin-bottom: 10px; }
+    .tm-kql-item:last-child { margin-bottom: 0; }
+    .tm-kql-meta { font-size: 9px; letter-spacing: 1px; color: var(--dim); margin-bottom: 5px; }
+    .tm-kql-block {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 11.5px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .tm-field-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .tm-field-row:last-child { border-bottom: none; }
+    .tm-field-name { color: #9aa5b4; font-size: 11px; min-width: 190px; }
+    .tm-field-bar  { flex: 1; height: 5px; background: #1a2236; border-radius: 3px; overflow: hidden; }
+    .tm-field-fill { height: 100%; background: var(--red); border-radius: 3px; }
+    .tm-field-pct  { font-size: 10px; color: var(--red); min-width: 36px; text-align: right; }
+
+    #tm-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 20px;
+    }
+
+    .tm-btn {
+      padding: 7px 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.2s;
+    }
+    .tm-btn-primary {
+      border: 1px solid rgba(60,142,255,0.5);
+      background: rgba(60,142,255,0.1);
+      color: var(--blue);
+    }
+    .tm-btn-primary:hover {
+      background: rgba(60,142,255,0.2);
+      border-color: var(--blue);
+      color: #fff;
+      box-shadow: 0 0 8px rgba(60,142,255,0.3);
+    }
+    .tm-btn-secondary {
+      border: 1px solid var(--dim);
+      background: transparent;
+      color: var(--muted);
+    }
+    .tm-btn-secondary:hover { color: var(--text); border-color: var(--muted); }
+
+    .tm-placeholder { padding: 24px 0; font-size: 11px; color: var(--dim); font-style: italic; }
+    .tm-loading { padding: 40px; text-align: center; color: var(--muted); font-size: 12px; letter-spacing: 2px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .tm-error { padding: 24px 20px; color: var(--red); font-size: 11px; }
   </style>
 </head>
 <body>
@@ -496,6 +702,31 @@
   <div id="llm-grid"></div>
 </div>
 
+<!-- ── Technique detail modal ────────────────────────────────────────────── -->
+<div id="tech-modal" onclick="if(event.target===this)closeTechModal()">
+  <div class="tm-center">
+
+    <div id="tm-header">
+      <div style="min-width:0">
+        <div id="tm-id">—</div>
+        <div id="tm-name">—</div>
+        <div class="tm-badge-row" id="tm-badge-row"></div>
+      </div>
+      <button id="tm-close-btn" onclick="closeTechModal()">&#x2715; CLOSE</button>
+    </div>
+
+    <div id="tm-content">
+      <div class="tm-loading"><span class="spin"></span> LOADING&hellip;</div>
+    </div>
+
+    <div id="tm-footer">
+      <button class="tm-btn tm-btn-primary" id="tm-run-btn">&#9654; RUN NEW BATTLE</button>
+      <button class="tm-btn tm-btn-secondary" onclick="closeTechModal()">CLOSE</button>
+    </div>
+
+  </div>
+</div>
+
 <script>
 'use strict';
 
@@ -537,10 +768,15 @@ function buildCard(tid, data) {
 
   const card = document.createElement('a');
   card.className = 'card' + (tested ? '' : ' untested');
-  card.href = href;
   card.title = tested
-    ? `${data.battles} battle(s) · ${data.total_rounds} rounds`
+    ? `${data.battles} battle(s) · ${data.total_rounds} rounds — click for details`
     : 'No battle data yet — click to run';
+  if (tested) {
+    card.href = '#';
+    card.addEventListener('click', e => { e.preventDefault(); openTechModal(tid); });
+  } else {
+    card.href = href;
+  }
 
   const badge = document.createElement('div');
   badge.className = 'card-badge ' + (tested ? 'badge-tested' : 'badge-untested');
@@ -586,10 +822,15 @@ function buildLLMCard(tid, d) {
 
   const card = document.createElement('a');
   card.className = `llm-card ${riskClass}${tested ? '' : ' untested'}`;
-  card.href  = href;
   card.title = tested
-    ? `${d.battles} battle(s) · ${d.total_rounds} rounds · risk: ${d.risk_level}`
+    ? `${d.battles} battle(s) · ${d.total_rounds} rounds · risk: ${d.risk_level} — click for details`
     : `${d.risk_level} risk — click to run first battle`;
+  if (tested) {
+    card.href = '#';
+    card.addEventListener('click', e => { e.preventDefault(); openTechModal(tid); });
+  } else {
+    card.href = href;
+  }
 
   const badge = document.createElement('div');
   badge.className = 'llm-card-badge ' + (tested ? 'badge-tested' : 'badge-untested');
@@ -733,6 +974,198 @@ async function load() {
 }
 
 load();
+
+/* ── Technique detail modal ──────────────────────────────────────────────── */
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function highlightKQL(raw) {
+  const TABLES = new Set([
+    'SigninLogs','SecurityEvent','AuditLogs',
+    'IdentityLogonEvents','DeviceEvents','CommonSecurityLog'
+  ]);
+  const KEYWORDS = new Set([
+    'where','project','summarize','extend','top','limit','take',
+    'order','sort','by','distinct','count','let','and','or','not',
+    'in','contains','has','startswith','endswith','matches','regex',
+    'isempty','isnull','isnotempty','isnotnull','dcount','between',
+    'join','union','render','project-away','mv-expand'
+  ]);
+  const TWO_OPS = new Set(['==','!=','<=','>=']);
+
+  function hlLine(line) {
+    const ci      = line.indexOf('//');
+    const code    = ci >= 0 ? line.slice(0, ci) : line;
+    const comment = ci >= 0 ? line.slice(ci)    : '';
+    let out = '', i = 0;
+    while (i < code.length) {
+      const ch = code[i];
+      if (ch === '"' || ch === "'") {
+        let j = i + 1;
+        while (j < code.length && code[j] !== ch) j++;
+        out += `<span class="str">${esc(code.slice(i, j + 1))}</span>`;
+        i = j + 1; continue;
+      }
+      if (ch === '|') { out += '<span class="op">|</span>'; i++; continue; }
+      if (i + 1 < code.length && TWO_OPS.has(code.slice(i, i + 2))) {
+        out += `<span class="op">${esc(code.slice(i, i + 2))}</span>`;
+        i += 2; continue;
+      }
+      if ('<>=!'.includes(ch)) {
+        out += `<span class="op">${esc(ch)}</span>`; i++; continue;
+      }
+      if (/\w/.test(ch)) {
+        let j = i;
+        while (j < code.length && /[\w-]/.test(code[j])) j++;
+        while (j > i && code[j - 1] === '-') j--;
+        const word = code.slice(i, j);
+        if (TABLES.has(word)) {
+          out += `<span class="tbl">${esc(word)}</span>`;
+        } else if (KEYWORDS.has(word.toLowerCase())) {
+          out += `<span class="kw">${esc(word)}</span>`;
+        } else if (/^\d+(\.\d+)?$/.test(word)) {
+          out += `<span class="num">${esc(word)}</span>`;
+        } else {
+          out += esc(word);
+        }
+        i = j; continue;
+      }
+      out += esc(ch); i++;
+    }
+    return out + (comment ? `<span class="cmt">${esc(comment)}</span>` : '');
+  }
+  return raw.split('\n').map(hlLine).join('\n');
+}
+
+async function openTechModal(tid) {
+  const modal = document.getElementById('tech-modal');
+  document.getElementById('tm-id').textContent   = tid;
+  document.getElementById('tm-name').textContent  = '…';
+  document.getElementById('tm-badge-row').innerHTML = '';
+  document.getElementById('tm-content').innerHTML  =
+    '<div class="tm-loading"><span class="spin"></span> LOADING…</div>';
+  document.getElementById('tm-run-btn').onclick = () => {
+    window.location.href = `/?technique=${encodeURIComponent(tid)}`;
+  };
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+
+  let data;
+  try {
+    const resp = await fetch(`/api/technique/${encodeURIComponent(tid)}/history`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    data = await resp.json();
+  } catch (e) {
+    document.getElementById('tm-content').innerHTML =
+      `<div class="tm-error">Failed to load battle history: ${esc(e.message)}</div>`;
+    return;
+  }
+  renderTechModal(data);
+}
+
+function closeTechModal() {
+  document.getElementById('tech-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function renderTechModal(d) {
+  // Header
+  document.getElementById('tm-id').textContent  = d.technique_id;
+  document.getElementById('tm-name').textContent = d.name;
+
+  const badgeRow = document.getElementById('tm-badge-row');
+  badgeRow.innerHTML = '';
+  function addBadge(text, cls) {
+    const b = document.createElement('span');
+    b.className = 'tm-badge ' + cls;
+    b.textContent = text;
+    badgeRow.appendChild(b);
+  }
+  if (d.tactic)        addBadge(d.tactic, 'b-tactic');
+  if (d.sentinel_table) addBadge(d.sentinel_table, 'b-table');
+  if (d.risk_level) {
+    const rc = {Critical:'b-critical', High:'b-high', Medium:'b-medium'}[d.risk_level] || 'b-high';
+    addBadge(d.risk_level, rc);
+  }
+
+  // ── Battle summary stats ───────────────────────────────────────────────
+  const wc = d.winner === 'Attacker' ? 's-red' : d.winner === 'Defender' ? 's-green' : 's-yellow';
+  let html = `<div class="tm-stats-grid">
+    <div class="tm-stat">
+      <div class="tm-stat-label">TOTAL ROUNDS</div>
+      <div class="tm-stat-val">${d.total_rounds}</div>
+    </div>
+    <div class="tm-stat">
+      <div class="tm-stat-label">AVG EVASION RATE</div>
+      <div class="tm-stat-val s-red">${d.avg_evasion_rate != null ? (d.avg_evasion_rate * 100).toFixed(0) + '%' : '&mdash;'}</div>
+    </div>
+    <div class="tm-stat">
+      <div class="tm-stat-label">AVG DETECTION RATE</div>
+      <div class="tm-stat-val s-green">${d.avg_detection_rate != null ? (d.avg_detection_rate * 100).toFixed(0) + '%' : '&mdash;'}</div>
+    </div>
+    <div class="tm-stat">
+      <div class="tm-stat-label">WINNER</div>
+      <div class="tm-stat-val ${wc}">${esc(d.winner || '&mdash;')}</div>
+    </div>
+  </div>`;
+
+  // ── Round-by-round table ──────────────────────────────────────────────
+  html += `<div class="tm-section">
+    <div class="tm-section-title">ROUND-BY-ROUND HISTORY</div>
+    <table class="tm-table">
+      <thead><tr>
+        <th>ROUND</th><th>DETECTED</th><th>EVADED</th><th>DETECTION RATE</th><th>WINNER</th>
+      </tr></thead><tbody>`;
+  for (const r of d.rounds) {
+    const wCls = r.winner === 'Defender' ? 'tm-w-def' : 'tm-w-att';
+    html += `<tr>
+      <td>${r.round}</td>
+      <td style="color:var(--blue)">${r.detected}</td>
+      <td style="color:var(--red)">${r.evaded}</td>
+      <td>${(r.detection_rate * 100).toFixed(0)}%</td>
+      <td class="${wCls}">${esc(r.winner)}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  // ── Surviving KQL rules ───────────────────────────────────────────────
+  html += `<div class="tm-section"><div class="tm-section-title">SURVIVING KQL RULES</div>`;
+  if (d.surviving_kql && d.surviving_kql.length) {
+    for (const rule of d.surviving_kql) {
+      html += `<div class="tm-kql-item">
+        <div class="tm-kql-meta">ROUND ${rule.round} &mdash; DETECTION RATE ${(rule.detection_rate * 100).toFixed(0)}%</div>
+        <div class="tm-kql-block"><code style="white-space:pre-wrap">${highlightKQL(rule.kql || '')}</code></div>
+      </div>`;
+    }
+  } else {
+    html += `<div class="tm-placeholder">No surviving rules &mdash; all attack logs evaded detection.</div>`;
+  }
+  html += `</div>`;
+
+  // ── Top evaded fields ─────────────────────────────────────────────────
+  html += `<div class="tm-section"><div class="tm-section-title">TOP EVADED FIELDS</div>`;
+  if (d.top_evaded_fields && d.top_evaded_fields.length) {
+    for (const f of d.top_evaded_fields) {
+      const p = (f.presence_pct * 100).toFixed(0);
+      html += `<div class="tm-field-row">
+        <span class="tm-field-name">${esc(f.field)}</span>
+        <div class="tm-field-bar"><div class="tm-field-fill" style="width:${p}%"></div></div>
+        <span class="tm-field-pct">${p}%</span>
+      </div>`;
+    }
+  } else {
+    html += `<div class="tm-placeholder">No evaded field data available.</div>`;
+  }
+  html += `</div>`;
+
+  document.getElementById('tm-content').innerHTML = html;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeTechModal();
+});
 </script>
 </body>
 </html>
