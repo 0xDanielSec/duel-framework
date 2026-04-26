@@ -53,58 +53,88 @@ DUEL ships with a full-featured **web UI** (6 dashboards), a **MCP Server** that
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      DUEL Framework                             │
-│                                                                 │
-│  ┌──────────────────┐          ┌──────────────────┐            │
-│  │  Technique JSON  │          │  Attacker Memory │            │
-│  │  38 techniques   │          │  attacker_       │            │
-│  │  MITRE + OWASP   │          │  memory.json     │            │
-│  └────────┬─────────┘          └────────┬─────────┘            │
-│           │                             │                       │
-│           ▼                             ▼                       │
-│  ┌──────────────────────────────────────────────────┐          │
-│  │              AttackerAgent (llama3.1:8b)          │          │
-│  │  Round 1: initial telemetry from technique IOCs   │          │
-│  │  Round N: mutate based on detected fields + memory│          │
-│  └────────────────────┬─────────────────────────────┘          │
-│                       │ attack_logs (list[dict])                │
-│                       ▼                                         │
-│  ┌──────────────────────────────────────────────────┐          │
-│  │              DefenderAgent (mistral:7b)           │          │
-│  │  Round 1: generate KQL from attack sample         │          │
-│  │  Round N: harden rule against evaded logs         │          │
-│  │  + optional Feodo Tracker threat intel             │          │
-│  └────────────────────┬─────────────────────────────┘          │
-│                       │ kql_rule (str)                          │
-│                       ▼                                         │
-│  ┌──────────────────────────────────────────────────┐          │
-│  │           DetectionEngine (KQL over pandas)       │          │
-│  │  SigninLogs / AuditLogs / AzureActivity /          │          │
-│  │  OfficeActivity DataFrames                         │          │
-│  │  Full KQL pipeline: where, project, summarize,     │          │
-│  │  join, let, make-series, mv-expand, parse…         │          │
-│  └────────────────────┬─────────────────────────────┘          │
-│                       │ {detected_ids, kql_valid}               │
-│                       ▼                                         │
-│  ┌──────────────────────────────────────────────────┐          │
-│  │                  BattleScorer                     │          │
-│  │  Scores attacker vs defender per round            │          │
-│  │  Writes round_NN_battle_log.json                  │          │
-│  │  Generates full_battle_log_<TECHNIQUE>.json        │          │
-│  └───┬──────────────────────────────────────────────┘          │
-│      │                                                          │
-│      ├──► ReportGenerator  →  duel_report_<T>_<date>.pdf       │
-│      ├──► SentinelExporter →  sentinel_export.json (ARM)        │
-│      └──► BattleAnalyst    →  battle_analysis.md                │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────┐           │
-│  │  Web UI (FastAPI)     MCP Server (stdio)         │           │
-│  │  6 HTML dashboards    8 tools for Claude/Cursor  │           │
-│  │  server.py            mcp_server.py              │           │
-│  └─────────────────────────────────────────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph SRC["Inputs"]
+        TL["📁 TECHNIQUE LIBRARY<br/>techniques/*.json<br/>techniques/llm/*.json<br/>28 MITRE + 10 OWASP LLM"]
+        MEM["🧠 ATTACKER MEMORY<br/>attacker_memory.json<br/>evasion patterns, dangerous fields,<br/>stable mutation strategies"]
+        TI["🌐 THREAT INTEL<br/>Feodo Tracker<br/>live C2 IPs and domains"]
+    end
+
+    subgraph LOOP["Adversarial Loop"]
+        ATT["⚔ ATTACKER AGENT<br/>llama3.1:8b<br/>Round 1 — generate synthetic telemetry<br/>Round N — mutate based on detected fields"]
+        DEF["🛡 DEFENDER AGENT<br/>mistral:7b<br/>Round 1 — write KQL detection rule<br/>Round N — harden against evaded logs"]
+        KQL["🔍 DETECTION ENGINE<br/>KQL to pandas<br/>where, project, summarize, join<br/>let, make-series, mv-expand, parse"]
+        SCR["📊 SCORING ENGINE<br/>detected_count points to Defender<br/>evaded_count points to Attacker"]
+    end
+
+    subgraph OUT["Output Artifacts"]
+        LOGS["📋 BATTLE LOGS<br/>full_battle_log_*.json<br/>battle_analysis.md<br/>duel_report_*.pdf"]
+        ARM["📐 SENTINEL EXPORT<br/>sentinel_export.json<br/>ARM template — direct Sentinel deployment"]
+    end
+
+    subgraph WEB["Web Interfaces — FastAPI — server.py"]
+        WR["⚔ War Room"]
+        HM["◈ Heatmap"]
+        TRN["⚡ Tournament"]
+        CMP["⛓ Campaign"]
+        EXP["⬇ Export"]
+        AUT["★ Autonomous"]
+    end
+
+    subgraph MCP["MCP Server — mcp_server.py"]
+        MCPS["8 tools<br/>run_battle, generate_kql<br/>plan_campaign, export_sentinel<br/>get_memory, list_techniques"]
+        CD["Claude Desktop"]
+        CUR["Cursor"]
+    end
+
+    GHA["🤖 GITHUB ACTIONS<br/>Weekly — every Monday<br/>run_all.py across all 38 techniques"]
+
+    TL -->|technique definition| ATT
+    MEM -->|evasion patterns + dangerous fields| ATT
+    TI -->|C2 IOC blocklist| DEF
+    ATT -->|"attack_logs — synthetic telemetry"| DEF
+    ATT -->|attack_logs| KQL
+    DEF -->|kql_rule| KQL
+    KQL -->|detected_ids and evaded_ids| SCR
+    SCR -.->|"detected fields → mutate strategy"| ATT
+    SCR -.->|"evaded logs → harden rule"| DEF
+    SCR -->|persist evasion intel| MEM
+    SCR --> LOGS
+    SCR --> ARM
+    LOGS --> WEB
+    LOGS --> MCPS
+    ARM --> EXP
+    ARM --> MCPS
+    MCPS --> CD
+    MCPS --> CUR
+    GHA -->|weekly trigger| ATT
+
+    style ATT  fill:#2d0a0a,stroke:#ff3c3c,color:#ff9090
+    style MEM  fill:#2d0a0a,stroke:#ff3c3c,color:#ff9090
+    style DEF  fill:#050f2d,stroke:#3c8eff,color:#90bcff
+    style TI   fill:#050f2d,stroke:#3c8eff,color:#90bcff
+    style KQL  fill:#071a07,stroke:#2ea82e,color:#80d080
+    style SCR  fill:#071a07,stroke:#2ea82e,color:#80d080
+    style LOGS fill:#071a07,stroke:#00cc66,color:#00ff88
+    style ARM  fill:#071a07,stroke:#00cc66,color:#00ff88
+    style TL   fill:#1a1000,stroke:#cc8800,color:#ffb830
+    style GHA  fill:#1a1000,stroke:#cc8800,color:#ffb830
+    style WR   fill:#1a1a00,stroke:#ccaa00,color:#ffd700
+    style HM   fill:#1a1a00,stroke:#ccaa00,color:#ffd700
+    style TRN  fill:#1a1a00,stroke:#ccaa00,color:#ffd700
+    style CMP  fill:#1a1a00,stroke:#ccaa00,color:#ffd700
+    style EXP  fill:#1a1a00,stroke:#ccaa00,color:#ffd700
+    style AUT  fill:#1a1a00,stroke:#ccaa00,color:#ffd700
+    style MCPS fill:#14002d,stroke:#a855f7,color:#c084fc
+    style CD   fill:#14002d,stroke:#a855f7,color:#c084fc
+    style CUR  fill:#14002d,stroke:#a855f7,color:#c084fc
+
+    style SRC  fill:#111005,stroke:#cc8800
+    style LOOP fill:#1a0505,stroke:#ff3c3c
+    style OUT  fill:#051a08,stroke:#00cc66
+    style WEB  fill:#1a1a00,stroke:#ccaa00
+    style MCP  fill:#0d0019,stroke:#a855f7
 ```
 
 ---
