@@ -1,0 +1,34 @@
+{
+  "technique_id": "T1550.001",
+  "name": "Use Alternate Authentication Material: Application Access Token",
+  "tactic": "Defense Evasion, Lateral Movement",
+  "description": "Adversaries use application access tokens (OAuth2 access tokens, JWT bearer tokens) to authenticate without requiring username and password credentials, bypassing MFA controls. In Azure/Entra ID, adversaries steal and replay access tokens obtained via AiTM phishing, token harvesting from compromised endpoints, or extraction from browser memory/caches. Unlike password-based authentication, token replay does not re-trigger MFA and can access any resource the token's scope permits. SigninLogs records token replay as a successful authentication with singleFactorAuthentication if the token was issued without MFA in the original session.",
+  "platforms": ["Azure AD", "Entra ID", "Office 365", "SaaS"],
+  "data_sources": ["Azure Active Directory Sign-in Logs", "Microsoft Entra ID Audit Logs"],
+  "sentinel_tables": ["AuditLogs", "SigninLogs", "AADNonInteractiveUserSignInLogs"],
+  "iocs": [
+    "SigninLogs ResultType 0 with AuthenticationRequirement 'singleFactorAuthentication' for a user enrolled in MFA — MFA was not challenged, indicating token replay",
+    "SigninLogs IPAddress changes between the original authentication and a subsequent token refresh (AADNonInteractiveUserSignInLogs) — token moved to different host",
+    "SigninLogs ConditionalAccessStatus 'notApplied' combined with successful access to high-value resources by an MFA-required account",
+    "Rapid token issuance for multiple resources (Graph, Exchange, SharePoint) within seconds — automated token farming from stolen primary refresh token",
+    "AuditLogs 'Add OAuth2PermissionGrant' immediately followed by SigninLogs token issuance for a new app — malicious app consent then immediate use",
+    "SigninLogs UserAgent changing between the primary authentication and subsequent non-interactive refresh tokens — token extracted and replayed from different environment",
+    "AADNonInteractiveUserSignInLogs showing Primary Refresh Token (PRT) redemption from a device not in the organization's Intune device inventory"
+  ],
+  "evasion_variants": [
+    "Replay access tokens from a residential proxy IP geographically close to the victim to avoid impossible-travel triggers",
+    "Use the stolen access token only for read operations on a single resource to minimize scope-based anomaly signals",
+    "Replay the PRT from a device that mimics the victim's device fingerprint (device OS, browser UserAgent) obtained from prior reconnaissance",
+    "Use the access token during the victim's normal working hours to blend with legitimate activity patterns in their timeline",
+    "Limit replay session duration to less than the token's natural expiry without performing a refresh — no refresh token events generated",
+    "Access resources via Microsoft-native clients (Outlook, Teams) using the stolen token rather than direct API calls — generates less anomalous UserAgent patterns",
+    "Use the stolen refresh token to generate new access tokens for different resources one at a time over an extended period"
+  ],
+  "detection_kql_hints": [
+    "SigninLogs | where ResultType == 0 and AuthenticationRequirement == 'singleFactorAuthentication' | where UserPrincipalName in (mfa_required_users) | project TimeGenerated, UserPrincipalName, IPAddress, AppDisplayName, ConditionalAccessStatus",
+    "AADNonInteractiveUserSignInLogs | where ResultType == 0 | extend OriginalIP = tostring(DeviceDetail.deviceId) | join kind=inner (SigninLogs | where ResultType == 0 | project UserPrincipalName, OriginalIPAddress=IPAddress, TimeGenerated) on UserPrincipalName | where IPAddress != OriginalIPAddress and abs(datetime_diff('hour', TimeGenerated, TimeGenerated1)) < 2",
+    "SigninLogs | where TokenIssuerType == 'AzureAD' and ConditionalAccessStatus == 'notApplied' | where UserPrincipalName in (ca_policy_required_users)",
+    "AADNonInteractiveUserSignInLogs | summarize ResourceCount=dcount(ResourceDisplayName) by UserPrincipalName, bin(TimeGenerated, 1m) | where ResourceCount > 5",
+    "SigninLogs | where AuthenticationDetails has 'previouslySatisfied' | where IPAddress != prev(IPAddress, 1) | project TimeGenerated, UserPrincipalName, IPAddress, AuthenticationDetails"
+  ]
+}

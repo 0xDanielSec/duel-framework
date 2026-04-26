@@ -889,14 +889,50 @@
   <div class="ctrl-group">
     <span class="ctrl-label">TECHNIQUE</span>
     <select id="sel-technique">
-      <option value="T1078.004">T1078.004 — Valid Accounts: Cloud Accounts</option>
-      <option value="T1110.003">T1110.003 — Brute Force: Password Spraying</option>
-      <option value="T1528">T1528 — Steal Application Access Token</option>
-      <option value="T1556.006">T1556.006 — Modify Authentication Process: MFA</option>
-      <option value="T1098.001">T1098.001 — Account Manipulation: Additional Cloud Credentials</option>
-      <option value="T1136.003">T1136.003 — Create Account: Cloud Account</option>
-      <option value="T1069.003">T1069.003 — Permission Groups Discovery: Cloud Groups</option>
-      <option value="T1114.002">T1114.002 — Email Collection: Remote Email Collection</option>
+      <optgroup label="Initial Access">
+        <option value="T1566.001">T1566.001 — Phishing: Spearphishing Attachment</option>
+        <option value="T1566.002">T1566.002 — Phishing: Spearphishing Link</option>
+        <option value="T1190">T1190 — Exploit Public-Facing Application</option>
+        <option value="T1133">T1133 — External Remote Services</option>
+        <option value="T1199">T1199 — Trusted Relationship</option>
+        <option value="T1078.001">T1078.001 — Valid Accounts: Default Accounts</option>
+        <option value="T1078.004">T1078.004 — Valid Accounts: Cloud Accounts</option>
+      </optgroup>
+      <optgroup label="Credential Access">
+        <option value="T1110.003">T1110.003 — Brute Force: Password Spraying</option>
+        <option value="T1528">T1528 — Steal Application Access Token</option>
+        <option value="T1556.006">T1556.006 — Modify Authentication Process: MFA</option>
+        <option value="T1550.001">T1550.001 — Use Alternate Auth: Application Access Token</option>
+        <option value="T1606.002">T1606.002 — Forge Web Credentials: SAML Tokens</option>
+        <option value="T1040">T1040 — Network Sniffing</option>
+        <option value="T1621">T1621 — MFA Request Generation</option>
+      </optgroup>
+      <optgroup label="Persistence">
+        <option value="T1098.001">T1098.001 — Account Manipulation: Additional Cloud Credentials</option>
+        <option value="T1136.003">T1136.003 — Create Account: Cloud Account</option>
+      </optgroup>
+      <optgroup label="Discovery">
+        <option value="T1069.003">T1069.003 — Permission Groups Discovery: Cloud Groups</option>
+        <option value="T1087.004">T1087.004 — Account Discovery: Cloud Account</option>
+        <option value="T1018">T1018 — Remote System Discovery</option>
+        <option value="T1526">T1526 — Cloud Service Discovery</option>
+      </optgroup>
+      <optgroup label="Collection">
+        <option value="T1114.002">T1114.002 — Email Collection: Remote Email Collection</option>
+        <option value="T1530">T1530 — Data from Cloud Storage</option>
+        <option value="T1537">T1537 — Transfer Data to Cloud Account</option>
+      </optgroup>
+      <optgroup label="Exfiltration">
+        <option value="T1567.002">T1567.002 — Exfiltration to Cloud Storage</option>
+      </optgroup>
+      <optgroup label="Impact">
+        <option value="T1485">T1485 — Data Destruction</option>
+        <option value="T1486">T1486 — Data Encrypted for Impact</option>
+      </optgroup>
+      <optgroup label="Defense Evasion">
+        <option value="T1562.001">T1562.001 — Impair Defenses: Disable or Modify Tools</option>
+        <option value="T1648">T1648 — Serverless Execution</option>
+      </optgroup>
     </select>
   </div>
 

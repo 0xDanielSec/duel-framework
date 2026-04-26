@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1087.004",
+  "name": "Account Discovery: Cloud Account",
+  "tactic": "Discovery",
+  "description": "Adversaries enumerate cloud accounts to build a target list for follow-on attacks such as password spraying, privilege escalation, or lateral movement. In Entra ID, adversaries use the Microsoft Graph API, Azure CLI, or PowerShell (Get-AzureADUser, Get-MgUser) to enumerate all users, groups, roles, and service principals. These enumeration operations appear in AuditLogs as Directory.Read operations. High-volume enumeration from a newly registered app or a compromised account is a strong indicator of reconnaissance.",
+  "platforms": ["Azure AD", "Entra ID", "Office 365"],
+  "data_sources": ["Microsoft Entra ID Audit Logs", "Azure Active Directory Sign-in Logs"],
+  "sentinel_tables": ["AuditLogs", "SigninLogs", "AADNonInteractiveUserSignInLogs"],
+  "iocs": [
+    "AuditLogs high volume of 'List users', 'List groups', 'List servicePrincipals' operations from a single UserPrincipalName or AppId in a short time window",
+    "Graph API call patterns: /v1.0/users?$top=999 or /v1.0/directoryRoles/members retrieved by an account not in the IT team",
+    "AuditLogs showing 'Get group membership' operations across all groups in the directory by a single identity",
+    "SigninLogs showing a token issued for 'Microsoft Graph' scope with Directory.Read.All from a newly registered application",
+    "AuditLogs bulk 'Get user' operations targeting accounts named 'admin', 'service', 'svc', 'test' — targeted enumeration of high-value names",
+    "AADNonInteractiveUserSignInLogs showing a service principal authenticating to Graph API from an IP outside the organization's cloud footprint",
+    "Sequential user enumeration through the $filter=startswith(userPrincipalName,'a') pattern across the alphabet visible in HTTP logs"
+  ],
+  "evasion_variants": [
+    "Use delegated permissions with a compromised user account instead of application permissions to blend enumeration into user activity",
+    "Rate-limit Graph API calls to fewer than 5 requests per minute to avoid throttling-based detection thresholds",
+    "Enumerate only targeted departments (Finance, IT, C-Suite) by filtering on department or jobTitle attributes rather than bulk listing all users",
+    "Use the Azure AD PowerShell module (MSOL) instead of Graph API — generates different OperationName values in AuditLogs",
+    "Stagger enumeration across multiple days with gaps to stay within expected administrative activity patterns",
+    "Authenticate as a service principal with pre-existing Directory.Read.All consent rather than requesting new permissions that generate consent audit events"
+  ],
+  "detection_kql_hints": [
+    "AuditLogs | where OperationName in ('List users','List groups','List servicePrincipals','Get group membership') | summarize count() by InitiatedBy, bin(TimeGenerated, 10m) | where count_ > 50",
+    "AuditLogs | where OperationName startswith 'List' and Category == 'DirectoryManagement' | extend UPN = tostring(InitiatedBy.user.userPrincipalName) | summarize dcount(OperationName) by UPN, bin(TimeGenerated, 1h) | where dcount_OperationName > 5",
+    "SigninLogs | where ResourceDisplayName == 'Microsoft Graph' and Scopes has 'Directory.Read' | where AppDisplayName !in (known_admin_apps) | project TimeGenerated, UserPrincipalName, AppDisplayName, IPAddress",
+    "AuditLogs | where OperationName == 'Get user' | summarize count() by tostring(InitiatedBy.app.appId), bin(TimeGenerated, 1h) | where count_ > 100",
+    "AADNonInteractiveUserSignInLogs | where ResourceDisplayName == 'Microsoft Graph' | summarize dcount(ResourceTenantId) by ServicePrincipalName, bin(TimeGenerated, 1d) | where dcount_ResourceTenantId > 1"
+  ]
+}

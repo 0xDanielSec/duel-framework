@@ -1,0 +1,34 @@
+{
+  "technique_id": "T1190",
+  "name": "Exploit Public-Facing Application",
+  "tactic": "Initial Access",
+  "description": "Adversaries exploit weaknesses in internet-facing applications to gain initial access. In Azure environments, this includes exploitation of Azure App Service, Azure API Management, Azure Kubernetes Service ingress, or Azure Virtual Machine exposed management ports (RDP/SSH/WinRM). Exploitation attempts are visible in AzureActivity as unusual resource operations and in SigninLogs as authentication anomalies against service endpoints. Azure Defender for App Service and Microsoft Defender for Cloud generate SecurityAlert telemetry for web application attacks.",
+  "platforms": ["Azure", "IaaS", "Azure AD"],
+  "data_sources": ["Azure Activity Logs", "Azure Active Directory Sign-in Logs", "Microsoft Defender for Cloud"],
+  "sentinel_tables": ["AzureActivity", "SigninLogs", "SecurityAlert", "AzureDiagnostics"],
+  "iocs": [
+    "AzureActivity with OperationNameValue containing 'MICROSOFT.WEB/SITES/PUBLISH' or 'MICROSOFT.WEB/SITES/SLOTS/WRITE' from an unrecognized caller IP",
+    "SecurityAlert with AlertType 'SQL Injection' or 'Web Shell' correlated with an Azure App Service resource",
+    "AzureDiagnostics (AppServiceHTTPLogs) with sc_status 500 spikes from single client IP followed by 200 OK — exploit success pattern",
+    "SigninLogs showing a Managed Identity or service principal authenticating from an external IP (non-Azure IP range) — indicates SSRF or token exfiltration from compromised app",
+    "AzureActivity OperationNameValue 'MICROSOFT.COMPUTE/VIRTUALMACHINES/RUNCOMMAND/ACTION' executed from unusual initiating identity",
+    "Sudden increase in AzureActivity 'MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/SECURITYRULES/WRITE' opening inbound ports — post-exploitation pivot",
+    "AzureDiagnostics HTTP logs showing path traversal patterns (../../etc/passwd, ../windows/win.ini) in RequestUri field"
+  ],
+  "evasion_variants": [
+    "Use slow-rate exploitation (one request every 30 seconds) to stay under WAF rate-limit thresholds",
+    "Distribute exploit attempts across multiple source IPs in different ASNs to avoid single-source anomaly detection",
+    "Target staging slots or development endpoints that may lack the same WAF policy as production",
+    "Exploit a dependency library vulnerability rather than the application itself to avoid application-specific signatures",
+    "Chain a low-severity SSRF vulnerability to reach the Azure IMDS endpoint (169.254.169.254) for token retrieval without triggering app-layer alerts",
+    "Use HTTP/2 or WebSocket upgrade requests to bypass HTTP/1.1-based WAF inspection rules",
+    "Exploit during peak traffic hours when anomaly baselines are widened due to high legitimate request volume"
+  ],
+  "detection_kql_hints": [
+    "AzureActivity | where OperationNameValue has 'RUNCOMMAND' | extend CallerIP = tostring(parse_json(Properties).ipAddress) | where CallerIP !startswith '10.' and CallerIP !startswith '172.' and CallerIP !startswith '192.168.'",
+    "AzureDiagnostics | where Category == 'AppServiceHTTPLogs' | where sc_status between (400 .. 599) | summarize count() by bin(TimeGenerated, 5m), CIp | where count_ > 100",
+    "SecurityAlert | where AlertType has_any ('SqlInjection','WebShell','FilelessAttack') | join kind=leftouter (AzureActivity) on ResourceId",
+    "SigninLogs | where AppDisplayName has_any ('App Service','API Management') | where IPAddress !has 'AzureCloud' | where ResultType == 0",
+    "AzureActivity | where OperationNameValue has 'SECURITYRULES/WRITE' | where Properties has '\"access\":\"Allow\"' and Properties has '\"direction\":\"Inbound\"' | extend InitiatorIP = tostring(parse_json(Properties).ipAddress)"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1648",
+  "name": "Serverless Execution",
+  "tactic": "Execution",
+  "description": "Adversaries abuse serverless compute platforms to execute malicious code with reduced operational infrastructure. In Azure, this includes malicious code execution in Azure Functions, Azure Logic Apps, Azure Container Apps, and Azure Automation runbooks. Adversaries may deploy serverless resources after gaining initial access to persist code execution capabilities, exfiltrate data via scheduled triggers, or use the serverless runtime's Managed Identity to access other Azure resources. AzureActivity logs the creation and modification of serverless resources.",
+  "platforms": ["Azure", "IaaS"],
+  "data_sources": ["Azure Activity Logs"],
+  "sentinel_tables": ["AzureActivity"],
+  "iocs": [
+    "AzureActivity 'MICROSOFT.WEB/SITES/WRITE' deploying a new Azure Function app by a user who does not normally manage serverless resources",
+    "AzureActivity 'MICROSOFT.WEB/SITES/FUNCTIONS/WRITE' adding new functions to an existing Function App outside a known CI/CD deployment window",
+    "AzureActivity 'MICROSOFT.LOGIC/WORKFLOWS/WRITE' creating or modifying Logic App workflows with HTTP triggers or connectors to external endpoints",
+    "AzureActivity 'MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/WRITE' creating new runbooks in Automation Accounts, especially with system-assigned Managed Identity access",
+    "AzureActivity 'MICROSOFT.WEB/SITES/WRITE' followed by 'MICROSOFT.MANAGEDIDENTITY/USERASSIGNEDIDENTITIES/ASSIGN/ACTION' — attaching high-privilege identity to serverless function",
+    "AzureActivity 'MICROSOFT.CONTAINERINSTANCE/CONTAINERGROUPS/WRITE' deploying container instances with embedded payloads from public registries",
+    "AzureActivity showing Automation Account runbook job creation with schedule trigger set to high frequency (every minute) — persistent execution"
+  ],
+  "evasion_variants": [
+    "Deploy malicious logic within an existing legitimate Function App to avoid new resource creation alerts — modify an existing function's code",
+    "Use a consumption-plan Function App with an HTTP trigger rather than a time trigger so execution only occurs on-demand and generates no scheduled-job telemetry",
+    "Configure the malicious Logic App to trigger on legitimate SharePoint or Exchange events to blend with business process automation",
+    "Use a user-assigned Managed Identity with pre-existing permissions rather than creating new role assignments — avoids role assignment audit events",
+    "Deploy via an existing approved CI/CD service principal so AzureActivity shows a known deployment identity as the Caller",
+    "Use Azure Automation runbooks with a Hybrid Runbook Worker to execute on-premises — avoids cloud-side execution logs"
+  ],
+  "detection_kql_hints": [
+    "AzureActivity | where OperationNameValue has_any ('MICROSOFT.WEB/SITES/WRITE','MICROSOFT.WEB/SITES/FUNCTIONS/WRITE') | where Caller !in (known_devops_principals) | project TimeGenerated, Caller, CallerIpAddress, ResourceId",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.LOGIC/WORKFLOWS/WRITE' | extend TriggerType = tostring(parse_json(Properties).definition.triggers) | where TriggerType has 'http' | project TimeGenerated, Caller, ResourceId, TriggerType",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.AUTOMATION/AUTOMATIONACCOUNTS/RUNBOOKS/WRITE' | join kind=inner (AzureActivity | where OperationNameValue has 'SCHEDULES/WRITE') on ResourceGroup | where abs(datetime_diff('minute', TimeGenerated, TimeGenerated1)) < 30",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.WEB/SITES/WRITE' | join kind=inner (AzureActivity | where OperationNameValue has 'MANAGEDIDENTITY') on Caller | where abs(datetime_diff('minute', TimeGenerated, TimeGenerated1)) < 60",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.CONTAINERINSTANCE/CONTAINERGROUPS/WRITE' | extend ImageRepo = tostring(parse_json(Properties).containers[0].image) | where ImageRepo !startswith known_acr_registry | project TimeGenerated, Caller, ImageRepo, ResourceId"
+  ]
+}

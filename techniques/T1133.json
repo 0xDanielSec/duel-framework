@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1133",
+  "name": "External Remote Services",
+  "tactic": "Initial Access, Persistence",
+  "description": "Adversaries leverage external-facing remote services such as VPNs, Citrix, Azure Bastion, Azure Virtual Desktop (AVD), or Direct Access to gain initial access or maintain persistence. In Azure/Entra ID environments, these services authenticate against Entra ID and generate SigninLogs entries. Adversaries with valid credentials may authenticate to Azure Bastion, AVD, or third-party VPN solutions integrated with Entra ID SAML/OIDC. Access through these services is particularly hard to distinguish from legitimate remote work traffic.",
+  "platforms": ["Azure", "Azure AD", "Entra ID", "Windows"],
+  "data_sources": ["Azure Active Directory Sign-in Logs", "Microsoft Entra ID Audit Logs", "Azure Activity Logs"],
+  "sentinel_tables": ["SigninLogs", "AuditLogs", "AzureActivity", "AADNonInteractiveUserSignInLogs"],
+  "iocs": [
+    "SigninLogs with AppDisplayName containing 'Azure Virtual Desktop', 'Windows Virtual Desktop', or 'Azure Bastion' from an IP not in corporate VPN ranges",
+    "SigninLogs showing successful authentication to remote access app from a country the user has never authenticated from",
+    "AuditLogs Operation 'Add member to group' for a remote-access-enabled security group performed by an account that recently authenticated remotely",
+    "SigninLogs DeviceDetail.operatingSystem mismatch: user typically uses Windows but remote session shows Linux or macOS UserAgent",
+    "Multiple concurrent sessions to Azure Virtual Desktop for the same UserPrincipalName from different IPAddress values — session sharing or token theft",
+    "AADNonInteractiveUserSignInLogs showing refresh token usage for AVD app from a new IP immediately after interactive login from a different IP",
+    "SigninLogs ConditionalAccessStatus == 'notApplied' for remote service applications that should have a Conditional Access policy"
+  ],
+  "evasion_variants": [
+    "Use a residential proxy in the victim's home country to match expected geographic location",
+    "Authenticate during the user's normal business hours based on their historical SigninLogs timezone pattern",
+    "Use a compliant device claim via Intune MDM enrollment of an attacker-controlled device to satisfy device compliance CA policies",
+    "Leverage a personal access token or app password configured before MFA was enforced on the remote service application",
+    "Authenticate slowly over multiple days to avoid anomaly detection on new-IP sign-in alerts",
+    "Use the same UserAgent string as the legitimate user's most recent successful session"
+  ],
+  "detection_kql_hints": [
+    "SigninLogs | where AppDisplayName has_any ('Azure Virtual Desktop','Windows Virtual Desktop','Azure Bastion') | summarize dcount(IPAddress) by UserPrincipalName, bin(TimeGenerated, 1h) | where dcount_IPAddress > 2",
+    "SigninLogs | where ResultType == 0 | extend Country = tostring(LocationDetails.countryOrRegion) | summarize make_set(Country) by UserPrincipalName | where array_length(set_Country) > 3",
+    "AADNonInteractiveUserSignInLogs | where AppDisplayName has 'Virtual Desktop' | where IPAddress != prev(IPAddress) | where UserPrincipalName == prev(UserPrincipalName)",
+    "SigninLogs | where ConditionalAccessStatus == 'notApplied' and AppDisplayName has_any ('VPN','Bastion','Virtual Desktop') | project TimeGenerated, UserPrincipalName, IPAddress, AppDisplayName",
+    "Detect concurrent sessions: SigninLogs | where AppDisplayName has 'Virtual Desktop' | summarize Sessions=dcount(CorrelationId), IPs=dcount(IPAddress) by UserPrincipalName, bin(TimeGenerated, 30m) | where IPs > 1"
+  ]
+}

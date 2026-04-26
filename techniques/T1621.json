@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1621",
+  "name": "Multi-Factor Authentication Request Generation",
+  "tactic": "Credential Access",
+  "description": "Adversaries send repeated MFA push notifications or phone calls to a target user hoping the user approves one out of fatigue (MFA fatigue/prompt bombing). In Entra ID, each push attempt generates a SigninLogs entry with ResultType 50074 (strong authentication required) or ResultType 0 if the user approves. The adversary typically already has valid credentials (obtained via password spray or phishing) and is blocked only by MFA. Microsoft Authenticator's number matching feature and additional context mitigate this but are not universally enabled.",
+  "platforms": ["Azure AD", "Entra ID", "Office 365"],
+  "data_sources": ["Azure Active Directory Sign-in Logs"],
+  "sentinel_tables": ["SigninLogs"],
+  "iocs": [
+    "SigninLogs high volume of ResultType 50074 ('User did not pass the MFA challenge') for a single UserPrincipalName within a 30-minute window",
+    "SigninLogs alternating ResultType 50074 and 50076 ('User did not pass MFA') for the same account over an extended period — persistent fatigue campaign",
+    "SigninLogs showing ResultType 0 following a series of ResultType 50074 events from the same IPAddress — successful MFA fatigue approval",
+    "SigninLogs push MFA requests originating from unusual geographic location or time-of-day for the target user",
+    "SigninLogs MFA requests targeting privileged accounts (detectable by correlating UserPrincipalName with AuditLogs role membership)",
+    "SigninLogs AuthenticationDetails showing 'phoneAppNotification' as the MFA method with repeated failure status — push bombing pattern",
+    "Multiple distinct UserPrincipalName values each receiving MFA push attempts from the same IPAddress — targeted multi-account fatigue campaign"
+  ],
+  "evasion_variants": [
+    "Space MFA push attempts 60 seconds apart to stay under per-minute rate-limit detection thresholds",
+    "Combine MFA fatigue with social engineering — call the target claiming to be IT support requiring them to approve an MFA notification",
+    "Target the user late at night or early morning when fatigue or confusion is highest and they may approve without scrutiny",
+    "Send exactly 3 MFA requests per hour to avoid patterns that trigger 'excessive MFA failures' alert rules with higher thresholds",
+    "Alternate between push notification and phone call MFA methods to maximize disruption and coverage if the user dismisses one type",
+    "Target accounts where MFA is configured for phone call rather than authenticator app — phone calls are harder to quickly dismiss"
+  ],
+  "detection_kql_hints": [
+    "SigninLogs | where ResultType in (50074, 50076) | summarize MFAFailures=count() by UserPrincipalName, IPAddress, bin(TimeGenerated, 30m) | where MFAFailures > 5",
+    "SigninLogs | where ResultType in (50074, 50076) | order by TimeGenerated asc | extend Success = next(ResultType) == 0 and next(UserPrincipalName) == UserPrincipalName | where Success == true | project TimeGenerated, UserPrincipalName, IPAddress",
+    "SigninLogs | where AuthenticationDetails has 'phoneAppNotification' and ResultType != 0 | summarize PushCount=count() by UserPrincipalName, bin(TimeGenerated, 1h) | where PushCount > 10",
+    "SigninLogs | where ResultType == 50074 | summarize dcount(UserPrincipalName) by IPAddress, bin(TimeGenerated, 1h) | where dcount_UserPrincipalName > 3",
+    "SigninLogs | where ResultType == 50074 | extend HourOfDay = hourofday(TimeGenerated) | where HourOfDay < 6 or HourOfDay > 22 | summarize count() by UserPrincipalName, IPAddress, bin(TimeGenerated, 1h)"
+  ]
+}

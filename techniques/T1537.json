@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1537",
+  "name": "Transfer Data to Cloud Account",
+  "tactic": "Exfiltration",
+  "description": "Adversaries exfiltrate data by transferring it to a cloud account under their control. In Azure environments, this typically involves Azure Storage account copy operations (AzCopy, Blob copy), creation of Azure Snapshots exported to an attacker-controlled storage account, or use of Azure Data Factory to pipeline data to external storage. AzureActivity logs snapshot exports and cross-account copy operations. Defenders look for storage operations where the destination tenant or subscription differs from the source.",
+  "platforms": ["Azure", "IaaS"],
+  "data_sources": ["Azure Activity Logs"],
+  "sentinel_tables": ["AzureActivity", "StorageBlobLogs"],
+  "iocs": [
+    "AzureActivity 'MICROSOFT.COMPUTE/SNAPSHOTS/WRITE' creating disk snapshots of production VMs by a non-backup service identity",
+    "AzureActivity 'MICROSOFT.COMPUTE/DISKS/BEGINGETACCESS/ACTION' generating SAS URLs for managed disks — enables download from external context",
+    "AzureActivity 'MICROSOFT.STORAGE/STORAGEACCOUNTS/BLOBSERVICES/CONTAINERS/BLOBS/WRITE' where the Properties show a source URL pointing to an external Azure storage account",
+    "StorageBlobLogs OperationName 'CopyBlob' with CopySource pointing to a storage account in a different subscription or tenant",
+    "AzureActivity operations creating Azure Data Factory pipelines with linked services pointing to external storage endpoints",
+    "AzureActivity 'MICROSOFT.COMPUTE/SNAPSHOTS/WRITE' followed within 30 minutes by 'MICROSOFT.COMPUTE/SNAPSHOTS/BEGINGETACCESS/ACTION' on the same resource",
+    "Sudden spike in egress bytes in Azure Monitor storage metrics coinciding with AzureActivity write operations to an unknown storage account"
+  ],
+  "evasion_variants": [
+    "Use an attacker-controlled Azure subscription in the same region to avoid cross-region egress alerts and reduce latency-based anomaly triggers",
+    "Stage the exfiltration through an Azure Storage account in a resource group that has a legitimate-sounding name (e.g., 'backup-rg', 'dr-storage-rg')",
+    "Use Azure managed disk export with a short-lived SAS token so the export URL is not directly attributable to the attacker's infrastructure",
+    "Create snapshots incrementally (differential snapshots) to reduce total data volume transferred and stay under threshold-based alerts",
+    "Use Azure Data Factory with a Managed Identity for the linked service connection to avoid hardcoded credentials in the pipeline configuration",
+    "Transfer data via Azure Site Recovery replication to an attacker-controlled vault — replication traffic is expected and may not be monitored"
+  ],
+  "detection_kql_hints": [
+    "AzureActivity | where OperationNameValue in ('MICROSOFT.COMPUTE/SNAPSHOTS/WRITE','MICROSOFT.COMPUTE/DISKS/BEGINGETACCESS/ACTION') | project TimeGenerated, Caller, CallerIpAddress, ResourceId | order by TimeGenerated asc",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.COMPUTE/SNAPSHOTS/BEGINGETACCESS/ACTION' | extend ResourceName = tostring(split(ResourceId, '/')[-1]) | join kind=inner (AzureActivity | where OperationNameValue == 'MICROSOFT.COMPUTE/SNAPSHOTS/WRITE') on ResourceName | where abs(datetime_diff('minute', TimeGenerated, TimeGenerated1)) < 60",
+    "StorageBlobLogs | where OperationName == 'CopyBlob' | where CopySource !startswith strcat('https://', AccountName) | project TimeGenerated, AccountName, CopySource, CallerIpAddress",
+    "AzureActivity | where OperationNameValue has 'DATAFACTORY' and OperationNameValue has 'WRITE' | where Caller !in (known_adf_service_principals) | project TimeGenerated, Caller, Properties",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.COMPUTE/SNAPSHOTS/WRITE' | where Caller !in (known_backup_accounts) | summarize count() by Caller, bin(TimeGenerated, 1d)"
+  ]
+}

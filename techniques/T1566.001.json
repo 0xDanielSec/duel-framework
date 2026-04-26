@@ -1,0 +1,35 @@
+{
+  "technique_id": "T1566.001",
+  "name": "Phishing: Spearphishing Attachment",
+  "tactic": "Initial Access",
+  "description": "Adversaries send spearphishing emails with malicious attachments to compromise targets. In Microsoft 365 environments, this manifests as crafted Office documents with macros, ISO/LNK files, or HTML smuggling payloads delivered via Exchange Online. Safe Attachments policies in Defender for Office 365 may detonate the attachment in a sandbox, generating OfficeActivity and EmailEvents telemetry. Successful exploitation typically chains into credential theft or OAuth abuse within the same tenant.",
+  "platforms": ["Office 365", "Windows", "Azure AD"],
+  "data_sources": ["Office 365 Audit Logs", "Microsoft Defender for Office 365", "Email Events"],
+  "sentinel_tables": ["OfficeActivity", "EmailEvents", "EmailAttachmentInfo", "AlertEvidence"],
+  "iocs": [
+    "EmailAttachmentInfo entries with FileType in ('docm','xlsm','iso','lnk','html','zip') and DeliveryAction != 'Blocked'",
+    "OfficeActivity Operation 'MailItemsAccessed' shortly after an email with attachment delivery to the same recipient",
+    "EmailEvents with DeliveryLocation 'Inbox' and ThreatTypes has 'Malware' after Safe Attachments verdict completes",
+    "EmailAttachmentInfo SHA256 matching known malicious hash in ThreatIntelligenceIndicator table",
+    "Recipient user subsequently appearing in SigninLogs from an unusual IP within 30 minutes of email receipt",
+    "OfficeActivity showing document open (FileAccessed) followed by new process or outbound connection telemetry",
+    "Multiple recipients in same tenant receiving identical attachment SHA256 on same day — targeted campaign signal"
+  ],
+  "evasion_variants": [
+    "Use password-protected ZIP archives to bypass Safe Attachments detonation — password delivered in email body",
+    "Embed payload inside ISO or IMG disk image to prevent Mark-of-the-Web propagation on Windows",
+    "Use HTML smuggling: attachment is benign HTML that reconstructs executable on client-side via JavaScript Blob",
+    "Stage payload as a OneDrive or SharePoint link inside the attachment body so initial file appears clean",
+    "Send from a compromised legitimate external domain to pass SPF/DKIM/DMARC and avoid sender-reputation filters",
+    "Deliver attachment in multiple parts across separate emails to fragment hash-based detection",
+    "Use an LNK shortcut with target set to a LOLBin (mshta, wscript) pointing to a remote payload URL"
+  ],
+  "detection_kql_hints": [
+    "EmailAttachmentInfo | where FileType in~ ('docm','xlsm','iso','lnk','html') | join kind=leftouter (EmailEvents | where DeliveryAction != 'Blocked') on NetworkMessageId",
+    "Correlate EmailEvents RecipientEmailAddress with SigninLogs UserPrincipalName — flag sign-ins within 60 minutes of suspicious attachment delivery",
+    "EmailEvents | where ThreatTypes has 'Phish' or ThreatTypes has 'Malware' | summarize count() by SenderFromDomain, bin(Timestamp, 1h)",
+    "OfficeActivity | where Operation == 'MailItemsAccessed' | join kind=inner (EmailAttachmentInfo | where FileType in~ ('docm','xlsm','iso','lnk')) on $left.UserId == $right.RecipientEmailAddress",
+    "ThreatIntelligenceIndicator | where IndicatorType == 'FileSha256' | join EmailAttachmentInfo on $left.IndicatorValue == $right.SHA256",
+    "Flag SenderFromDomain values with DKIM pass but no prior send history in tenant (first-seen sender domain)"
+  ]
+}

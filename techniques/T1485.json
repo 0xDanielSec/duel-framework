@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1485",
+  "name": "Data Destruction",
+  "tactic": "Impact",
+  "description": "Adversaries destroy data to interrupt availability or deny recovery options. In Azure environments, this manifests as deletion of storage accounts, blobs, databases, virtual machine disks, Recovery Services vaults, Azure Backup jobs, and Key Vault keys. AzureActivity logs all DELETE operations. Adversaries may also delete Azure Backup policies or disable soft-delete features before deleting resources to prevent recovery. High-privilege service principals or compromised Global Administrators are the most common initiating identities for cloud-scope data destruction.",
+  "platforms": ["Azure", "IaaS", "Office 365"],
+  "data_sources": ["Azure Activity Logs"],
+  "sentinel_tables": ["AzureActivity"],
+  "iocs": [
+    "AzureActivity bulk 'DELETE' operations across multiple resource groups within a short time window — mass deletion pattern",
+    "AzureActivity 'MICROSOFT.RECOVERYSERVICES/VAULTS/BACKUPPOLICIES/DELETE' or 'MICROSOFT.BACKUP/BACKUPINSTANCES/DELETE' — removing backup protection before data deletion",
+    "AzureActivity 'MICROSOFT.KEYVAULT/VAULTS/KEYS/DELETE' — destroying encryption keys renders encrypted data permanently unrecoverable",
+    "AzureActivity 'MICROSOFT.STORAGE/STORAGEACCOUNTS/DELETE' by an identity that does not normally manage infrastructure lifecycle",
+    "AzureActivity 'MICROSOFT.COMPUTE/VIRTUALMACHINES/DELETE' and 'MICROSOFT.COMPUTE/DISKS/DELETE' in sequence across multiple VMs",
+    "AzureActivity 'MICROSOFT.RECOVERYSERVICES/VAULTS/BACKUPFABRICS/PROTECTIONCONTAINERS/PROTECTEDITEMS/DELETE' — removing individual backup items before infrastructure deletion",
+    "AzureActivity sequence: disable soft-delete on Key Vault → purge deleted secrets → delete the vault — three-stage key destruction pattern"
+  ],
+  "evasion_variants": [
+    "First modify backup retention policies to reduce recovery point retention before deletion to limit recovery options without triggering DELETE alerts",
+    "Disable Azure soft-delete features (storage soft delete, Key Vault soft delete) before performing deletions to prevent silent restoration",
+    "Delete resources in a non-production subscription first to test the deletion path without triggering production-scope alerts",
+    "Use a Managed Identity or automation runbook to perform deletions so AzureActivity shows a service resource as the initiator rather than a user account",
+    "Stage deletions by first removing dependent resources (NSG rules, NICs) before the primary resource — incremental destruction harder to correlate",
+    "Delete resources outside business hours when SOC staffing and alert response times are reduced"
+  ],
+  "detection_kql_hints": [
+    "AzureActivity | where ActivityStatusValue == 'Success' and OperationNameValue has 'DELETE' | summarize DeleteCount=count(), dcount(ResourceGroup) by Caller, bin(TimeGenerated, 10m) | where DeleteCount > 10",
+    "AzureActivity | where OperationNameValue has_any ('BACKUPPOLICIES/DELETE','BACKUPINSTANCES/DELETE','PROTECTEDITEMS/DELETE') | project TimeGenerated, Caller, CallerIpAddress, ResourceId",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.KEYVAULT/VAULTS/KEYS/DELETE' | project TimeGenerated, Caller, CallerIpAddress, ResourceId",
+    "AzureActivity | where OperationNameValue in ('MICROSOFT.KEYVAULT/VAULTS/WRITE') and Properties has '\"softDeleteEnabled\":false' | project TimeGenerated, Caller, ResourceId",
+    "AzureActivity | where OperationNameValue has 'DELETE' | order by TimeGenerated asc | summarize ResourcesDeleted=count(), FirstDelete=min(TimeGenerated), LastDelete=max(TimeGenerated) by Caller | where ResourcesDeleted > 5"
+  ]
+}

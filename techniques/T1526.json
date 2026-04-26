@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1526",
+  "name": "Cloud Service Discovery",
+  "tactic": "Discovery",
+  "description": "Adversaries enumerate available cloud services and configurations to understand the target environment and identify opportunities for exploitation or data access. In Azure/Entra ID, this includes enumerating subscriptions, resource providers, deployed services, Key Vault contents, storage account names, function apps, and Logic Apps. AuditLogs captures Entra ID-level discovery while AzureActivity covers ARM-level service enumeration. Adversaries map discovered services to plan subsequent data access or privilege escalation attacks.",
+  "platforms": ["Azure", "Azure AD", "Entra ID", "Office 365"],
+  "data_sources": ["Microsoft Entra ID Audit Logs", "Azure Activity Logs"],
+  "sentinel_tables": ["AuditLogs", "AzureActivity"],
+  "iocs": [
+    "AzureActivity bulk read of 'MICROSOFT.KEYVAULT/VAULTS/READ' across multiple resource groups — Key Vault discovery",
+    "AzureActivity 'MICROSOFT.STORAGE/STORAGEACCOUNTS/READ' listing all storage accounts across subscriptions",
+    "AzureActivity 'MICROSOFT.WEB/SITES/READ' and 'MICROSOFT.LOGIC/WORKFLOWS/READ' — function app and Logic App enumeration",
+    "AuditLogs high volume 'List keys', 'List secrets' operations against Key Vault from a single identity",
+    "AzureActivity 'MICROSOFT.INSIGHTS/COMPONENTS/READ' enumerating Application Insights instances — discovers application dependencies",
+    "AzureActivity reading all resource provider capabilities: 'MICROSOFT.RESOURCES/PROVIDERS/READ' — maps all available services",
+    "Sequence of AzureActivity operations mapping service dependencies: storage → function app → service bus — intent to understand data pipeline"
+  ],
+  "evasion_variants": [
+    "Use Azure Resource Graph with a single query to enumerate all resources across subscriptions rather than individual ARM reads",
+    "Enumerate only services relevant to the attack objective (e.g., only storage accounts and Key Vaults for data exfiltration) to minimize operation count",
+    "Perform discovery operations as part of a legitimate-looking automation runbook in an Azure Automation Account",
+    "Use a Managed Identity assigned to a compromised VM to perform discovery — avoids external IP attribution in AzureActivity",
+    "Target the Azure cost management API to infer deployed services from billing data without triggering resource read operations",
+    "Read Azure Resource Manager deployment templates (DEPLOYMENTS/READ) to enumerate all services from a single infrastructure-as-code artifact"
+  ],
+  "detection_kql_hints": [
+    "AzureActivity | where OperationNameValue has_any ('KEYVAULT/VAULTS/READ','STORAGE/STORAGEACCOUNTS/READ','WEB/SITES/READ','LOGIC/WORKFLOWS/READ') | summarize dcount(OperationNameValue) by Caller, bin(TimeGenerated, 1h) | where dcount_OperationNameValue > 3",
+    "AuditLogs | where OperationName in ('List keys','List secrets','List certificates') | summarize count() by tostring(InitiatedBy.user.userPrincipalName), bin(TimeGenerated, 10m) | where count_ > 10",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.RESOURCES/PROVIDERS/READ' | project TimeGenerated, Caller, CallerIpAddress",
+    "AzureActivity | where ActivityStatusValue == 'Success' | summarize dcount(ResourceProviderValue) by Caller, bin(TimeGenerated, 1h) | where dcount_ResourceProviderValue > 5",
+    "AzureActivity | where OperationNameValue has 'DEPLOYMENTS/READ' | summarize count() by Caller, bin(TimeGenerated, 1h) | where count_ > 5"
+  ]
+}

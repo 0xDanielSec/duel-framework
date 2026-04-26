@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1199",
+  "name": "Trusted Relationship",
+  "tactic": "Initial Access",
+  "description": "Adversaries exploit trusted relationships between organizations to gain access to a target. In Azure/Entra ID, this includes compromise of Managed Service Providers (MSPs) with delegated admin access (GDAP/DAP), exploitation of cross-tenant B2B guest accounts, abuse of Entra ID External Identities, or compromise of a supplier whose service principal has permissions in the target tenant. The adversary operates with legitimate credentials that have pre-existing trust, making their access appear authorized in audit logs.",
+  "platforms": ["Azure AD", "Entra ID", "Office 365", "Azure"],
+  "data_sources": ["Microsoft Entra ID Audit Logs", "Azure Active Directory Sign-in Logs"],
+  "sentinel_tables": ["AuditLogs", "SigninLogs", "AzureActivity"],
+  "iocs": [
+    "SigninLogs entries with HomeTenantId different from the ResourceTenantId — cross-tenant B2B authentication",
+    "AuditLogs Operation 'Add delegated permission grant' or 'Consent on behalf of organization' initiated by an external tenant identity",
+    "SigninLogs UserType == 'Guest' performing administrative operations beyond expected scope",
+    "AzureActivity operations initiated by a service principal with a cross-tenant application (HomeTenantId != subscription TenantId)",
+    "AuditLogs showing GDAP relationship activation followed immediately by privileged role assignments in the target tenant",
+    "SigninLogs CrossTenantAccessType == 'B2BCollaboration' or 'B2BDirectConnect' from an MSP tenant IP for roles like Global Administrator or Privileged Role Administrator",
+    "Bulk AuditLogs operations (user creation, permission grants, policy changes) performed by an external identity in a short time window — MSP compromise"
+  ],
+  "evasion_variants": [
+    "Operate exclusively within the legitimate scope of the MSP's GDAP permissions to avoid privilege escalation alerts",
+    "Perform actions spread across multiple days mimicking normal MSP administrative cadence",
+    "Use a B2B guest account that has been dormant and recently reactivated — less likely to have anomaly baseline triggers",
+    "Leverage a supplier service principal with existing Reader or Contributor role rather than creating new credentials",
+    "Target a non-production subscription via the trusted relationship to establish foothold before pivoting to production",
+    "Use the legitimate MSP ticketing system to initiate actions, making the activity appear change-management-authorized"
+  ],
+  "detection_kql_hints": [
+    "SigninLogs | where HomeTenantId != ResourceTenantId | where ResultType == 0 | summarize count() by UserPrincipalName, HomeTenantId, AppDisplayName, bin(TimeGenerated, 1d)",
+    "AuditLogs | where InitiatedBy.user.userPrincipalName has '#EXT#' | where OperationName in ('Add member to role','Add delegated permission grant','Reset user password') | project TimeGenerated, OperationName, InitiatedBy, TargetResources",
+    "AzureActivity | where Claims has '\"idtyp\":\"app\"' | extend AppTenant = tostring(parse_json(Claims).tid) | where AppTenant != TenantId | where OperationNameValue has_any ('WRITE','DELETE','ACTION')",
+    "AuditLogs | where OperationName == 'Add member to role' | where InitiatedBy.user.userPrincipalName has 'partner' or InitiatedBy.app.displayName has_any ('GDAP','Lighthouse','Partner') | project TimeGenerated, TargetResources, RoleName = tostring(TargetResources[0].displayName)",
+    "SigninLogs | where CrossTenantAccessType in ('B2BCollaboration','B2BDirectConnect') | where UserPrincipalName !in (known_msp_accounts) | where AppDisplayName has_any ('Azure Portal','Microsoft 365 Admin')"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1018",
+  "name": "Remote System Discovery",
+  "tactic": "Discovery",
+  "description": "Adversaries enumerate remote systems within an Azure environment to map the infrastructure for lateral movement and impact planning. In Azure, this manifests as Azure CLI or PowerShell commands listing virtual machines, network interfaces, virtual networks, and subnets. AzureActivity logs these as read operations against MICROSOFT.COMPUTE/VIRTUALMACHINES, MICROSOFT.NETWORK/VIRTUALNETWORKS, and related resource providers. An adversary with Contributor or Reader role on a subscription can enumerate all reachable systems without any write operations, making the activity appear benign in write-focused alert rules.",
+  "platforms": ["Azure", "IaaS"],
+  "data_sources": ["Azure Activity Logs"],
+  "sentinel_tables": ["AzureActivity", "AzureDiagnostics"],
+  "iocs": [
+    "AzureActivity high volume of 'MICROSOFT.COMPUTE/VIRTUALMACHINES/READ' operations from a single CallerIPAddress in a short window",
+    "AzureActivity 'MICROSOFT.NETWORK/VIRTUALNETWORKS/READ' and 'MICROSOFT.NETWORK/SUBNETS/READ' across multiple resource groups — subnet enumeration",
+    "AzureActivity listing all network security groups and their rules: 'MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/READ'",
+    "AzureActivity 'MICROSOFT.RESOURCES/SUBSCRIPTIONS/RESOURCEGROUPS/READ' listing all resource groups — full tenant scope enumeration",
+    "Sequence of read operations: subscriptions → resource groups → VMs → network interfaces → public IPs — systematic infrastructure mapping",
+    "AzureActivity 'MICROSOFT.COMPUTE/VIRTUALMACHINES/INSTANCEVIEW/READ' bulk operation — checking running state of all VMs",
+    "AzureActivity CallerIPAddress not matching known DevOps pipeline or admin workstation ranges for resource enumeration operations"
+  ],
+  "evasion_variants": [
+    "Use Azure Resource Graph queries (MICROSOFT.RESOURCEGRAPH/RESOURCES/READ) which aggregate results in a single request reducing individual operation count",
+    "Perform enumeration via the Azure portal rather than CLI/SDK — portal reads may be attributed to the portal infrastructure IP rather than the caller",
+    "Enumerate only the target subscription rather than all subscriptions to reduce total read operation volume",
+    "Spread enumeration across multiple Azure management API endpoints over several days to stay within normal reader activity baselines",
+    "Use a service principal with pre-existing reader access that was used legitimately before compromise — no baseline deviation for that identity",
+    "Enumerate via Azure Monitor metrics APIs rather than ARM reads — generates telemetry in different log streams that may lack alerting coverage"
+  ],
+  "detection_kql_hints": [
+    "AzureActivity | where OperationNameValue has_any ('VIRTUALMACHINES/READ','VIRTUALNETWORKS/READ','NETWORKSECURITYGROUPS/READ') | summarize count() by Caller, bin(TimeGenerated, 10m) | where count_ > 100",
+    "AzureActivity | where OperationNameValue has 'READ' | summarize dcount(ResourceGroup) by Caller, bin(TimeGenerated, 1h) | where dcount_ResourceGroup > 10",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.COMPUTE/VIRTUALMACHINES/INSTANCEVIEW/READ' | summarize count() by CallerIpAddress, bin(TimeGenerated, 5m) | where count_ > 20",
+    "AzureActivity | where OperationNameValue has 'RESOURCES/SUBSCRIPTIONS/RESOURCEGROUPS/READ' | where not(Caller has 'AzureDevOps') | summarize count() by Caller, CallerIpAddress",
+    "AzureActivity | where ActivityStatusValue == 'Success' and OperationNameValue has 'READ' | order by TimeGenerated asc | extend gap = TimeGenerated - prev(TimeGenerated) | where gap < 1s | summarize rapid_reads=count() by Caller"
+  ]
+}

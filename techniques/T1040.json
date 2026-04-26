@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1040",
+  "name": "Network Sniffing",
+  "tactic": "Credential Access, Discovery",
+  "description": "Adversaries passively capture network traffic to obtain credentials or discover network topology. In Azure environments, network sniffing is constrained by the hypervisor but adversaries can use Azure Network Watcher packet capture, deploy a network virtual appliance (NVA) as a network tap, configure VNet traffic mirroring, or exploit a compromised VM that acts as a network gateway. AzureActivity logs Network Watcher packet capture creation and VNet peering modifications. Adversaries with Network Contributor role can create packet captures that write PCAP files to Azure Storage.",
+  "platforms": ["Azure", "IaaS", "Windows", "Linux"],
+  "data_sources": ["Azure Activity Logs"],
+  "sentinel_tables": ["AzureActivity"],
+  "iocs": [
+    "AzureActivity 'MICROSOFT.NETWORK/NETWORKWATCHERS/PACKETCAPTURES/WRITE' — Network Watcher packet capture initiated outside of authorized network troubleshooting windows",
+    "AzureActivity 'MICROSOFT.NETWORK/VIRTUALNETWORKS/VIRTUALNETWORKPEERINGS/WRITE' creating new VNet peering to an external subscription — traffic bridging",
+    "AzureActivity 'MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/WRITE' adding permissive flow log rules to capture traffic to attacker-controlled storage",
+    "AzureActivity 'MICROSOFT.NETWORK/NETWORKWATCHERS/FLOWLOGS/WRITE' enabling NSG flow logs with a destination storage account in an unrecognized subscription",
+    "AzureActivity creating a new Network Virtual Appliance or route table with next-hop pointing to a VM not in the baseline topology",
+    "AzureActivity 'MICROSOFT.COMPUTE/VIRTUALMACHINES/RUNCOMMAND/ACTION' executing commands that enable promiscuous mode or install tcpdump on a VM",
+    "AzureActivity 'MICROSOFT.NETWORK/TRAFFICMANAGERPROFILES/WRITE' modifying Traffic Manager routing policies — DNS-level traffic interception"
+  ],
+  "evasion_variants": [
+    "Use a pre-existing authorized Network Watcher instance to avoid creating new resources that trigger creation alerts",
+    "Configure NSG flow logs to write to a storage account in the same subscription to avoid cross-subscription destination anomaly detection",
+    "Limit packet capture duration to under 5 minutes to reduce storage footprint and avoid large-volume anomaly alerts",
+    "Use VNet traffic analytics instead of packet capture — provides network flow metadata without full PCAP requiring different authorization paths",
+    "Deploy a network tap as part of a legitimate-looking monitoring NVA update using an existing approved deployment pipeline",
+    "Use Azure Monitor diagnostic settings for VNet gateway logs rather than packet capture to obtain credential metadata with less noise"
+  ],
+  "detection_kql_hints": [
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.NETWORK/NETWORKWATCHERS/PACKETCAPTURES/WRITE' | project TimeGenerated, Caller, CallerIpAddress, ResourceId, Properties",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.NETWORK/VIRTUALNETWORKS/VIRTUALNETWORKPEERINGS/WRITE' | extend PeeringProps = parse_json(Properties) | where tostring(PeeringProps.remoteVirtualNetwork) !startswith '/subscriptions/' | project TimeGenerated, Caller, Properties",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.NETWORK/NETWORKWATCHERS/FLOWLOGS/WRITE' | extend FlowLogStorage = tostring(parse_json(Properties).storageId) | where FlowLogStorage !contains current_subscription_id",
+    "AzureActivity | where OperationNameValue has 'ROUTETABLES/WRITE' | extend Routes = parse_json(Properties) | where tostring(Routes) has 'VirtualAppliance' | project TimeGenerated, Caller, ResourceId, Properties",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.COMPUTE/VIRTUALMACHINES/RUNCOMMAND/ACTION' | extend Command = tostring(parse_json(Properties).commandId) | where Properties has_any ('tcpdump','promiscuous','packet','wireshark','tshark')"
+  ]
+}

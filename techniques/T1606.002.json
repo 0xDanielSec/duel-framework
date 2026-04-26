@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1606.002",
+  "name": "Forge Web Credentials: SAML Tokens",
+  "tactic": "Credential Access, Defense Evasion",
+  "description": "Adversaries with access to a SAML signing certificate can forge SAML assertions to authenticate to any service provider that trusts the identity provider, bypassing MFA entirely. In Azure/Entra ID environments, this is known as the 'Golden SAML' attack. An adversary who has exfiltrated the ADFS token signing certificate or compromised an Entra ID federated domain can generate arbitrary SAML tokens and authenticate as any user, including Global Administrators, without their credentials. SigninLogs shows these authentications as successful with unusual properties — notably, the authentication often originates from an IP that did not previously authenticate as that user.",
+  "platforms": ["Azure AD", "Entra ID", "Windows", "SaaS"],
+  "data_sources": ["Azure Active Directory Sign-in Logs", "Microsoft Entra ID Audit Logs"],
+  "sentinel_tables": ["AuditLogs", "SigninLogs"],
+  "iocs": [
+    "SigninLogs AuthenticationProtocol == 'SAML20' for a federated domain with IPAddress not associated with the ADFS server infrastructure",
+    "SigninLogs showing authentication for a Global Administrator account from an ADFS federation when that account has no recent password activity or MFA registration",
+    "AuditLogs 'Set domain authentication' changing a managed domain to a federated domain outside a known migration project — enables Golden SAML path",
+    "SigninLogs multiple distinct UserPrincipalName values authenticating from the same IPAddress via SAML20 in a short window — forged assertion generation from single attacker host",
+    "SigninLogs TokenIssuerType == 'AzureAD' but AuthenticationProtocol == 'SAML20' combined with ConditionalAccessStatus == 'notApplied' for an MFA-required account",
+    "AuditLogs 'Set federation settings on domain' or 'Set domain authentication' operations outside change management windows",
+    "SigninLogs for privileged accounts (Global Admin, Privileged Role Admin) authenticating via SAML from countries with no prior sign-in history for that account"
+  ],
+  "evasion_variants": [
+    "Forge SAML assertions for low-privilege accounts initially to test the Golden SAML capability before targeting administrator accounts",
+    "Set SAML assertion IssueInstant to the victim's historical peak-usage time to blend with expected authentication patterns",
+    "Use a residential proxy IP in the victim's home city to minimize geolocation anomaly signals",
+    "Include accurate user attributes (UPN, tenant ID, object ID) in the forged assertion to pass attribute-based CA policy checks",
+    "Limit forged SAML authentications to one per target account per day to avoid anomalous authentication frequency alerts",
+    "Authenticate to a low-risk application first (not Azure Portal or Microsoft Graph) to establish a session before pivoting to higher-privilege resources"
+  ],
+  "detection_kql_hints": [
+    "SigninLogs | where AuthenticationProtocol == 'SAML20' | where IPAddress !in (adfs_server_ips) | where ResultType == 0 | project TimeGenerated, UserPrincipalName, IPAddress, AppDisplayName, ConditionalAccessStatus",
+    "SigninLogs | where AuthenticationProtocol == 'SAML20' | summarize dcount(UserPrincipalName) by IPAddress, bin(TimeGenerated, 10m) | where dcount_UserPrincipalName > 3",
+    "AuditLogs | where OperationName in ('Set domain authentication','Set federation settings on domain') | project TimeGenerated, OperationName, InitiatedBy, TargetResources",
+    "SigninLogs | where AuthenticationProtocol == 'SAML20' and ConditionalAccessStatus == 'notApplied' | where UserPrincipalName in (privileged_accounts) | project TimeGenerated, UserPrincipalName, IPAddress, AppDisplayName",
+    "SigninLogs | where AuthenticationProtocol == 'SAML20' | extend Country = tostring(LocationDetails.countryOrRegion) | summarize Countries=make_set(Country) by UserPrincipalName | where array_length(Countries) > 2 | project UserPrincipalName, Countries"
+  ]
+}

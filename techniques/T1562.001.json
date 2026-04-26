@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1562.001",
+  "name": "Impair Defenses: Disable or Modify Tools",
+  "tactic": "Defense Evasion",
+  "description": "Adversaries disable or modify security tools to avoid detection of their activities. In Azure/Entra ID environments, this includes disabling Microsoft Defender for Cloud plans, removing diagnostic settings (log forwarding to Log Analytics), disabling Azure Policy assignments, modifying Conditional Access policies, or removing Microsoft Defender for Endpoint onboarding from Azure VMs. AuditLogs captures Entra ID policy changes while AzureActivity captures Defender for Cloud and diagnostic setting modifications.",
+  "platforms": ["Azure", "Azure AD", "Entra ID", "IaaS"],
+  "data_sources": ["Microsoft Entra ID Audit Logs", "Azure Activity Logs"],
+  "sentinel_tables": ["AuditLogs", "AzureActivity"],
+  "iocs": [
+    "AzureActivity 'MICROSOFT.SECURITY/PRICINGS/WRITE' setting pricing tier to 'Free' — disabling Defender for Cloud plans",
+    "AzureActivity 'MICROSOFT.INSIGHTS/DIAGNOSTICSETTINGS/DELETE' removing diagnostic settings that forward logs to Log Analytics workspace",
+    "AuditLogs OperationName 'Update conditional access policy' setting policy state from 'enabled' to 'disabled' or adding broad exclusions",
+    "AzureActivity 'MICROSOFT.AUTHORIZATION/POLICYASSIGNMENTS/DELETE' removing Azure Policy assignments that enforce security controls",
+    "AuditLogs OperationName 'Delete conditional access policy' or bulk CA policy modifications in a short window",
+    "AzureActivity 'MICROSOFT.COMPUTE/VIRTUALMACHINES/EXTENSIONS/DELETE' removing the MDE extension from VMs — endpoint protection removal",
+    "AzureActivity 'MICROSOFT.SECURITY/AUTOMATIONS/WRITE' modifying or disabling Defender for Cloud workflow automations and alert suppressions"
+  ],
+  "evasion_variants": [
+    "Modify diagnostic settings to forward logs to an attacker-controlled storage account instead of deleting them — appears as a configuration change rather than a deletion",
+    "Add a CA policy exclusion for a specific IP range (attacker-controlled proxy) rather than disabling the policy entirely",
+    "Disable Defender for Cloud at the subscription scope level rather than per resource to reduce the number of AzureActivity events generated",
+    "Use a PIM-eligible role activated briefly for the defense modification, then deactivate the role to reduce the persistent privilege footprint",
+    "Modify alert notification settings to redirect Defender for Cloud alerts to a non-monitored email address rather than deleting alert rules",
+    "Reduce diagnostic settings log retention to 1 day rather than deleting them — evidence destruction with lower detection probability"
+  ],
+  "detection_kql_hints": [
+    "AzureActivity | where OperationNameValue has_any ('DIAGNOSTICSETTINGS/DELETE','PRICINGS/WRITE','POLICYASSIGNMENTS/DELETE') | project TimeGenerated, Caller, CallerIpAddress, OperationNameValue, ResourceId",
+    "AuditLogs | where OperationName has_any ('conditional access policy','Update policy','Delete policy') | where ResultDescription != 'None' | project TimeGenerated, OperationName, InitiatedBy, TargetResources",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.SECURITY/PRICINGS/WRITE' | where Properties has '\"pricingTier\":\"Free\"' | project TimeGenerated, Caller, ResourceId, Properties",
+    "AzureActivity | where OperationNameValue has 'EXTENSIONS/DELETE' | where Properties has_any ('MDE','MicrosoftDefender','AzureSecurityLinuxAgent','AzureSecurityWindowsAgent') | project TimeGenerated, Caller, ResourceId",
+    "AuditLogs | where OperationName == 'Update conditional access policy' | extend PolicyId = tostring(TargetResources[0].id) | mv-expand ModifiedProperties = TargetResources[0].modifiedProperties | where ModifiedProperties.displayName == 'State' and ModifiedProperties.newValue == '\"disabled\"'"
+  ]
+}

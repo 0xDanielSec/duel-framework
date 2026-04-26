@@ -1,0 +1,34 @@
+{
+  "technique_id": "T1567.002",
+  "name": "Exfiltration Over Web Service: Exfiltration to Cloud Storage",
+  "tactic": "Exfiltration",
+  "description": "Adversaries exfiltrate data to cloud storage services using standard HTTPS channels that blend with normal business traffic. In Azure environments, this includes uploading stolen data to Azure Blob Storage in an attacker-controlled tenant, or using OneDrive, SharePoint, or Teams file uploads as exfiltration channels. OfficeActivity and CloudAppEvents capture file uploads while AzureActivity captures storage write operations. Exfiltration via Microsoft-owned infrastructure is particularly difficult to detect because HTTPS traffic to *.blob.core.windows.net or *.sharepoint.com appears legitimate.",
+  "platforms": ["Azure", "Office 365", "SaaS", "IaaS"],
+  "data_sources": ["Azure Activity Logs", "Office 365 Audit Logs"],
+  "sentinel_tables": ["AzureActivity", "OfficeActivity", "CloudAppEvents", "StorageBlobLogs"],
+  "iocs": [
+    "StorageBlobLogs high-volume 'PutBlob' operations from a corporate device IP to a storage account in an unrecognized subscription",
+    "OfficeActivity 'FileUploaded' operations to a OneDrive account that does not belong to the organization's tenant (personal or external tenant)",
+    "CloudAppEvents showing bulk file upload to SharePoint site in an external tenant followed by sharing link generation",
+    "AzureActivity 'MICROSOFT.STORAGE/STORAGEACCOUNTS/BLOBSERVICES/CONTAINERS/WRITE' creating new containers in a storage account immediately before bulk PUT operations",
+    "OfficeActivity UserId uploading gigabytes to OneDrive for Business in a single day vs historical baseline of megabytes",
+    "StorageBlobLogs OperationName 'PutBlob' with ContentType 'application/octet-stream' for filenames matching archive patterns (*.zip, *.7z, *.tar.gz)",
+    "CloudAppEvents showing mass file downloads from corporate SharePoint followed within hours by uploads to an external storage location"
+  ],
+  "evasion_variants": [
+    "Upload to Microsoft-owned cloud storage (OneDrive personal, Azure Blob) to avoid SNI-based blocking of non-Microsoft storage providers",
+    "Compress and encrypt data before upload so content inspection cannot identify sensitive data types",
+    "Use resumable upload APIs to split large exfiltration payloads into small chunks indistinguishable from normal sync operations",
+    "Exfiltrate via a collaboration tool (Teams file share, SharePoint external share) to a guest account in an attacker-controlled tenant",
+    "Use AzCopy or Azure Storage SDK with throttled transfer rates to blend with legitimate cloud-to-cloud replication operations",
+    "Name exfiltration containers and blobs to match backup or log retention naming conventions (e.g., 'backups-2024', 'logs-archive')",
+    "Use a compromised vendor's SharePoint site as the staging destination to keep traffic within Microsoft's IP space"
+  ],
+  "detection_kql_hints": [
+    "OfficeActivity | where Operation == 'FileUploaded' | where SiteUrl !has tostring(TenantId) | summarize TotalFiles=count() by UserId, SiteUrl, bin(TimeGenerated, 1h) | where TotalFiles > 50",
+    "StorageBlobLogs | where OperationName == 'PutBlob' | summarize TotalBytes=sum(RequestBodySize), FileCount=count() by CallerIpAddress, AccountName, bin(TimeGenerated, 1h) | where TotalBytes > 524288000",
+    "CloudAppEvents | where ActionType == 'FileUploaded' | where AccountObjectId !in (tenant_user_ids) | summarize count() by AccountDisplayName, AppName",
+    "OfficeActivity | where Operation in ('FileUploaded','FileSyncUploadedFull') | summarize DailyUploadMB = sum(todouble(ExtendedProperties)) / 1048576 by UserId, bin(TimeGenerated, 1d) | where DailyUploadMB > 1000",
+    "StorageBlobLogs | where OperationName == 'PutBlob' | where ObjectKey matches regex @'\\.(zip|7z|tar\\.gz|rar|enc)$' | project TimeGenerated, AccountName, ObjectKey, CallerIpAddress, RequestBodySize"
+  ]
+}

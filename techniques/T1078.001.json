@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1078.001",
+  "name": "Valid Accounts: Default Accounts",
+  "tactic": "Defense Evasion, Persistence, Privilege Escalation, Initial Access",
+  "description": "Adversaries use default accounts built into systems and applications to gain access. In Azure/Entra ID environments, this includes exploitation of break-glass emergency access accounts (often named 'breakglass', 'emergency-admin', or 'admin@tenant.onmicrosoft.com'), default service accounts created by Azure services, or the built-in 'on-premises directory synchronization service account' used by Entra ID Connect. These accounts often have weak monitoring, exclusions from Conditional Access, and long-lived credentials configured at tenant creation.",
+  "platforms": ["Azure AD", "Entra ID", "Azure", "Office 365"],
+  "data_sources": ["Azure Active Directory Sign-in Logs"],
+  "sentinel_tables": ["SigninLogs", "AuditLogs", "AADNonInteractiveUserSignInLogs"],
+  "iocs": [
+    "SigninLogs with UserPrincipalName matching patterns: 'admin@*.onmicrosoft.com', 'breakglass*', 'emergency*', 'sync_*' from an unexpected IP",
+    "Break-glass account authentication outside documented emergency procedures — any use without a corresponding incident ticket is suspicious",
+    "SigninLogs ConditionalAccessStatus == 'notApplied' on a highly privileged account — indicates CA exclusion for emergency accounts",
+    "AuditLogs showing password reset of a default or sync account performed by a non-privileged user",
+    "AADNonInteractiveUserSignInLogs showing Entra ID Connect sync account (SYNC_*) authenticating from an IP that is not the on-premises AD Connect server",
+    "SigninLogs for default service accounts with ResultType == 0 from a geolocation inconsistent with where the associated Azure service runs",
+    "Multiple failed ResultType 50126 against known default account names followed by success — targeted brute force"
+  ],
+  "evasion_variants": [
+    "Authenticate from the IP range historically associated with the organization's data center to mimic legitimate sync server behavior",
+    "Use the default account only for read operations initially to avoid triggering write-based alert rules",
+    "Leverage a default account that has been excluded from SIEM alerting as a 'known exclusion' in the detection configuration",
+    "Perform authentication during the expected sync window (e.g., every 30 minutes for AD Connect) to blend with scheduled service activity",
+    "Use client credentials grant (non-interactive) to authenticate the default service account, keeping it out of SigninLogs and into AADNonInteractiveUserSignInLogs where monitoring may be weaker",
+    "Rotate to the default account only after establishing a foothold with a regular user account — reduces detection surface during initial access"
+  ],
+  "detection_kql_hints": [
+    "SigninLogs | where UserPrincipalName matches regex @'(?i)(break.?glass|emergency|admin@.*\\.onmicrosoft\\.com|sync_[a-z0-9]+)' | project TimeGenerated, UserPrincipalName, IPAddress, ResultType, ConditionalAccessStatus",
+    "SigninLogs | where ConditionalAccessStatus == 'notApplied' | where UserPrincipalName in~ (break_glass_accounts) | where ResultType == 0",
+    "AADNonInteractiveUserSignInLogs | where UserPrincipalName startswith 'Sync_' | where IPAddress != adconnect_server_ip | where ResultType == 0",
+    "AuditLogs | where OperationName == 'Reset user password' | where TargetResources[0].userPrincipalName matches regex @'(?i)(break.?glass|emergency|sync_)'",
+    "SigninLogs | where UserPrincipalName matches regex @'(?i)(break.?glass|emergency)' | summarize count() by UserPrincipalName, bin(TimeGenerated, 1d) | where count_ > 0"
+  ]
+}

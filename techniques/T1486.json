@@ -1,0 +1,33 @@
+{
+  "technique_id": "T1486",
+  "name": "Data Encrypted for Impact",
+  "tactic": "Impact",
+  "description": "Adversaries encrypt data on Azure resources to extort victims. In cloud environments, this can involve encrypting VM disks using a customer-supplied key with the legitimate Azure Disk Encryption service, deploying ransomware payloads to Azure VMs via VM extensions or Run Command, encrypting files in Azure Storage by overwriting blobs with encrypted content, or rotating Customer Managed Keys (CMK) in Key Vault and denying the storage account access to the new key version. AzureActivity logs disk encryption, VM extension deployments, and Key Vault key operations that precede data lockout.",
+  "platforms": ["Azure", "IaaS", "Windows"],
+  "data_sources": ["Azure Activity Logs"],
+  "sentinel_tables": ["AzureActivity"],
+  "iocs": [
+    "AzureActivity 'MICROSOFT.COMPUTE/VIRTUALMACHINES/EXTENSIONS/WRITE' deploying custom script or PowerShell extensions to multiple VMs — ransomware staging",
+    "AzureActivity 'MICROSOFT.COMPUTE/VIRTUALMACHINES/RUNCOMMAND/ACTION' bulk execution across multiple VMs — remote code execution for encryption payload delivery",
+    "AzureActivity 'MICROSOFT.KEYVAULT/VAULTS/KEYS/VERSIONS/WRITE' creating a new key version followed by rotation of the storage account CMK — storage lockout",
+    "AzureActivity 'MICROSOFT.COMPUTE/DISKS/WRITE' with encryption settings modified outside normal change windows",
+    "AzureActivity showing Key Vault access policy modified to remove the storage account's key access permissions",
+    "AzureActivity bulk 'MICROSOFT.STORAGE/STORAGEACCOUNTS/WRITE' modifying encryption key source from Microsoft-managed to Customer-managed with a new key reference",
+    "StorageBlobLogs showing mass 'PutBlob' overwrite operations on existing blobs within a container — file overwrite pattern consistent with encryption ransomware"
+  ],
+  "evasion_variants": [
+    "Use legitimate Azure Disk Encryption service with attacker-controlled Key Vault key rather than deploying custom encryption malware — avoids AV/EDR detections",
+    "Rotate CMK for storage encryption using Azure Key Vault policy rather than custom tooling — appears as routine key rotation in audit logs",
+    "Deploy ransomware payload via a VM extension update rather than RunCommand to avoid RunCommand-specific alert rules",
+    "Stage encryption tools in an Azure Storage blob before deploying — fewer execution telemetry events than agent-based delivery",
+    "Disable Azure Key Vault diagnostics logging before rotating keys to reduce detection window",
+    "Perform encryption operations on a weekend or holiday when SOC response times are extended"
+  ],
+  "detection_kql_hints": [
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.COMPUTE/VIRTUALMACHINES/EXTENSIONS/WRITE' | where Properties has_any ('CustomScriptExtension','RunPowerShellScript','EnableAzureDiskEncryption') | summarize count() by Caller, bin(TimeGenerated, 1h) | where count_ > 3",
+    "AzureActivity | where OperationNameValue == 'MICROSOFT.COMPUTE/VIRTUALMACHINES/RUNCOMMAND/ACTION' | summarize VMsTargeted=dcount(ResourceId) by Caller, bin(TimeGenerated, 30m) | where VMsTargeted > 5",
+    "AzureActivity | where OperationNameValue has 'KEYVAULT/VAULTS/KEYS' and OperationNameValue has 'WRITE' | join kind=inner (AzureActivity | where OperationNameValue == 'MICROSOFT.STORAGE/STORAGEACCOUNTS/WRITE') on Caller | where abs(datetime_diff('minute', TimeGenerated, TimeGenerated1)) < 60",
+    "StorageBlobLogs | where OperationName == 'PutBlob' | summarize OverwriteCount=count() by AccountName, ContainerName, bin(TimeGenerated, 10m) | where OverwriteCount > 500",
+    "AzureActivity | where OperationNameValue has 'KEYVAULT' and Properties has '\"enabled\":false' | project TimeGenerated, Caller, OperationNameValue, Properties"
+  ]
+}

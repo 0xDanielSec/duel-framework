@@ -13,7 +13,7 @@
 ![DUEL in action](demo.gif)
 
 <!-- weekly-badge-start -->
-**Last Weekly Battle:** 2026-04-25 &nbsp;|&nbsp; Techniques: 8 &nbsp;|&nbsp; Avg Evasion: 0.0% &nbsp;|&nbsp; Attacker 0 – Defender 0
+**Last Weekly Battle:** 2026-04-25 &nbsp;|&nbsp; Techniques: 28 &nbsp;|&nbsp; Avg Evasion: 0.0% &nbsp;|&nbsp; Attacker 0 – Defender 0
 <!-- weekly-badge-end -->
 
 ---
@@ -299,16 +299,73 @@ SigninLogs
 
 ## Techniques Supported
 
-| ID | Name | Primary Table | Status |
+### Initial Access
+
+| ID | Name | Primary Table | Tactic |
 |----|------|--------------|--------|
-| [T1078.004](https://attack.mitre.org/techniques/T1078/004/) | Valid Accounts: Cloud Accounts | `SigninLogs` | Included |
-| [T1110.003](https://attack.mitre.org/techniques/T1110/003/) | Brute Force: Password Spraying | `SigninLogs` | Included |
-| [T1528](https://attack.mitre.org/techniques/T1528/) | Steal Application Access Token | `SigninLogs`, `AuditLogs` | Included |
-| [T1556.006](https://attack.mitre.org/techniques/T1556/006/) | Modify Authentication Process: MFA | `SigninLogs`, `AuditLogs` | Included |
-| [T1098.001](https://attack.mitre.org/techniques/T1098/001/) | Account Manipulation: Additional Cloud Credentials | `AuditLogs` | Included |
-| [T1136.003](https://attack.mitre.org/techniques/T1136/003/) | Create Account: Cloud Account | `AuditLogs` | Included |
-| [T1069.003](https://attack.mitre.org/techniques/T1069/003/) | Permission Groups Discovery: Cloud Groups | `AuditLogs`, `SigninLogs` | Included |
-| [T1114.002](https://attack.mitre.org/techniques/T1114/002/) | Email Collection: Remote Email Collection | `OfficeActivity` | Included |
+| [T1566.001](https://attack.mitre.org/techniques/T1566/001/) | Phishing: Spearphishing Attachment | `OfficeActivity`, `EmailEvents` | Initial Access |
+| [T1566.002](https://attack.mitre.org/techniques/T1566/002/) | Phishing: Spearphishing Link | `OfficeActivity`, `UrlClickEvents` | Initial Access |
+| [T1190](https://attack.mitre.org/techniques/T1190/) | Exploit Public-Facing Application | `AzureActivity`, `SigninLogs` | Initial Access |
+| [T1133](https://attack.mitre.org/techniques/T1133/) | External Remote Services | `SigninLogs`, `AuditLogs` | Initial Access |
+| [T1199](https://attack.mitre.org/techniques/T1199/) | Trusted Relationship | `AuditLogs`, `SigninLogs` | Initial Access |
+| [T1078.001](https://attack.mitre.org/techniques/T1078/001/) | Valid Accounts: Default Accounts | `SigninLogs` | Initial Access |
+| [T1078.004](https://attack.mitre.org/techniques/T1078/004/) | Valid Accounts: Cloud Accounts | `SigninLogs` | Initial Access / Persistence |
+
+### Credential Access
+
+| ID | Name | Primary Table | Tactic |
+|----|------|--------------|--------|
+| [T1110.003](https://attack.mitre.org/techniques/T1110/003/) | Brute Force: Password Spraying | `SigninLogs` | Credential Access |
+| [T1528](https://attack.mitre.org/techniques/T1528/) | Steal Application Access Token | `SigninLogs`, `AuditLogs` | Credential Access |
+| [T1556.006](https://attack.mitre.org/techniques/T1556/006/) | Modify Authentication Process: MFA | `SigninLogs`, `AuditLogs` | Credential Access |
+| [T1550.001](https://attack.mitre.org/techniques/T1550/001/) | Use Alternate Auth: Application Access Token | `SigninLogs`, `AuditLogs` | Defense Evasion |
+| [T1606.002](https://attack.mitre.org/techniques/T1606/002/) | Forge Web Credentials: SAML Tokens | `AuditLogs`, `SigninLogs` | Credential Access |
+| [T1040](https://attack.mitre.org/techniques/T1040/) | Network Sniffing | `AzureActivity` | Credential Access |
+| [T1621](https://attack.mitre.org/techniques/T1621/) | Multi-Factor Authentication Request Generation | `SigninLogs` | Credential Access |
+
+### Persistence
+
+| ID | Name | Primary Table | Tactic |
+|----|------|--------------|--------|
+| [T1098.001](https://attack.mitre.org/techniques/T1098/001/) | Account Manipulation: Additional Cloud Credentials | `AuditLogs` | Persistence |
+| [T1136.003](https://attack.mitre.org/techniques/T1136/003/) | Create Account: Cloud Account | `AuditLogs` | Persistence |
+
+### Discovery
+
+| ID | Name | Primary Table | Tactic |
+|----|------|--------------|--------|
+| [T1069.003](https://attack.mitre.org/techniques/T1069/003/) | Permission Groups Discovery: Cloud Groups | `AuditLogs`, `SigninLogs` | Discovery |
+| [T1087.004](https://attack.mitre.org/techniques/T1087/004/) | Account Discovery: Cloud Account | `AuditLogs`, `SigninLogs` | Discovery |
+| [T1018](https://attack.mitre.org/techniques/T1018/) | Remote System Discovery | `AzureActivity` | Discovery |
+| [T1526](https://attack.mitre.org/techniques/T1526/) | Cloud Service Discovery | `AuditLogs`, `AzureActivity` | Discovery |
+
+### Collection
+
+| ID | Name | Primary Table | Tactic |
+|----|------|--------------|--------|
+| [T1114.002](https://attack.mitre.org/techniques/T1114/002/) | Email Collection: Remote Email Collection | `OfficeActivity` | Collection |
+| [T1530](https://attack.mitre.org/techniques/T1530/) | Data from Cloud Storage | `AzureActivity`, `StorageBlobLogs` | Collection |
+| [T1537](https://attack.mitre.org/techniques/T1537/) | Transfer Data to Cloud Account | `AzureActivity` | Exfiltration |
+
+### Exfiltration
+
+| ID | Name | Primary Table | Tactic |
+|----|------|--------------|--------|
+| [T1567.002](https://attack.mitre.org/techniques/T1567/002/) | Exfiltration Over Web Service: Cloud Storage | `AzureActivity`, `StorageBlobLogs` | Exfiltration |
+
+### Impact
+
+| ID | Name | Primary Table | Tactic |
+|----|------|--------------|--------|
+| [T1485](https://attack.mitre.org/techniques/T1485/) | Data Destruction | `AzureActivity` | Impact |
+| [T1486](https://attack.mitre.org/techniques/T1486/) | Data Encrypted for Impact | `AzureActivity` | Impact |
+
+### Defense Evasion / Execution
+
+| ID | Name | Primary Table | Tactic |
+|----|------|--------------|--------|
+| [T1562.001](https://attack.mitre.org/techniques/T1562/001/) | Impair Defenses: Disable or Modify Tools | `AuditLogs`, `AzureActivity` | Defense Evasion |
+| [T1648](https://attack.mitre.org/techniques/T1648/) | Serverless Execution | `AzureActivity` | Execution |
 
 ### Adding a New Technique
 
@@ -352,10 +409,10 @@ strategy, and detection hints inform the Defender's first-round rule.
 ## Roadmap
 
 ### Near Term
-- [ ] **T1566.002** — Phishing: Spearphishing Link (`OfficeActivity`, `EmailEvents`)
-- [ ] **T1098.001** — Account Manipulation: Additional Cloud Credentials (`AuditLogs`)
-- [ ] **T1136.003** — Create Account: Cloud Account (`AuditLogs`)
-- [ ] **T1087.004** — Account Discovery: Cloud Account (`SigninLogs`, `AuditLogs`)
+- [ ] **T1484.002** — Domain or Tenant Policy Modification (`AuditLogs`)
+- [ ] **T1619** — Cloud Storage Object Discovery (`AzureActivity`, `StorageBlobLogs`)
+- [ ] **T1580** — Cloud Infrastructure Discovery (`AzureActivity`)
+- [ ] **T1552.001** — Credentials in Files: Azure Key Vault secrets exfil (`AzureActivity`, `AuditLogs`)
 
 ### Detection Engine
 - [ ] Full `join` operator support for cross-table correlation rules
@@ -395,9 +452,29 @@ duel-framework/
 │   ├── detection.py           KQL-to-pandas executor, Sentinel schema factories
 │   └── scoring.py             Round scoring, battle logs, post-battle analyst
 │
-├── techniques/
+├── techniques/                28 technique JSON files
 │   ├── T1078.004.json         Valid Accounts: Cloud Accounts
-│   └── T1110.003.json         Brute Force: Password Spraying
+│   ├── T1110.003.json         Brute Force: Password Spraying
+│   ├── T1566.001.json         Phishing: Spearphishing Attachment
+│   ├── T1566.002.json         Phishing: Spearphishing Link
+│   ├── T1190.json             Exploit Public-Facing Application
+│   ├── T1133.json             External Remote Services
+│   ├── T1199.json             Trusted Relationship
+│   ├── T1078.001.json         Valid Accounts: Default Accounts
+│   ├── T1087.004.json         Account Discovery: Cloud Account
+│   ├── T1018.json             Remote System Discovery
+│   ├── T1526.json             Cloud Service Discovery
+│   ├── T1530.json             Data from Cloud Storage
+│   ├── T1537.json             Transfer Data to Cloud Account
+│   ├── T1567.002.json         Exfiltration to Cloud Storage
+│   ├── T1485.json             Data Destruction
+│   ├── T1486.json             Data Encrypted for Impact
+│   ├── T1562.001.json         Impair Defenses: Disable Security Tools
+│   ├── T1040.json             Network Sniffing
+│   ├── T1550.001.json         Use Alternate Auth: App Tokens
+│   ├── T1606.002.json         Forge Web Credentials: SAML Tokens
+│   ├── T1621.json             MFA Request Generation
+│   └── T1648.json             Serverless Execution
 │
 └── output/                    Created at runtime
     ├── round_NN_battle_log.json
