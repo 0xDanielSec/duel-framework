@@ -268,14 +268,25 @@ async def api_technique_history(technique_id: str):
             "kql_rule":       r.get("kql_rule", ""),
         })
 
-    # Count field presence across all evaded logs (≥30% presence threshold)
+    # Fields that are structural/identity identifiers, not detection signals.
+    # Excluded because they appear in every log by design and carry no
+    # discriminating signal value for a KQL detection rule.
+    _EXCLUDED_FIELDS = frozenset({
+        "table", "_duel_id", "TimeGenerated", "CorrelationId",
+        "UserPrincipalName", "UserDisplayName", "UserId",
+        "ResultDescription", "OperationName", "Category",
+        "TenantId", "ResourceId", "ActivityDateTime",
+    })
+
+    # Count field presence across all evaded logs (≥50% presence threshold).
+    # Only fields with genuine detection signal value are surfaced.
     field_counts: dict[str, int] = {}
     total_evaded = 0
     for r in rounds_raw:
         for log in r.get("evaded_logs", []):
             total_evaded += 1
             for k, v in log.items():
-                if k.startswith("_") or k == "TimeGenerated":
+                if k.startswith("_") or k in _EXCLUDED_FIELDS:
                     continue
                 if v is not None and str(v).strip() not in ("", "none", "None", "{}"):
                     field_counts[k] = field_counts.get(k, 0) + 1
@@ -286,7 +297,7 @@ async def api_technique_history(technique_id: str):
             [
                 {"field": f, "presence_pct": round(c / total_evaded, 3)}
                 for f, c in field_counts.items()
-                if c / total_evaded >= 0.3
+                if c / total_evaded >= 0.5
             ],
             key=lambda x: x["presence_pct"],
             reverse=True,
@@ -310,8 +321,12 @@ async def api_technique_history(technique_id: str):
         "avg_evasion_rate":     round(avg_ev,  4),
         "avg_detection_rate":   round(avg_det, 4),
         "rounds":               rounds_summary,
-        "surviving_kql":        data.get("surviving_kql_rules", []),
-        "top_evaded_fields":    top_fields,
+        "surviving_kql":           data.get("surviving_kql_rules", []),
+        "top_evaded_fields":       top_fields,
+        "evaded_fields_note":      (
+            "Fields present in logs that evaded detection — potential detection "
+            "opportunities the Defender never covered."
+        ),
     })
 
 

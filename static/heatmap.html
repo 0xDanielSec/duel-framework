@@ -1145,7 +1145,10 @@ function renderTechModal(d) {
   html += `</div>`;
 
   // ── Top evaded fields ─────────────────────────────────────────────────
-  html += `<div class="tm-section"><div class="tm-section-title">TOP EVADED FIELDS</div>`;
+  const fieldsNote = d.evaded_fields_note || '';
+  html += `<div class="tm-section">
+    <div class="tm-section-title">TOP EVADED FIELDS</div>
+    ${fieldsNote ? `<div style="font-size:10px;color:var(--dim);margin-bottom:10px;line-height:1.5">${esc(fieldsNote)}</div>` : ''}`;
   if (d.top_evaded_fields && d.top_evaded_fields.length) {
     for (const f of d.top_evaded_fields) {
       const p = (f.presence_pct * 100).toFixed(0);
