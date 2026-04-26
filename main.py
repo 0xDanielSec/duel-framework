@@ -34,7 +34,9 @@ TECHNIQUES_DIR = Path(__file__).parent / "techniques"
 def load_technique(technique_id: str) -> dict:
     path = TECHNIQUES_DIR / f"{technique_id}.json"
     if not path.exists():
-        console.print(f"[red]Technique file not found: {path}[/red]")
+        path = TECHNIQUES_DIR / "llm" / f"{technique_id}.json"
+    if not path.exists():
+        console.print(f"[red]Technique file not found: {technique_id}[/red]")
         sys.exit(1)
     with open(path, encoding="utf-8") as f:
         return json.load(f)
