@@ -391,6 +391,7 @@ let ws = null;
 let attScore = 0, defScore = 0;
 let stageCount = 0, attackerWins = 0;
 let currentStage = 0;
+let currentRound = 0;
 const stageNodes = {};
 
 function setStatus(text, cls) {
@@ -498,7 +499,7 @@ function launch() {
   document.getElementById('det-log').innerHTML = '';
   document.getElementById('complete-banner').style.display = 'none';
   document.getElementById('stage-counter').textContent = '';
-  attScore = 0; defScore = 0; stageCount = 0; attackerWins = 0; currentStage = 0;
+  attScore = 0; defScore = 0; stageCount = 0; attackerWins = 0; currentStage = 0; currentRound = 0;
   updateStats();
 
   document.getElementById('launch-btn').disabled = true;
@@ -562,6 +563,7 @@ function handle(msg) {
 
     case 'technique_start':
       currentStage = msg.stage;
+      currentRound = 0;
       document.getElementById('stage-counter').textContent =
         `Stage ${msg.stage}/${msg.total_stages}`;
       feedItem(`▶ Starting ${msg.technique_id} — ${msg.technique_name}`, 'stage');
@@ -589,12 +591,13 @@ function handle(msg) {
       break;
 
     case 'detection_result': {
+      currentRound++;
       const det = document.getElementById('det-log');
       const d = document.createElement('div');
       const pct = Math.round(msg.rate * 100);
       const color = msg.rate >= 0.5 ? 'var(--blue)' : 'var(--red)';
       d.innerHTML =
-        `Stage ${currentStage} · <span style="color:${color}">${pct}% detected</span>` +
+        `Stage ${currentStage} · Round ${currentRound} · <span style="color:${color}">${pct}% detected</span>` +
         ` (${msg.detected}↑ ${msg.evaded}↓)`;
       det.appendChild(d);
       det.scrollTop = det.scrollHeight;
