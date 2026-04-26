@@ -278,13 +278,12 @@ async def api_technique_history(technique_id: str):
         "TenantId", "ResourceId", "ActivityDateTime",
     })
 
-    # Only count evaded logs from rounds where the Defender had an active KQL
-    # rule — round 1 has no prior rule so its evaded logs are not meaningful
-    # evasion signal, they simply reflect an unanswered attack.
-    defended_rounds = [
-        r for r in rounds_raw
-        if r.get("round", 1) > 1 or r.get("kql_rule", "").strip()
-    ]
+    # Only count evaded logs from round 2 onwards. In DUEL's loop the Defender
+    # always generates a rule in round 1 (reacting to that round's attack),
+    # so round 1 evaded logs reflect the Defender's cold start, not true evasion
+    # past an already-hardened rule. Round 2+ is where the Defender has seen the
+    # attack before and still failed to catch some logs — genuine evasion signal.
+    defended_rounds = [r for r in rounds_raw if r.get("round", 1) > 1]
 
     field_counts: dict[str, int] = {}
     total_evaded = 0
