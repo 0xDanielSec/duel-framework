@@ -421,6 +421,158 @@
       text-align: center;
       letter-spacing: 1px;
     }
+
+    /* ── Config subtitle ────────────────────────────────────────────────── */
+    #config-subtitle {
+      font-size: 10px;
+      color: var(--dim);
+      line-height: 1.55;
+      margin-bottom: 12px;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Progress panel ─────────────────────────────────────────────────── */
+    #progress-panel {
+      display: none;
+      flex-shrink: 0;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+
+    .progress-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: var(--yellow);
+      margin-bottom: 10px;
+    }
+
+    #progress-status {
+      font-size: 11px;
+      color: var(--text);
+      margin-bottom: 8px;
+      min-height: 16px;
+      line-height: 1.4;
+    }
+
+    .prog-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .prog-bar-track {
+      flex: 1;
+      height: 6px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .prog-bar-fill {
+      height: 100%;
+      background: var(--yellow);
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+
+    #progress-label {
+      font-size: 10px;
+      color: var(--dim);
+      white-space: nowrap;
+      min-width: 32px;
+      text-align: right;
+    }
+
+    /* ── Complete panel ─────────────────────────────────────────────────── */
+    #complete-panel {
+      display: none;
+      flex-shrink: 0;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+    }
+
+    .complete-done-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      letter-spacing: 3px;
+      color: var(--green);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .done-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      flex-shrink: 0;
+    }
+
+    #complete-panel p {
+      font-size: 10px;
+      color: var(--dim);
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    #new-tournament-btn {
+      width: 100%;
+      padding: 8px;
+      background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,170,0,0.1));
+      border: 1px solid rgba(255,215,0,0.5);
+      color: var(--yellow);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background 0.2s;
+    }
+
+    #new-tournament-btn:hover {
+      background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,170,0,0.18));
+    }
+
+    /* ── Winner banner ──────────────────────────────────────────────────── */
+    #winner-banner {
+      display: none;
+      flex-shrink: 0;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, rgba(0,255,136,0.07), rgba(0,255,136,0.02));
+      border-bottom: 1px solid rgba(0,255,136,0.3);
+      border-top: 2px solid var(--green);
+    }
+
+    .winner-eyebrow {
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: var(--green);
+      margin-bottom: 3px;
+      opacity: 0.8;
+    }
+
+    #winner-model {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--green);
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+
+    #winner-rate {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
   </style>
 </head>
 <body>
@@ -447,6 +599,7 @@
   <div id="left-panel">
     <div id="config">
       <h3>TOURNAMENT CONFIG</h3>
+      <p id="config-subtitle">Compare multiple Ollama models as Defender against the same Attacker to find the best detection model</p>
 
       <div class="field">
         <label>TECHNIQUE</label>
@@ -469,11 +622,26 @@
       </div>
 
       <div class="field">
-        <label>DEFENDERS (comma-separated)</label>
+        <label>DEFENDER MODELS TO COMPARE (comma-separated)</label>
         <input id="cfg-defenders" type="text" value="mistral:7b,llama3.1:8b" />
       </div>
 
       <button id="start-btn" onclick="startTournament()">▶ RUN TOURNAMENT</button>
+    </div>
+
+    <div id="progress-panel">
+      <div class="progress-title">RUNNING TOURNAMENT</div>
+      <div id="progress-status">Initializing…</div>
+      <div class="prog-bar-row">
+        <div class="prog-bar-track"><div class="prog-bar-fill" id="progress-bar" style="width:0%"></div></div>
+        <span id="progress-label">…</span>
+      </div>
+    </div>
+
+    <div id="complete-panel">
+      <div class="complete-done-title"><span class="done-dot"></span>TOURNAMENT COMPLETE</div>
+      <p>Results are shown on the right. Run another tournament to compare more models.</p>
+      <button id="new-tournament-btn" onclick="resetTournament()">▶ RUN NEW TOURNAMENT</button>
     </div>
 
     <div id="feed-wrap">
@@ -489,6 +657,12 @@
     <div id="right-top">
       <h2>LEADERBOARD</h2>
       <div id="technique-label">No tournament run yet</div>
+    </div>
+
+    <div id="winner-banner">
+      <div class="winner-eyebrow">⚡ TOURNAMENT WINNER</div>
+      <div id="winner-model">—</div>
+      <div id="winner-rate">—</div>
     </div>
 
     <div id="leaderboard-wrap">
@@ -519,6 +693,8 @@
   let ws = null;
   let liveData = {};   // model → {rounds: [{round, detection_rate, evasion_rate, kql_valid}]}
   let numRounds = 3;
+  let defendersList = [];
+  let currentDefenderIdx = 0;
 
   // ── Bootstrap: load techniques ─────────────────────────────────────────
   fetch('/techniques').then(r => r.json()).then(techs => {
@@ -672,11 +848,22 @@
 
     numRounds = rounds;
     liveData = {};
+    defendersList = [];
+    currentDefenderIdx = 0;
 
     feedClear();
     document.getElementById('leaderboard-container').innerHTML = '<div class="placeholder">— running —</div>';
     document.getElementById('charts-grid').innerHTML = '<div class="placeholder">— generating attack telemetry —</div>';
     document.getElementById('technique-label').textContent = `${technique}  |  ${rounds} rounds  |  ${defenders}`;
+
+    document.getElementById('config').style.display = 'none';
+    document.getElementById('complete-panel').style.display = 'none';
+    document.getElementById('winner-banner').style.display = 'none';
+    const progressPanel = document.getElementById('progress-panel');
+    progressPanel.style.display = 'block';
+    document.getElementById('progress-status').textContent = 'Initializing…';
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-label').textContent = '…';
 
     const btn = document.getElementById('start-btn');
     btn.disabled = true;
@@ -720,7 +907,8 @@
       case 'tournament_start':
         feedLine(`[ TOURNAMENT ] ${msg.technique} · ${msg.rounds} rounds · ${msg.defenders.length} defenders`, 'done');
         feedLine(`  Defenders: ${msg.defenders.join(' | ')}`, 'info');
-        // Pre-initialise charts
+        defendersList = msg.defenders;
+        currentDefenderIdx = 0;
         msg.defenders.forEach(m => { liveData[m] = { rounds: [] }; });
         renderCharts();
         break;
@@ -728,6 +916,8 @@
       case 'attack_phase_start':
         feedLine(`[ ATTACK ] Round ${msg.round}/${msg.total_rounds} — generating telemetry…`, 'atk');
         setStatus('active', `attack telemetry round ${msg.round}/${msg.total_rounds}`);
+        document.getElementById('progress-status').textContent =
+          `Generating attack telemetry (round ${msg.round}/${msg.total_rounds})…`;
         break;
 
       case 'attack_phase_done':
@@ -738,6 +928,16 @@
         feedLine(``, 'info');
         feedLine(`[ DEFENDER ] ${msg.defender}`, 'def');
         setStatus('active', `${msg.defender} — battle starting`);
+        currentDefenderIdx = defendersList.indexOf(msg.defender);
+        if (currentDefenderIdx < 0) currentDefenderIdx = 0;
+        {
+          const total = defendersList.length || 1;
+          const fillPct = Math.round((currentDefenderIdx / total) * 100);
+          document.getElementById('progress-bar').style.width = `${fillPct}%`;
+          document.getElementById('progress-label').textContent = `${currentDefenderIdx + 1}/${total}`;
+          document.getElementById('progress-status').textContent =
+            `Testing defender: ${msg.defender} (${currentDefenderIdx + 1}/${total})…`;
+        }
         break;
 
       case 'defender_round_start':
@@ -778,12 +978,25 @@
           if (r.length > 1)
             feedLine(`  Last: ${r[r.length-1].model}  ${Math.round(r[r.length-1].avg_detection_rate * 100)}% avg detection`, 'warn');
           renderLeaderboard(r);
-          // Update charts with final data from rankings
-          r.forEach(entry => {
-            liveData[entry.model] = { rounds: entry.per_round };
-          });
+          r.forEach(entry => { liveData[entry.model] = { rounds: entry.per_round }; });
           renderCharts();
+
+          // winner banner
+          const winner = r[0];
+          document.getElementById('winner-model').textContent = winner.model;
+          document.getElementById('winner-rate').textContent =
+            `${Math.round(winner.avg_detection_rate * 100)}% avg detection rate · ${Math.round(winner.avg_evasion_rate * 100)}% avg evasion`;
+          document.getElementById('winner-banner').style.display = 'block';
         }
+
+        // progress → complete
+        document.getElementById('progress-bar').style.width = '100%';
+        document.getElementById('progress-label').textContent = '100%';
+        setTimeout(() => {
+          document.getElementById('progress-panel').style.display = 'none';
+          document.getElementById('complete-panel').style.display = 'block';
+        }, 600);
+
         setStatus('done', 'tournament complete');
         btn.disabled = false;
         break;
@@ -795,6 +1008,32 @@
         btn.disabled = false;
         break;
     }
+  }
+
+  function resetTournament() {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+    ws = null;
+    liveData = {};
+    defendersList = [];
+    currentDefenderIdx = 0;
+
+    document.getElementById('complete-panel').style.display = 'none';
+    document.getElementById('progress-panel').style.display = 'none';
+    document.getElementById('winner-banner').style.display = 'none';
+    document.getElementById('config').style.display = 'block';
+
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-label').textContent = '…';
+    document.getElementById('progress-status').textContent = 'Initializing…';
+
+    document.getElementById('leaderboard-container').innerHTML = '<div class="placeholder">— awaiting tournament —</div>';
+    document.getElementById('charts-grid').innerHTML = '<div class="placeholder">— awaiting tournament —</div>';
+    document.getElementById('technique-label').textContent = 'No tournament run yet';
+
+    feedClear();
+    document.getElementById('feed').innerHTML = '<div class="feed-line info">Configure tournament above and click Run.</div>';
+
+    setStatus('', 'idle');
   }
 </script>
 </body>
