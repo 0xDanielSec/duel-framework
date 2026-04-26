@@ -132,6 +132,97 @@ Output ONLY the KQL query — no explanation, no markdown, no fences.
 """
 
 
+# ---------------------------------------------------------------------------
+# LLM mode constants
+# ---------------------------------------------------------------------------
+
+DEFENDER_LLM_SYSTEM = """\
+You are an LLM security architect in the DUEL framework. Design detection \
+POLICIES that identify adversarial prompt injection attacks.
+
+OUTPUT FORMAT: A single JSON object (no prose, no markdown fences):
+{
+  "input_validation": {
+    "blocked_patterns": ["regex_or_phrase", ...],
+    "blocked_keywords": ["keyword", ...],
+    "max_token_count": 500
+  },
+  "rate_limiting": {
+    "max_prompts_per_minute": 10,
+    "max_prompt_length": 2000
+  },
+  "prompt_sanitization": {
+    "blocked_sequences": ["sequence", ...],
+    "strip_patterns": ["pattern", ...]
+  },
+  "output_monitoring": {
+    "blocked_patterns": ["pattern", ...]
+  }
+}
+
+RULES:
+1. Output ONLY the JSON object — no explanation, no markdown fences.
+2. blocked_patterns accept case-insensitive regex that match attack prompt text.
+3. blocked_keywords are single words or short phrases present in attack prompts.
+4. Be specific enough to catch attacks without blocking legitimate user input.
+"""
+
+LLM_INITIAL_POLICY_TEMPLATE = """\
+OWASP LLM Technique: {technique_id} — {technique_name}
+Risk Level: {risk_level}
+
+ROUND {round_num} of {total_rounds} — Design your initial detection policy.
+
+Attack payload samples ({total_payloads} payloads total, showing {sample_count}):
+{payload_samples}
+
+Common patterns observed across payloads:
+{pattern_summary}
+
+Detection methods for this technique:
+{detection_methods}
+
+Mitigation controls to implement:
+{mitigation_controls}
+
+Design a detection policy that blocks these adversarial prompts. Focus on the \
+linguistic patterns, keywords, and structural features that distinguish attack \
+prompts from legitimate user input.
+
+Output ONLY the JSON policy object.
+"""
+
+LLM_HARDENING_POLICY_TEMPLATE = """\
+OWASP LLM Technique: {technique_id} — {technique_name}
+ROUND {round_num} of {total_rounds} — HARDEN your detection policy.
+
+Your PREVIOUS policy:
+{last_policy}
+
+Performance last round:
+  Detected: {detected_count} payloads ({detection_rate:.0%} rate)
+  Evaded:   {evaded_count} payloads
+
+Payloads that EVADED your policy (analyze these — find what you missed):
+{evaded_samples}
+
+Patterns in evaded payloads:
+{evaded_pattern_summary}
+
+Payloads that WERE DETECTED (preserve what worked):
+{detected_samples}
+
+New attack payloads this round:
+{new_payload_samples}
+
+Harden your policy to catch the evaded payloads while maintaining coverage \
+of the detected ones. Add new blocked_patterns or keywords that match \
+the linguistic features of the evaded prompts.
+
+Output ONLY the JSON policy object.
+"""
+
+
 class DefenderAgent:
     def __init__(self, model: str = "mistral:7b"):
         self.model = model
@@ -160,6 +251,12 @@ class DefenderAgent:
         Generate a KQL detection rule for this round.
         Returns a KQL string.
         """
+        if technique.get("technique_id", "").upper().startswith("LLM"):
+            return self._generate_llm_policy(
+                technique, round_num, total_rounds, attack_logs,
+                detected_logs or [], evaded_logs or [],
+            )
+
         ioc_match = self.threat_intel.match_logs(attack_logs) if self.threat_intel else {}
         ti_block  = self._build_ti_block(ioc_match)
 
@@ -263,6 +360,104 @@ class DefenderAgent:
         )
 
     # ------------------------------------------------------------------
+    # LLM mode — policy generation
+    # ------------------------------------------------------------------
+
+    def _generate_llm_policy(
+        self,
+        technique: dict,
+        round_num: int,
+        total_rounds: int,
+        attack_logs: list[dict],
+        detected: list[dict],
+        evaded: list[dict],
+    ) -> str:
+        if round_num == 1 or self.last_kql is None:
+            samples = attack_logs[:5]
+            prompt = LLM_INITIAL_POLICY_TEMPLATE.format(
+                technique_id=technique["technique_id"],
+                technique_name=technique["name"],
+                risk_level=technique.get("risk_level", "High"),
+                round_num=round_num,
+                total_rounds=total_rounds,
+                total_payloads=len(attack_logs),
+                sample_count=len(samples),
+                payload_samples=_format_payloads(samples),
+                pattern_summary=_payload_pattern_summary(attack_logs),
+                detection_methods="\n".join(
+                    f"- {m}" for m in technique.get("detection_methods", [])[:5]
+                ),
+                mitigation_controls="\n".join(
+                    f"- {c}" for c in technique.get("mitigation_controls", [])[:5]
+                ),
+            )
+        else:
+            prompt = LLM_HARDENING_POLICY_TEMPLATE.format(
+                technique_id=technique["technique_id"],
+                technique_name=technique["name"],
+                round_num=round_num,
+                total_rounds=total_rounds,
+                last_policy=self.last_kql[:800],
+                detected_count=len(detected),
+                evaded_count=len(evaded),
+                detection_rate=len(detected) / max(len(detected) + len(evaded), 1),
+                evaded_samples=_format_payloads(evaded, n=4),
+                evaded_pattern_summary=_payload_pattern_summary(evaded) if evaded else "  (none)",
+                detected_samples=_format_payloads(detected, n=2),
+                new_payload_samples=_format_payloads(attack_logs, n=4),
+            )
+
+        raw = self._call_ollama_llm(prompt)
+        policy = self._clean_policy(raw)
+
+        logger.info("Defender generated LLM policy (%d chars) for round %d", len(policy), round_num)
+        self.last_kql = policy
+        self.round_history.append({
+            "round": round_num,
+            "prompt": prompt,
+            "raw_response": raw,
+            "kql": policy,
+        })
+        return policy
+
+    def _call_ollama_llm(self, prompt: str) -> str:
+        try:
+            response = ollama.chat(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": DEFENDER_LLM_SYSTEM},
+                    {"role": "user", "content": prompt},
+                ],
+                options={"temperature": 0.3, "num_predict": 2048},
+            )
+            return response["message"]["content"]
+        except Exception as exc:
+            logger.error("Ollama LLM call failed: %s", exc)
+            raise
+
+    def _clean_policy(self, raw: str) -> str:
+        """Extract JSON policy object from LLM response."""
+        text = raw.strip()
+
+        m = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text)
+        if m:
+            try:
+                json.loads(m.group(1))
+                return m.group(1).strip()
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        m = re.search(r"(\{[\s\S]*\})", text)
+        if m:
+            try:
+                json.loads(m.group(1))
+                return m.group(1).strip()
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        return text
+
+    # ------------------------------------------------------------------
     # Ollama call
     # ------------------------------------------------------------------
 
@@ -336,6 +531,34 @@ def _field_value_summary(logs: list[dict], max_vals: int = 6) -> str:
     for log in logs:
         for k, v in log.items():
             if k.startswith("_duel") or k == "table":
+                continue
+            sv = str(v)
+            if k not in field_vals:
+                field_vals[k] = []
+            if sv not in field_vals[k]:
+                field_vals[k].append(sv)
+    lines = []
+    for field in sorted(field_vals):
+        vals = field_vals[field]
+        shown = vals[:max_vals]
+        overflow = f" … +{len(vals) - max_vals} more" if len(vals) > max_vals else ""
+        lines.append(f"  {field}: {shown}{overflow}")
+    return "\n".join(lines)
+
+
+def _format_payloads(payloads: list[dict], n: int = 4) -> str:
+    samples = payloads[:n]
+    clean = [{k: v for k, v in p.items() if not k.startswith("_duel")} for p in samples]
+    return json.dumps(clean, indent=2, default=str) if clean else "[]"
+
+
+def _payload_pattern_summary(payloads: list[dict], max_vals: int = 6) -> str:
+    if not payloads:
+        return "  (no payloads)"
+    field_vals: dict[str, list[str]] = {}
+    for p in payloads:
+        for k, v in p.items():
+            if k.startswith("_duel") or k in ("prompt", "token_count"):
                 continue
             sv = str(v)
             if k not in field_vals:

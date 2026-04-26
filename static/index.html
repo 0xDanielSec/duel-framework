@@ -968,7 +968,7 @@
   <div class="panel" id="attacker-panel">
     <div class="panel-header">
       <div class="ph-dot"></div>
-      ATTACKER
+      <span id="att-panel-title">ATTACKER</span>
     </div>
 
     <div class="panel-section">
@@ -1014,7 +1014,7 @@
   <div class="panel" id="defender-panel">
     <div class="panel-header">
       <div class="ph-dot"></div>
-      DEFENDER
+      <span id="def-panel-title">DEFENDER</span>
       <div class="ti-badge" id="ti-badge" onclick="showTiModal()" title="Threat Intelligence">
         <div class="ti-dot" id="ti-dot"></div>
         <span id="ti-count">loading&hellip;</span>
@@ -1086,6 +1086,10 @@ function updatePanelLabels() {
     isLLM ? 'ATTACK PAYLOADS — SAMPLE' : 'SYNTHETIC LOGS — SAMPLE';
   document.querySelector('#defender-panel .code-wrap .sec-label').textContent =
     isLLM ? 'DETECTION POLICY' : 'KQL DETECTION RULE';
+  document.getElementById('att-panel-title').textContent =
+    isLLM ? 'PROMPT ATTACKER' : 'ATTACKER';
+  document.getElementById('def-panel-title').textContent =
+    isLLM ? 'LLM GUARDIAN' : 'DEFENDER';
 }
 document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('sel-technique').addEventListener('change', updatePanelLabels);
