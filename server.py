@@ -278,11 +278,17 @@ async def api_technique_history(technique_id: str):
         "TenantId", "ResourceId", "ActivityDateTime",
     })
 
-    # Count field presence across all evaded logs (≥50% presence threshold).
-    # Only fields with genuine detection signal value are surfaced.
+    # Only count evaded logs from rounds where the Defender had an active KQL
+    # rule — round 1 has no prior rule so its evaded logs are not meaningful
+    # evasion signal, they simply reflect an unanswered attack.
+    defended_rounds = [
+        r for r in rounds_raw
+        if r.get("round", 1) > 1 or r.get("kql_rule", "").strip()
+    ]
+
     field_counts: dict[str, int] = {}
     total_evaded = 0
-    for r in rounds_raw:
+    for r in defended_rounds:
         for log in r.get("evaded_logs", []):
             total_evaded += 1
             for k, v in log.items():
@@ -291,8 +297,16 @@ async def api_technique_history(technique_id: str):
                 if v is not None and str(v).strip() not in ("", "none", "None", "{}"):
                     field_counts[k] = field_counts.get(k, 0) + 1
 
+    # Overall evasion rate across defended rounds only
+    defended_total_logs = sum(r.get("attack_log_count", 0) for r in defended_rounds)
+    defended_evasion_rate = (
+        total_evaded / defended_total_logs if defended_total_logs > 0 else 0.0
+    )
+
+    strong_coverage = defended_evasion_rate < 0.2
+
     top_fields: list[dict] = []
-    if total_evaded > 0:
+    if not strong_coverage and total_evaded > 0:
         top_fields = sorted(
             [
                 {"field": f, "presence_pct": round(c / total_evaded, 3)}
@@ -323,6 +337,7 @@ async def api_technique_history(technique_id: str):
         "rounds":               rounds_summary,
         "surviving_kql":           data.get("surviving_kql_rules", []),
         "top_evaded_fields":       top_fields,
+        "strong_coverage":         strong_coverage,
         "evaded_fields_note":      (
             "Fields present in logs that evaded detection — potential detection "
             "opportunities the Defender never covered."

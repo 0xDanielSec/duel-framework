@@ -1149,7 +1149,12 @@ function renderTechModal(d) {
   html += `<div class="tm-section">
     <div class="tm-section-title">TOP EVADED FIELDS</div>
     ${fieldsNote ? `<div style="font-size:10px;color:var(--dim);margin-bottom:10px;line-height:1.5">${esc(fieldsNote)}</div>` : ''}`;
-  if (d.top_evaded_fields && d.top_evaded_fields.length) {
+  if (d.strong_coverage) {
+    html += `<div style="display:flex;align-items:center;gap:8px;padding:8px 0">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green);flex-shrink:0"></span>
+      <span style="font-size:11px;color:var(--green)">No significant evasion patterns &mdash; Defender achieved strong coverage.</span>
+    </div>`;
+  } else if (d.top_evaded_fields && d.top_evaded_fields.length) {
     for (const f of d.top_evaded_fields) {
       const p = (f.presence_pct * 100).toFixed(0);
       html += `<div class="tm-field-row">
