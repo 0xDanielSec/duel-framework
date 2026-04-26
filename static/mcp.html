@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — MCP Integration</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:      #07090f;
+      --bg2:     #0d1117;
+      --bg3:     #111827;
+      --red:     #ff3c3c;
+      --blue:    #3c8eff;
+      --green:   #00ff88;
+      --yellow:  #ffd700;
+      --purple:  #a78bfa;
+      --dim:     #4a5568;
+      --muted:   #718096;
+      --text:    #e2e8f0;
+      --border:  #1a2236;
+      --mono:    'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    body { display: flex; flex-direction: column; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--red) 0%, #ff8c42 40%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+    }
+
+    #mode-badge {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--green);
+      white-space: nowrap;
+    }
+
+    #nav-links { margin-left: auto; display: flex; gap: 8px; font-size: 11px; letter-spacing: 1px; }
+    #nav-links a { color: var(--muted); text-decoration: none; padding: 3px 9px; border: 1px solid transparent; border-radius: 3px; transition: all .15s; white-space: nowrap; }
+    #nav-links a.nav-warroom:hover    { color: var(--text);   border-color: var(--dim); }
+    #nav-links a.nav-heatmap:hover    { color: var(--yellow); border-color: var(--dim); }
+    #nav-links a.nav-tournament:hover { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-campaign:hover   { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-export:hover     { color: var(--blue);   border-color: var(--dim); }
+    #nav-links a.nav-autonomous:hover { color: var(--purple); border-color: var(--dim); }
+    #nav-links a.nav-mcp:hover        { color: var(--green);  border-color: var(--dim); }
+    #nav-links a.active.nav-warroom    { color: var(--text);   border-color: rgba(226,232,240,.35); }
+    #nav-links a.active.nav-heatmap    { color: var(--yellow); border-color: rgba(255,215,0,.4); }
+    #nav-links a.active.nav-tournament { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-campaign   { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-export     { color: var(--blue);   border-color: rgba(60,142,255,.4); }
+    #nav-links a.active.nav-autonomous { color: var(--purple); border-color: rgba(167,139,250,.4); }
+    #nav-links a.active.nav-mcp        { color: var(--green);  border-color: rgba(0,255,136,.4); }
+
+    /* ── Main layout ── */
+    #main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 0;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    @media (max-width: 900px) {
+      #main { grid-template-columns: 1fr; }
+    }
+
+    /* ── Sections ── */
+    .section {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 8px;
+      overflow: hidden;
+    }
+
+    .section-full {
+      grid-column: 1 / -1;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+
+    .section-header .icon { font-size: 16px; }
+    .section-body { padding: 14px; }
+
+    /* ── Tools grid ── */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 10px;
+    }
+
+    .tool-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      transition: border-color .15s;
+    }
+
+    .tool-card:hover { border-color: rgba(0,255,136,.4); }
+
+    .tool-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--green);
+      margin-bottom: 6px;
+    }
+
+    .tool-sig {
+      font-size: 11px;
+      color: var(--blue);
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .tool-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .tool-params {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .tool-param {
+      font-size: 10px;
+      color: var(--dim);
+      line-height: 1.7;
+    }
+
+    .tool-param .param-name { color: var(--yellow); }
+    .tool-param .param-type { color: var(--blue); }
+
+    /* ── Code blocks ── */
+    pre {
+      background: #060810;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      font-size: 11px;
+      line-height: 1.6;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .copy-btn:hover { color: var(--green); border-color: rgba(0,255,136,.4); }
+    .copy-btn.copied { color: var(--green); }
+
+    .kw  { color: var(--blue); }
+    .str { color: var(--green); }
+    .cmt { color: var(--dim); }
+    .num { color: var(--yellow); }
+
+    /* ── Connect steps ── */
+    .steps { list-style: none; counter-reset: steps; }
+    .steps li {
+      counter-increment: steps;
+      padding: 8px 0 8px 36px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(steps);
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 22px;
+      height: 22px;
+      background: rgba(0,255,136,.1);
+      border: 1px solid rgba(0,255,136,.3);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--green);
+    }
+
+    .steps code {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--yellow);
+      font-size: 11px;
+    }
+
+    /* ── Prompts ── */
+    .prompt-list { list-style: none; }
+    .prompt-list li {
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+      padding-left: 18px;
+      position: relative;
+    }
+    .prompt-list li:last-child { border-bottom: none; }
+    .prompt-list li::before {
+      content: '›';
+      position: absolute;
+      left: 4px;
+      color: var(--green);
+    }
+    .prompt-list li strong { color: var(--text); }
+
+    /* ── Live log ── */
+    #log-area {
+      background: #060810;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px;
+      height: 200px;
+      overflow-y: auto;
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    .log-entry { display: flex; gap: 10px; }
+    .log-ts    { color: var(--dim); flex-shrink: 0; }
+    .log-level-INFO  { color: var(--blue); }
+    .log-level-ERROR { color: var(--red); }
+    .log-msg { color: var(--muted); }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--dim);
+      display: inline-block;
+      margin-right: 6px;
+      transition: background .3s;
+    }
+    .status-dot.running { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+    /* ── Tab selector ── */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+    .tab {
+      padding: 6px 14px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Utility ── */
+    .label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<div id="header">
+  <div id="logo">DUEL</div>
+  <div id="mode-badge">MCP</div>
+  <nav id="nav-links">
+    <a href="/" class="nav-warroom">⚔ WAR ROOM</a>
+    <a href="/heatmap" class="nav-heatmap">◈ HEATMAP</a>
+    <a href="/tournament" class="nav-tournament">⚡ TOURNAMENT</a>
+    <a href="/campaign" class="nav-campaign">⛓ CAMPAIGN</a>
+    <a href="/export" class="nav-export">⬇ EXPORT</a>
+    <a href="/autonomous" class="nav-autonomous">★ AUTONOMOUS</a>
+    <a href="/mcp" class="nav-mcp active">⚡ MCP</a>
+  </nav>
+</div>
+
+<!-- ── Main ── -->
+<div id="main">
+
+  <!-- ── Tools reference ── -->
+  <div class="section section-full">
+    <div class="section-header"><span class="icon">⚙</span> AVAILABLE MCP TOOLS</div>
+    <div class="section-body">
+      <div class="tools-grid" id="tools-grid">
+
+        <div class="tool-card">
+          <div class="tool-name">run_battle</div>
+          <div class="tool-sig">run_battle(technique_id, rounds=5, logs_per_round=10) → dict</div>
+          <div class="tool-desc">Run a full adversarial battle. The Attacker generates synthetic Sentinel telemetry; the Defender generates KQL detection rules. Each round the Attacker mutates based on what was caught.</div>
+          <div class="tool-params">
+            <div class="tool-param"><span class="param-name">technique_id</span> <span class="param-type">str</span> — MITRE ID (T1078.004) or OWASP LLM ID (LLM01)</div>
+            <div class="tool-param"><span class="param-name">rounds</span> <span class="param-type">int</span> — Adversarial rounds (1–10, default 5)</div>
+            <div class="tool-param"><span class="param-name">logs_per_round</span> <span class="param-type">int</span> — Attack logs per round (3–30, default 10)</div>
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-name">get_coverage</div>
+          <div class="tool-sig">get_coverage() → dict</div>
+          <div class="tool-desc">Return MITRE ATT&amp;CK and OWASP LLM coverage heatmap data. Shows which techniques have been tested, their evasion/detection rates, and tactic-level aggregations.</div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-name">generate_kql</div>
+          <div class="tool-sig">generate_kql(technique_id) → dict</div>
+          <div class="tool-desc">Return the best surviving KQL detection rule for a technique — the rule with the highest detection rate that survived adversarial testing.</div>
+          <div class="tool-params">
+            <div class="tool-param"><span class="param-name">technique_id</span> <span class="param-type">str</span> — MITRE ATT&CK or OWASP LLM technique ID</div>
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-name">plan_campaign</div>
+          <div class="tool-sig">plan_campaign(objective) → dict</div>
+          <div class="tool-desc">Plan an autonomous kill chain for the given objective. Pass 'cloud-takeover', 'identity-attack', or free-text like 'exfiltrate email data'. Returns ordered stages with technique mappings and MCP call sequence.</div>
+          <div class="tool-params">
+            <div class="tool-param"><span class="param-name">objective</span> <span class="param-type">str</span> — Named campaign or free-text attack objective</div>
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-name">get_attacker_memory</div>
+          <div class="tool-sig">get_attacker_memory(technique_id) → dict</div>
+          <div class="tool-desc">Return what the Attacker LLM has learned across all battles: stable evasion patterns, dangerous fields, successful mutations, and high-level evasion heuristics.</div>
+          <div class="tool-params">
+            <div class="tool-param"><span class="param-name">technique_id</span> <span class="param-type">str</span> — MITRE ATT&CK or OWASP LLM technique ID</div>
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-name">export_sentinel</div>
+          <div class="tool-sig">export_sentinel(severity='all') → dict</div>
+          <div class="tool-desc">Return a Microsoft Sentinel ARM template with KQL analytics rules filtered by severity. Deploy directly via Azure CLI or the Sentinel portal.</div>
+          <div class="tool-params">
+            <div class="tool-param"><span class="param-name">severity</span> <span class="param-type">str</span> — 'High', 'Medium', 'Low', or 'all' (default)</div>
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-name">get_battle_analysis</div>
+          <div class="tool-sig">get_battle_analysis(technique_id) → dict</div>
+          <div class="tool-desc">Return full battle analysis: mutation patterns, detection gaps, KQL evolution across rounds, field-level stability analysis, and hardening recommendations.</div>
+          <div class="tool-params">
+            <div class="tool-param"><span class="param-name">technique_id</span> <span class="param-type">str</span> — MITRE ATT&CK or OWASP LLM technique ID</div>
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-name">list_techniques</div>
+          <div class="tool-sig">list_techniques() → dict</div>
+          <div class="tool-desc">Return all available techniques with metadata: MITRE ATT&amp;CK (cloud/identity/SaaS) and OWASP LLM Top 10 2025. Includes tactic, platforms, Sentinel tables, and battle-tested status.</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Connect: Claude Desktop + Cursor ── -->
+  <div class="section">
+    <div class="section-header"><span class="icon">⚡</span> CONNECT</div>
+    <div class="section-body">
+
+      <div class="tabs">
+        <div class="tab active" onclick="showTab('claude')">CLAUDE DESKTOP</div>
+        <div class="tab" onclick="showTab('cursor')">CURSOR</div>
+        <div class="tab" onclick="showTab('cli')">CLI TEST</div>
+      </div>
+
+      <!-- Claude Desktop -->
+      <div class="tab-panel active" id="tab-claude">
+        <div class="label">HOW TO CONNECT</div>
+        <ol class="steps">
+          <li>Install <a href="https://claude.ai/download" target="_blank">Claude Desktop</a> if you haven't already.</li>
+          <li>Open <code>claude_desktop_config.json</code> — location: <code>~/Library/Application Support/Claude/</code> (macOS) or <code>%APPDATA%\Claude\</code> (Windows).</li>
+          <li>Add the DUEL server block shown below, updating the path to match your clone location.</li>
+          <li>Restart Claude Desktop. The DUEL tools will appear in the tool picker.</li>
+        </ol>
+        <br/>
+        <div class="label">claude_desktop_config.json</div>
+        <pre id="claude-cfg">{
+  "mcpServers": {
+    "duel": {
+      "command": "python",
+      "args": ["C:/Users/YOU/duel-framework/mcp_server.py"],
+      "env": {}
+    }
+  }
+}<button class="copy-btn" onclick="copyPre('claude-cfg', this)">COPY</button></pre>
+      </div>
+
+      <!-- Cursor -->
+      <div class="tab-panel" id="tab-cursor">
+        <div class="label">HOW TO CONNECT</div>
+        <ol class="steps">
+          <li>Open Cursor Settings → <code>MCP</code> section (or edit <code>.cursor/mcp.json</code> in your project root).</li>
+          <li>Add the server config below, updating the path to your clone.</li>
+          <li>Reload Cursor. DUEL tools will be available in Agent mode.</li>
+        </ol>
+        <br/>
+        <div class="label">.cursor/mcp.json</div>
+        <pre id="cursor-cfg">{
+  "mcpServers": {
+    "duel": {
+      "command": "python",
+      "args": ["C:/Users/YOU/duel-framework/mcp_server.py"],
+      "env": {}
+    }
+  }
+}<button class="copy-btn" onclick="copyPre('cursor-cfg', this)">COPY</button></pre>
+      </div>
+
+      <!-- CLI test -->
+      <div class="tab-panel" id="tab-cli">
+        <div class="label">TEST THE SERVER DIRECTLY</div>
+        <ol class="steps">
+          <li>Install dependencies: <code>pip install mcp</code></li>
+          <li>Start the server: <code>python mcp_server.py</code></li>
+          <li>The server listens on stdio. Use the MCP Inspector or send JSON-RPC 2.0 messages directly.</li>
+          <li>Or use: <code>npx @modelcontextprotocol/inspector python mcp_server.py</code></li>
+        </ol>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Example prompts ── -->
+  <div class="section">
+    <div class="section-header"><span class="icon">💬</span> EXAMPLE PROMPTS</div>
+    <div class="section-body">
+      <div class="label">PASTE THESE INTO CLAUDE DESKTOP OR CURSOR</div>
+      <ul class="prompt-list">
+        <li><strong>Coverage overview:</strong> List all DUEL techniques and tell me which ones haven't been tested yet, grouped by MITRE tactic.</li>
+        <li><strong>Run a battle:</strong> Run a DUEL battle for T1078.004 with 5 rounds and summarise who won and the final evasion rate.</li>
+        <li><strong>Best KQL rule:</strong> Get the best KQL detection rule for password spraying (T1110.003) and explain how it works.</li>
+        <li><strong>Kill chain plan:</strong> Plan a cloud account takeover kill chain and tell me the MCP call sequence to test it.</li>
+        <li><strong>Attacker memory:</strong> What has the DUEL attacker learned about evading detection for T1556.006? What fields are dangerous?</li>
+        <li><strong>Export rules:</strong> Export all High severity Sentinel analytics rules as an ARM template and show the deploy command.</li>
+        <li><strong>Full analysis:</strong> Get the complete battle analysis for T1528 and identify the biggest detection gap.</li>
+        <li><strong>Campaign vs email:</strong> Plan a kill chain for exfiltrating email from Microsoft 365 using DUEL techniques.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── Server log ── -->
+  <div class="section section-full">
+    <div class="section-header">
+      <span class="icon">📋</span>
+      MCP SERVER LOG
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text" style="font-size:11px;font-weight:400;color:var(--muted)">checking...</span>
+      <button onclick="loadLog()" style="margin-left:auto;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;padding:2px 10px;border-radius:3px;cursor:pointer;letter-spacing:1px">↺ REFRESH</button>
+    </div>
+    <div class="section-body">
+      <div class="label">LAST 40 ENTRIES FROM output/mcp_server.log</div>
+      <div id="log-area">
+        <div class="log-entry"><span class="log-ts">--:--:--</span><span class="log-msg" style="color:var(--dim)">Waiting for log data…  Start the MCP server: python mcp_server.py</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#main -->
+
+<script>
+  // ── Tab switching ──
+  function showTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // ── Copy button ──
+  function copyPre(id, btn) {
+    const pre = document.getElementById(id);
+    const text = pre.textContent.replace(/COPY$/, '').trim();
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'COPIED';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('copied'); }, 1800);
+    });
+  }
+
+  // ── Log loader ──
+  async function loadLog() {
+    try {
+      const res = await fetch('/api/mcp/log');
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+
+      const area = document.getElementById('log-area');
+      const dot  = document.getElementById('status-dot');
+      const txt  = document.getElementById('status-text');
+
+      if (!data.lines || data.lines.length === 0) {
+        area.innerHTML = '<div class="log-entry"><span class="log-msg" style="color:var(--dim)">No log entries yet. Start the server: python mcp_server.py</span></div>';
+        dot.className  = 'status-dot';
+        txt.textContent = 'not started';
+        return;
+      }
+
+      area.innerHTML = data.lines.map(line => {
+        const parts = line.match(/^(\S+ \S+) \[(\w+)\] (.+)$/);
+        if (!parts) return `<div class="log-entry"><span class="log-msg">${escHtml(line)}</span></div>`;
+        const [, ts, level, msg] = parts;
+        return `<div class="log-entry">
+          <span class="log-ts">${escHtml(ts.split(' ')[1] || ts)}</span>
+          <span class="log-level-${level}">[${level}]</span>
+          <span class="log-msg">${escHtml(msg)}</span>
+        </div>`;
+      }).join('');
+      area.scrollTop = area.scrollHeight;
+
+      dot.className  = data.running ? 'status-dot running' : 'status-dot';
+      txt.textContent = data.running ? 'server active' : 'server idle';
+    } catch {
+      document.getElementById('status-text').textContent = 'web server offline';
+    }
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  loadLog();
+  setInterval(loadLog, 5000);
+</script>
+</body>
+</html>

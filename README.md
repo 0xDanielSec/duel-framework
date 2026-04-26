@@ -596,6 +596,102 @@ constraint.
 
 ---
 
+## MCP Integration
+
+DUEL exposes all its capabilities as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server.
+Any AI agent that supports MCP — Claude Desktop, Cursor, or a custom agent — can use DUEL as a security research tool directly from a chat interface.
+
+### Start the MCP Server
+
+```bash
+pip install mcp
+python mcp_server.py
+```
+
+The server uses **stdio transport** (standard for MCP). It writes logs to `output/mcp_server.log`.
+
+---
+
+### Connect to Claude Desktop
+
+Add this block to `claude_desktop_config.json`:
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "duel": {
+      "command": "python",
+      "args": ["C:/Users/YOU/duel-framework/mcp_server.py"],
+      "env": {}
+    }
+  }
+}
+```
+
+Restart Claude Desktop. The DUEL tools will appear in the tool picker.
+
+---
+
+### Connect to Cursor
+
+Add to `.cursor/mcp.json` in your project root, or via **Settings → MCP**:
+
+```json
+{
+  "mcpServers": {
+    "duel": {
+      "command": "python",
+      "args": ["C:/Users/YOU/duel-framework/mcp_server.py"],
+      "env": {}
+    }
+  }
+}
+```
+
+---
+
+### Available Tools
+
+| Tool | Signature | What it does |
+|---|---|---|
+| `run_battle` | `(technique_id, rounds=5, logs_per_round=10)` | Run a full adversarial duel and return structured results |
+| `get_coverage` | `()` | Return MITRE ATT&CK + OWASP LLM coverage heatmap data |
+| `generate_kql` | `(technique_id)` | Return the best surviving KQL rule for a technique |
+| `plan_campaign` | `(objective)` | Plan an autonomous kill chain for the given objective |
+| `get_attacker_memory` | `(technique_id)` | Return what the Attacker has learned about evading detection |
+| `export_sentinel` | `(severity='all')` | Return ARM template with KQL rules filtered by severity |
+| `get_battle_analysis` | `(technique_id)` | Return full battle analysis markdown for a technique |
+| `list_techniques` | `()` | Return all 38 techniques with metadata |
+
+---
+
+### Example Prompts
+
+Once connected, paste these into Claude Desktop or Cursor:
+
+```
+List all DUEL techniques and tell me which ones haven't been tested yet, grouped by MITRE tactic.
+
+Run a DUEL battle for T1078.004 with 5 rounds and summarise who won and the final evasion rate.
+
+Get the best KQL detection rule for password spraying (T1110.003) and explain how it works.
+
+Plan a cloud account takeover kill chain and tell me the MCP call sequence to test it.
+
+What has the DUEL attacker learned about evading detection for T1556.006? What fields are dangerous?
+
+Export all High severity Sentinel analytics rules as an ARM template and show the deploy command.
+
+Get the complete battle analysis for T1528 and identify the biggest detection gap.
+
+Plan a kill chain for exfiltrating email from Microsoft 365 using DUEL techniques.
+```
+
+---
+
 ## Ethical Use
 
 DUEL generates **entirely synthetic telemetry** against **in-process pandas

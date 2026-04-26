@@ -132,6 +132,28 @@ async def autonomous_page():
     return FileResponse(str(STATIC_DIR / "autonomous.html"))
 
 
+@app.get("/mcp")
+async def mcp_page():
+    return FileResponse(str(STATIC_DIR / "mcp.html"))
+
+
+@app.get("/api/mcp/log")
+async def api_mcp_log():
+    """Return the last 40 lines of the MCP server log for the live log viewer."""
+    import time
+    log_path = OUTPUT_DIR / "mcp_server.log"
+    if not log_path.exists():
+        return JSONResponse({"lines": [], "running": False})
+    try:
+        text  = log_path.read_text(encoding="utf-8", errors="replace")
+        lines = [l for l in text.splitlines() if l.strip()][-40:]
+        mtime = log_path.stat().st_mtime
+        running = (time.time() - mtime) < 30
+        return JSONResponse({"lines": lines, "running": running})
+    except Exception as exc:
+        return JSONResponse({"lines": [str(exc)], "running": False})
+
+
 @app.get("/api/export/rules")
 async def api_export_rules():
     """Return all exportable rules as JSON for the export UI table."""
