@@ -43,7 +43,7 @@ _OBJECTIVE_CONTEXT: dict[str, str] = {
 }
 
 _AUTONOMOUS_SYSTEM = """\
-You are an autonomous red-team AI orchestrator inside DUEL (Dual Unsupervised Evasion Loop).
+You are an autonomous red-team AI orchestrator inside DUEL (Dual Unified Evasion Loop).
 Your role is to reason strategically about which MITRE ATT&CK technique to attack next,
 based on historical battle data, persistent attacker memory, and a high-level objective.
 

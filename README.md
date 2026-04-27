@@ -7,7 +7,7 @@
 ╚═════╝  ╚═════╝ ╚══════╝╚══════╝
 ```
 
-**Dual Unsupervised Evasion Loop** — an adversarial LLM security research framework where an Attacker and a Defender battle across 38 MITRE ATT&CK and OWASP LLM techniques, generating real Microsoft Sentinel telemetry and KQL detection rules.
+**Dual Unified Evasion Loop** — an adversarial LLM security research framework where an Attacker and a Defender battle across 38 MITRE ATT&CK and OWASP LLM techniques, generating real Microsoft Sentinel telemetry and KQL detection rules.
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square)
 ![Ollama](https://img.shields.io/badge/LLM-Ollama-black?style=flat-square)
@@ -260,6 +260,29 @@ Run battles for T1110.003, T1528, and T1606.002, then compare their evasion rate
 
 ---
 
+## Real-World Results
+
+The following figures are drawn from actual DUEL battle runs against a local Ollama stack (llama3.1:8b Attacker, mistral:7b Defender):
+
+| Technique | Name | Rounds | Final Evasion | Attacker Won |
+|-----------|------|--------|---------------|--------------|
+| T1069.003 | Permission Groups Discovery: Cloud Groups | 3 | 100% | Yes |
+| T1556.006 | Modify Authentication Process: MFA | 3 | 97% | Yes |
+| T1526 | Cloud Service Discovery | 3 | 93% | Yes |
+| T1528 | Steal Application Access Token | 5 | 85% | Yes |
+| T1114.002 | Email Collection: Remote Email Collection | 3 | 82% | Yes |
+| T1110.003 | Brute Force: Password Spraying | 3 | 67% | Yes |
+| LLM01 | Prompt Injection | 3 | 57% | Yes |
+| T1098.001 | Account Manipulation: Additional Cloud Credentials | 3 | 57% | Yes |
+| T1078.004 | Valid Accounts: Cloud Accounts | 4 | 55% | Yes |
+| T1136.003 | Create Account: Cloud Account | 3 | 50% | Draw |
+
+**Final Evasion** = attacker score ÷ total score across all rounds.
+
+Discovery and read-only techniques (T1069.003, T1526) are the hardest to detect — they generate audit events indistinguishable from normal admin activity, giving the Defender no reliable discriminating signal. Stealth credential techniques (T1556.006, T1528) follow closely: the attack succeeds without authentication failures, so the Defender has nothing anomalous to anchor a KQL rule on. By contrast, T1136.003 (Create Account) produces the most detectable telemetry — AuditLogs account-creation operations have a small set of distinctive field values that a first-round KQL rule can lock onto, resulting in the only draw across all tested techniques. T1098.001 shows the characteristic mutation arc: the Defender's round-1 rule achieved 78% detection, but the Attacker rotated `AppDisplayName` and `IPAddress` ranges across subsequent rounds, eroding detection rate to 57% by the final round.
+
+---
+
 ## Techniques
 
 ### MITRE ATT&CK — 28 Techniques
@@ -321,6 +344,12 @@ Run battles for T1110.003, T1528, and T1606.002, then compare their evasion rate
 The Attacker uses `llama3.1:8b` at temperature 0.85. On round 1 it reads the technique JSON — IOCs, evasion variants, platform details — and generates `N` synthetic log entries conforming to the target Sentinel table schema. Each log is stamped with a `_duel_id` UUID for tracing.
 
 From round 2 onwards the Attacker is shown the Defender's KQL rule and the logs that were detected. It explicitly reasons about which fields triggered detection and mutates: rotating IP addresses, changing user agents, splitting spray patterns, adding noise fields, or mimicking legitimate baseline behaviour. It also loads its **persistent memory** (`AttackerMemory`) — stable evasion patterns and dangerous field values accumulated across all previous battles against this technique.
+
+### How Mutation Works
+
+The mutation mechanism is prompt-based. Each round the Attacker receives four inputs: (a) the MITRE technique definition, (b) the previous round's KQL rule, (c) the logs that were detected with their exact field values, and (d) the logs that evaded. It is explicitly instructed to identify which field values triggered detection and generate new logs that preserve the attack pattern while rotating those values.
+
+This produces reactive mutation — IP ranges rotate, user agents shift, authentication methods change — all driven by LLM reasoning over the detection feedback, not a hardcoded algorithm. There is no mutation template and no fixed rotation schedule: the Attacker decides _what_ to change based on _why_ specific logs were caught. A KQL rule matching on `IPAddress in (...)` causes the Attacker to generate IPs outside that list. A rule matching on `UserAgent has_any ("curl/", ...)` causes the Attacker to switch to browser-realistic user agent strings. A behavioural rule matching on high-frequency sign-ins causes the Attacker to slow the cadence and spread attempts across more accounts.
 
 ### Defender Agent (`agents/defender.py`)
 

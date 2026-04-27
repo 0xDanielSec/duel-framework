@@ -1,7 +1,7 @@
 # DUEL — Claude Code Briefing
 
 ## Project Identity
-DUEL (Dual Unsupervised Evasion Loop) is an adversarial security research 
+DUEL (Dual Unified Evasion Loop) is an adversarial security research 
 framework. Two LLM agents battle across multiple rounds. The Attacker 
 generates synthetic telemetry mimicking real Microsoft Sentinel schemas. 
 The Defender generates KQL detection rules. A local detection engine scores 

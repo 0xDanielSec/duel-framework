@@ -1,5 +1,5 @@
 """
-DUEL — Dual Unsupervised Evasion Loop
+DUEL — Dual Unified Evasion Loop
 Adversarial LLM framework: Attacker vs Defender over Microsoft Sentinel schemas.
 """
 
@@ -45,7 +45,7 @@ def load_technique(technique_id: str) -> dict:
 def print_banner():
     console.print(Panel(
         "[bold red]D U E L[/bold red]\n"
-        "[dim]Dual Unsupervised Evasion Loop[/dim]\n"
+        "[dim]Dual Unified Evasion Loop[/dim]\n"
         "[cyan]Attacker vs Defender — MITRE ATT&CK × Microsoft Sentinel[/cyan]",
         box=box.DOUBLE,
         expand=False,
@@ -213,7 +213,7 @@ def run_duel(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="DUEL — Dual Unsupervised Evasion Loop",
+        description="DUEL — Dual Unified Evasion Loop",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

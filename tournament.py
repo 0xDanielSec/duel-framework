@@ -50,7 +50,7 @@ def _load_technique(technique_id: str) -> dict:
 def _print_banner(technique_id: str, rounds: int, defenders: list[str]):
     console.print(Panel(
         "[bold yellow]T O U R N A M E N T[/bold yellow]\n"
-        "[dim]Dual Unsupervised Evasion Loop — Multi-Defender Edition[/dim]\n"
+        "[dim]Dual Unified Evasion Loop — Multi-Defender Edition[/dim]\n"
         f"[cyan]Technique: {technique_id}  |  Rounds: {rounds}  |  "
         f"Defenders: {len(defenders)}[/cyan]",
         box=box.DOUBLE,
