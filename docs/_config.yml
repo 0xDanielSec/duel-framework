@@ -1,2 +1,3 @@
-theme: null
-plugins: []
+# GitHub Pages config — Jekyll is bypassed via .nojekyll; this file is kept
+# only as documentation that no theme or plugins are intentional.
+exclude: []

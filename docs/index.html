@@ -861,10 +861,36 @@ function renderKQL(rules) {
 }
 
 /* ── Bootstrap ─────────────────────────────────────────────────────────── */
-fetch('data.json')
-  .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+function showError(err, url) {
+  const el = document.getElementById('loading');
+  el.innerHTML = `
+    <div style="color:var(--red);font-size:14px;margin-bottom:8px">
+      ✖ Failed to load benchmark data
+    </div>
+    <div style="color:var(--muted);margin-bottom:4px">
+      ${err.message || String(err)}
+    </div>
+    ${url ? `<div style="color:var(--dim);font-size:11px;margin-bottom:12px">URL tried: ${url}</div>` : ''}
+    <div style="color:var(--dim);font-size:11px">
+      To regenerate locally: <code style="color:var(--yellow)">python scripts/generate_pages_data.py</code>
+    </div>`;
+}
+
+function tryFetch(url) {
+  return fetch(url).then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+    return r.json();
+  });
+}
+
+// Primary: cache-busted relative path. Fallback: bare relative path (some
+// CDN edges strip query strings but serve the asset correctly on retry).
+const primary  = 'data.json?v=' + Date.now();
+const fallback = './data.json';
+
+tryFetch(primary)
+  .catch(() => tryFetch(fallback))
   .then(data => {
-    // Updated badge
     document.getElementById('updated-badge').textContent = 'Updated ' + data.generated_at;
 
     renderStats(data.summary);
@@ -873,7 +899,7 @@ fetch('data.json')
 
     const allTested = [
       ...data.mitre_techniques,
-      ...data.llm_techniques
+      ...data.llm_techniques,
     ].filter(t => t.tested);
     renderRankings(allTested);
     renderKQL(data.top_kql_rules);
@@ -881,11 +907,7 @@ fetch('data.json')
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
   })
-  .catch(err => {
-    document.getElementById('loading').innerHTML =
-      `<div style="color:var(--red)">Failed to load data.json: ${err.message}</div>
-       <div style="color:var(--muted);font-size:11px">Run <code>python scripts/generate_pages_data.py</code> to generate it.</div>`;
-  });
+  .catch(err => showError(err, primary));
 </script>
 </body>
 </html>
