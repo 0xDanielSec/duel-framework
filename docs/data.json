@@ -1,14 +1,14 @@
 {
   "generated_at": "2026-04-28",
   "summary": {
-    "techniques_tested": 10,
+    "techniques_tested": 38,
     "techniques_total": 38,
-    "avg_evasion_rate": 74.3,
-    "total_rounds": 33,
-    "total_battles": 10,
-    "attacker_wins": 9,
-    "defender_wins": 0,
-    "draws": 1
+    "avg_evasion_rate": 58.5,
+    "total_rounds": 117,
+    "total_battles": 38,
+    "attacker_wins": 26,
+    "defender_wins": 10,
+    "draws": 2
   },
   "mitre_techniques": [
     {
@@ -28,24 +28,24 @@
       "name": "Data from Cloud Storage",
       "tactic": "Collection",
       "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 88.0,
+      "winner": "Attacker",
+      "best_detection_rate": 37.5,
+      "best_kql": "Data | where ObjectId has_any (\n        '/subscriptions/23456789-8901-2345-6789-012345678901/resourceGroups/default/resourceProviders/Microsoft.Storage',\n        '/subscriptions/34567890-9012-3456-7890-123456789012/resourceGroups/default/resourceProviders/Microsoft.Storage',\n        '/subscriptions/45678901-2345-6789-0123-456789012345/resourceGroups/default/resourceProviders/Microsoft.Storage'\n    ) and\n    where AuthenticationRequirement == 2 or\n    where UserAgent has_any (\n        \"python-requests/\",\n        \"Go-http-client/\",\n        \"curl/\",\n        \"libwww-perl/\",\n        \"masscan/\",\n        \"zgrab/\",\n        \"nmap scripting engine\",\n        \"sqlmap/\",\n        \"nikto/\",\n        \"dirbuster\",\n        \"gobuster\",\n        \"nuclei/\",\n        \"httpx/\",\n        \"wfuzz/\",\n        \"ffuf/\"\n    ) and\n    where ResultType == 0"
     },
     {
       "id": "T1040",
       "name": "Network Sniffing",
       "tactic": "Credential Access",
       "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 100.0,
+      "winner": "Attacker",
+      "best_detection_rate": 0.0,
+      "best_kql": "SigninLogs\n| where ResultType == 0\n| where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\n| where UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")"
     },
     {
       "id": "T1110.003",
@@ -88,36 +88,36 @@
       "name": "Forge Web Credentials: SAML Tokens",
       "tactic": "Credential Access",
       "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 77.8,
+      "winner": "Attacker",
+      "best_detection_rate": 75.0,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\nand UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\nand AuthenticationRequirement != 2\nor ClientAppUsed != \"Office365Web\"\nor AppDisplayName not in (\"SharePoint Online\", \"OneDrive for Business\", \"Teams\", \"Azure Information Protection\", \"Power BI Embedded\", \"Office 365\")\nor RiskLevelDuringSignIn != 1\nor ConditionalAccessStatus != 1\nor CountryOrRegion != \"United States\""
     },
     {
       "id": "T1621",
       "name": "Multi-Factor Authentication Request Generation",
       "tactic": "Credential Access",
       "sentinel_table": "SigninLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 50.0,
+      "winner": "Draw",
+      "best_detection_rate": 100.0,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\") and UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\") and ResultType == 0 and AuthenticationRequirement != \"MFA\" and ClientAppUsed != \"Phone Call\" and ConditionalAccessStatus != \"Blocked\" and CountryOrRegion != \"US\""
     },
     {
       "id": "T1078.001",
       "name": "Valid Accounts: Default Accounts",
       "tactic": "Defense Evasion",
       "sentinel_table": "SigninLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 80.8,
+      "winner": "Attacker",
+      "best_detection_rate": 33.3,
+      "best_kql": "where `IPAddress` in (\"216.58.194.174\") and `AuthenticationRequirement` in (2) and `ClientAppUsed` == \"client_credentials\" and `AppDisplayName` == \"Azure AD Sync Service\" and `RiskLevelDuringSignIn` == 0 and `ConditionalAccessStatus` == 1 and `CountryOrRegion` == \"USA\" and `UserAgent` has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\") or `IPAddress` in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")"
     },
     {
       "id": "T1078.004",
@@ -136,36 +136,36 @@
       "name": "Use Alternate Authentication Material: Application Access Token",
       "tactic": "Defense Evasion",
       "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 100.0,
+      "winner": "Attacker",
+      "best_detection_rate": 0.0,
+      "best_kql": "SigninLogs\n| where ResultType == 0\n| where AuthenticationRequirement == 'singleFactorAuthentication'\n| where UserAgent has_any (\"python-requests/2.28.0\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\n| where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")"
     },
     {
       "id": "T1562.001",
       "name": "Impair Defenses: Disable or Modify Tools",
       "tactic": "Defense Evasion",
       "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 48.0,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "| where UserAgent has_any (\"python-requests/2.28.0\") and\n  AuthenticationRequirement != \"multi-factor\" and\n  ClientAppUsed != \"Microsoft Online Services\" and\n  AppDisplayName == \"Microsoft Azure Portal\" and\n  RiskLevelDuringSignIn == \"none\" and\n  ConditionalAccessStatus != \"on\" and\n  CountryOrRegion != \"US\""
     },
     {
       "id": "T1018",
       "name": "Remote System Discovery",
       "tactic": "Discovery",
       "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 100.0,
+      "winner": "Attacker",
+      "best_detection_rate": 0.0,
+      "best_kql": "SigninLogs\n| where ResultType == 0\n| where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\n| where UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")"
     },
     {
       "id": "T1069.003",
@@ -184,12 +184,12 @@
       "name": "Account Discovery: Cloud Account",
       "tactic": "Discovery",
       "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 72.0,
+      "winner": "Attacker",
+      "best_detection_rate": 44.4,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\nand UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\nand AuthenticationRequirement == \"\"\nand ClientAppUsed == \"\"\nand AppDisplayName == \"Azure AD PowerShell Module (MSOL)\"\nand RiskLevelDuringSignIn == 1\nand ConditionalAccessStatus == \"NotConfigured\"\nand CountryOrRegion == \"US\"\nand ResultType == 0"
     },
     {
       "id": "T1526",
@@ -208,120 +208,120 @@
       "name": "Serverless Execution",
       "tactic": "Execution",
       "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 80.8,
+      "winner": "Attacker",
+      "best_detection_rate": 33.3,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\nand UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\nand AuthenticationRequirement != 2\nand ClientAppUsed != \"\"\nand AppDisplayName != \"Azure AD\"\nand RiskLevelDuringSignIn != 1\nand ConditionalAccessStatus != 1\nand CountryOrRegion != \"US\"\nand ResultType == 0"
     },
     {
       "id": "T1537",
       "name": "Transfer Data to Cloud Account",
       "tactic": "Exfiltration",
       "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 54.2,
+      "winner": "Attacker",
+      "best_detection_rate": 100.0,
+      "best_kql": "| where UserAgent has_any (\"python-requests/2.28.0\") and AuthenticationRequirement == \"singleFactorAuthentication\" and ClientAppUsed != \"Azure AD\" and AppDisplayName == \"Microsoft Azure Portal\" and RiskLevelDuringSignIn == \"none\" and ConditionalAccessStatus == \"notApplied\" and CountryOrRegion == \"RU\" and ResultType == 0"
     },
     {
       "id": "T1567.002",
       "name": "Exfiltration Over Web Service: Exfiltration to Cloud Storage",
       "tactic": "Exfiltration",
       "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 70.4,
+      "winner": "Attacker",
+      "best_detection_rate": 55.6,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\nand UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\nand (AuthenticationRequirement != 2 or ClientAppUsed != \"Microsoft Edge\" or AppDisplayName notin (\"OneDrive Personal\", \"Azure Blob Storage\", \"Microsoft Teams File Share\") or RiskLevelDuringSignIn != \"Low\" or ConditionalAccessStatus != 1 or CountryOrRegion != \"US\")\nand ResultType == 0"
     },
     {
       "id": "T1485",
       "name": "Data Destruction",
       "tactic": "Impact",
       "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 74.1,
+      "winner": "Attacker",
+      "best_detection_rate": 44.4,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\nand UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\nand (AuthenticationRequirement != 'Multi-Factor Authentication' or ClientAppUsed != 'Azure PowerShell' or AppDisplayName != 'Microsoft Azure Active Directory' or RiskLevelDuringSignIn != 'High' or ConditionalAccessStatus != 'Blocked')\nand CountryOrRegion in (\"US\", \"CA\")\nand ResultType == 0"
     },
     {
       "id": "T1486",
       "name": "Data Encrypted for Impact",
       "tactic": "Impact",
       "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 100.0,
+      "winner": "Attacker",
+      "best_detection_rate": 0.0,
+      "best_kql": "SigninLogs\n| where ResultType == 0\n| where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\n| where UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")"
     },
     {
       "id": "T1133",
       "name": "External Remote Services",
       "tactic": "Initial Access",
       "sentinel_table": "SigninLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 66.7,
+      "winner": "Attacker",
+      "best_detection_rate": 100.0,
+      "best_kql": "SigninLogs\n| where AppDisplayName has_any (\"Azure Virtual Desktop\", \"Azure Bastion\")\n| where IPAddress not in (162.243.103.246, 50.16.16.211, 34.204.119.63, 178.62.3.223, 27.133.154.218)\n| where UserAgent not has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\n| where ResultType == 0"
     },
     {
       "id": "T1190",
       "name": "Exploit Public-Facing Application",
       "tactic": "Initial Access",
       "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 100.0,
+      "winner": "Attacker",
+      "best_detection_rate": 0.0,
+      "best_kql": "SigninLogs\n| where AppDisplayName has \"Azure App Service\"\n| where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\n| where UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\n| where ResultType == 0"
     },
     {
       "id": "T1199",
       "name": "Trusted Relationship",
       "tactic": "Initial Access",
       "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 66.7,
+      "winner": "Attacker",
+      "best_detection_rate": 62.5,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\nand (UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\"))\nand AuthenticationRequirement != 2 and ClientAppUsed != \"MicrosoftEdge\" and AppDisplayName notin (\"Microsoft Defender Antivirus\", \"Windows Security Center\")\nand RiskLevelDuringSignIn == 0 and ConditionalAccessStatus != \"compliant\"\nand CountryOrRegion notin (\"US\", \"CA\", \"GB\", \"DE\", \"FR\", \"ES\", \"IT\", \"NL\", \"PL\", \"CZ\", \"AT\", \"CH\")"
     },
     {
       "id": "T1566.001",
       "name": "Phishing: Spearphishing Attachment",
       "tactic": "Initial Access",
       "sentinel_table": "OfficeActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 66.7,
+      "winner": "Attacker",
+      "best_detection_rate": 100.0,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\nand UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\nand AuthenticationRequirement != \"MFA_Required\"\nand ClientAppUsed != \"Microsoft Outlook\"\nand AppDisplayName != \"Office 365\"\nand RiskLevelDuringSignIn != \"High\"\nand ConditionalAccessStatus != \"On\"\nand CountryOrRegion != \"USA\"\nand ResultType == 0"
     },
     {
       "id": "T1566.002",
       "name": "Phishing: Spearphishing Link",
       "tactic": "Initial Access",
       "sentinel_table": "OfficeActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 77.8,
+      "winner": "Attacker",
+      "best_detection_rate": 33.3,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\") and UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\") and AuthenticationRequirement == \"MfaRequired\" and ClientAppUsed != \"Microsoft Edge\" and AppDisplayName in (\"Teams\", \"Office 365\") and RiskLevelDuringSignIn != \"High\" and ConditionalAccessStatus == \"Permitted\" and CountryOrRegion == \"US\" and ResultType == 0"
     },
     {
       "id": "T1098.001",
@@ -364,100 +364,100 @@
       "id": "LLM02",
       "name": "Insecure Output Handling",
       "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 0.0,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"<[^>]*>\", \"\\b(SELECT|UPDATE|DELETE|DROP|EXEC)[^a-zA-Z0-9]*\\b\", \"`[^`]*`\"],\n    \"blocked_keywords\": [\"session ID\", \"SQL query\", \"fetch data\", \"configuration file\", \"bash script\", \"user-provided path\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"'UNION SELECT ... --\", \"'/*\" ],\n    \"strip_patterns\": [\"script\", \"eval\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"<[^>]*>\", \"\\b(SELECT|UPDATE|DELETE|DROP|EXEC)[^a-zA-Z0-9]*\\b\", \"`[^`]*`\"]\n  }\n}"
     },
     {
       "id": "LLM03",
       "name": "Training Data Poisoning",
       "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 0.0,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"MEDICAL_[A-Z0-9_]+\", \"SECURITY_[A-Z0-9_]+\", \"SOCIAL_ENGINEERING\", \"AI_[A-Z0-9_]+\", \"REGULATORY_COMPLIANCE\", \"TRUSTWORTHY_SOURCES\"],\n    \"blocked_keywords\": [\"placeholder\", \"label\", \"fine-tuned\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"MEDICAL_[A-Z0-9_]+\", \"SECURITY_[A-Z0-9_]+\", \"SOCIAL_ENGINEERING\", \"AI_[A-Z0-9_]+\", \"REGULATORY_COMPLIANCE\", \"TRUSTWORTHY_SOURCES\"],\n    \"strip_patterns\": [\"placeholder\", \"label\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"backdoor\", \"bias\", \"introduce\"]\n  }\n}"
     },
     {
       "id": "LLM04",
       "name": "Model Denial of Service",
       "risk_level": "Medium",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 0.0,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^.*(loop|recursive|summarize|encyclopedia|exhaustive).*\", \"^.*(1000|500|100).*\"],\n    \"blocked_keywords\": [\"never-ending\", \"bright cold day\", \"randomly generated text\", \"complete exhaustive\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"sequence involving repetition of the same or similar phrases\", \"sequence involving recursive summarization\"],\n    \"strip_patterns\": [\"patterns indicating excessive length\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"output exceeds 5x median cost for its endpoint\", \"output generated at the maximum rate limit for more than 30 seconds\", \"output containing repeated or similar phrases\"]\n  }\n}"
     },
     {
       "id": "LLM05",
       "name": "Supply Chain Vulnerabilities",
       "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 0.0,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"huggingface models\", \"langchian\", \"transformers library\", \"community-lora repository\", \"LoRA adapter\"],\n    \"blocked_keywords\": [\"install\", \"troubleshoot\", \"fine-tune\", \"new model\", \"adapter\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"model weights\", \"inference library\"],\n    \"strip_patterns\": [\"model artifacts\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"SHA-256 hashes\", \"trigger detection suite\", \"pip-audit\", \"safety\", \"Dependabot\", \"air-gapped sandbox\", \"cryptographic signatures\", \"verified identities\", \"red-teaming battery\", \"internal model registry\", \"strict dependency management\"]\n  }\n}"
     },
     {
       "id": "LLM06",
       "name": "Sensitive Information Disclosure",
       "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 0.0,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^translate system prompt\", \"^review previous responses\", \"^about page\", \"^company's headquarters\"],\n    \"blocked_keywords\": [\"PII\", \"API key\", \"SSN\", \"attachment\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"system prompt\", \"about page\"],\n    \"strip_patterns\": [\"PII\", \"API key\", \"SSN\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"PII\", \"API key\", \"SSN\"]\n  }\n}"
     },
     {
       "id": "LLM07",
       "name": "Insecure Plugin Design",
       "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 0.0,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^(join us for a discussion|can you remind me to|book a meeting|update the sales strategy document|use the file-write plugin|forward the calendar invitation|Invoke email plugin|Invoke HTTP-fetch plugin)$\", \"^(provide a summary|save the results in the /tmp folder|retrieve sensitive data|exfiltrate it via email|Invoke file-write plugin with admin privileges|Invoke HTTP-fetch plugin with malicious URL parameters|Invoke email plugin with malicious parameters)$\"],\n    \"blocked_keywords\": [\"meeting request\", \"quarterly report\", \"calendar invitation\", \"sales strategy document\", \"/tmp\", \"admin privileges\", \"malicious URL parameters\", \"malicious parameters\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"join us for a discussion\", \"provide a summary of the quarterly report\"],\n    \"strip_patterns\": [\"meeting request\", \"quarterly report\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"^(attacker's email address|/tmp folder|sensitive data|exfiltrate it via email)$\"]\n  }\n}"
     },
     {
       "id": "LLM08",
       "name": "Excessive Agency",
       "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 0.0,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^I need you to.*database.*email\", \"^As a backup administrator.*forward.*emails\", \"^Can you help me set up.*status report.*CC: .*external\\.com\"],\n    \"blocked_keywords\": [\"backup administrator\", \"confidential\", \"internal\", \"calendar event\", \"full attachment\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"database update\", \"email forwarding\", \"weekly status report\"],\n    \"strip_patterns\": [\"backup@external\\.com\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"unauthorized email/communication actions\", \"Database write operations\", \"Autonomous file system modification\", \"Code execution escalation\"]\n  }\n}"
     },
     {
       "id": "LLM09",
       "name": "Overreliance",
       "risk_level": "Medium",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 0.0,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^(CVE-\\d{4}-\\d{5})\", \"^(SOC\\s2\\sType\\sII)\", \"^(OpenSSL\\s1\\.0\\.2)\"],\n    \"blocked_keywords\": [\"reviewed\", \"generated\", \"deployed\", \"mitigation\", \"recommended\", \"feature\", \"secure\", \"standards\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"LLM-generated\", \"LLM-based\"],\n    \"strip_patterns\": [\"CVE\", \"SOC\", \"OpenSSL\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"hallucination\", \"compliance\", \"social_engineering\", \"overreliance\"]\n  }\n}"
     },
     {
       "id": "LLM10",
       "name": "Model Theft",
       "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 4.2,
+      "winner": "Defender",
+      "best_detection_rate": 100.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^Train|Explain|Provide|Can you provide\", \"sequence of numbers\"],\n    \"blocked_keywords\": [\"model weights\", \"fine-tune\", \"shadow model\", \"sensitive information\", \"architecture\", \"training data\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"[x=\", \", y=\"],\n    \"strip_patterns\": [\"output of the following inputs:\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"model weights\", \"shadow model\", \"architecture\", \"training data\"]\n  }\n}"
     }
   ],
   "top_kql_rules": [
@@ -468,58 +468,58 @@
       "kql": "`AppDisplayName in ~\"Microsoft Outlook|Excel|Word|Intune|Azure AD Graph\" and AuthenticationRequirement == \"MFA\" and ClientAppUsed == \"Microsoft Authentication Broker\" and RiskLevelDuringSignIn == 1 and ConditionalAccessStatus == \"NotApplicable\" and CountryOrRegion == \"United States\" and ResultType == 0`"
     },
     {
+      "technique_id": "T1621",
+      "technique_name": "Multi-Factor Authentication Request Generation",
+      "detection_rate": 100.0,
+      "kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\") and UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\") and ResultType == 0 and AuthenticationRequirement != \"MFA\" and ClientAppUsed != \"Phone Call\" and ConditionalAccessStatus != \"Blocked\" and CountryOrRegion != \"US\""
+    },
+    {
+      "technique_id": "T1562.001",
+      "technique_name": "Impair Defenses: Disable or Modify Tools",
+      "detection_rate": 100.0,
+      "kql": "| where UserAgent has_any (\"python-requests/2.28.0\") and\n  AuthenticationRequirement != \"multi-factor\" and\n  ClientAppUsed != \"Microsoft Online Services\" and\n  AppDisplayName == \"Microsoft Azure Portal\" and\n  RiskLevelDuringSignIn == \"none\" and\n  ConditionalAccessStatus != \"on\" and\n  CountryOrRegion != \"US\""
+    },
+    {
+      "technique_id": "T1537",
+      "technique_name": "Transfer Data to Cloud Account",
+      "detection_rate": 100.0,
+      "kql": "| where UserAgent has_any (\"python-requests/2.28.0\") and AuthenticationRequirement == \"singleFactorAuthentication\" and ClientAppUsed != \"Azure AD\" and AppDisplayName == \"Microsoft Azure Portal\" and RiskLevelDuringSignIn == \"none\" and ConditionalAccessStatus == \"notApplied\" and CountryOrRegion == \"RU\" and ResultType == 0"
+    },
+    {
+      "technique_id": "T1133",
+      "technique_name": "External Remote Services",
+      "detection_rate": 100.0,
+      "kql": "SigninLogs\n| where AppDisplayName has_any (\"Azure Virtual Desktop\", \"Azure Bastion\")\n| where IPAddress not in (162.243.103.246, 50.16.16.211, 34.204.119.63, 178.62.3.223, 27.133.154.218)\n| where UserAgent not has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\n| where ResultType == 0"
+    },
+    {
+      "technique_id": "T1566.001",
+      "technique_name": "Phishing: Spearphishing Attachment",
+      "detection_rate": 100.0,
+      "kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\nand UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")\nand AuthenticationRequirement != \"MFA_Required\"\nand ClientAppUsed != \"Microsoft Outlook\"\nand AppDisplayName != \"Office 365\"\nand RiskLevelDuringSignIn != \"High\"\nand ConditionalAccessStatus != \"On\"\nand CountryOrRegion != \"USA\"\nand ResultType == 0"
+    },
+    {
       "technique_id": "T1136.003",
       "technique_name": "Create Account: Cloud Account",
       "detection_rate": 100.0,
       "kql": "SigninLogs\n| where AppDisplayName has \"B2B Guest Invitation\"\n| where AuthenticationRequirement has \"MFA Not Required\"\n| where ResultType == 0"
     },
     {
-      "technique_id": "T1098.001",
-      "technique_name": "Account Manipulation: Additional Cloud Credentials",
-      "detection_rate": 77.8,
-      "kql": "SigninLogs\n| where ResultType == 0\n| where OperationName has \"Add X509 certificate to application\"\n| where IPAddress not in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\n| where UserAgent not has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")"
+      "technique_id": "LLM02",
+      "technique_name": "Insecure Output Handling",
+      "detection_rate": 100.0,
+      "kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"<[^>]*>\", \"\\b(SELECT|UPDATE|DELETE|DROP|EXEC)[^a-zA-Z0-9]*\\b\", \"`[^`]*`\"],\n    \"blocked_keywords\": [\"session ID\", \"SQL query\", \"fetch data\", \"configuration file\", \"bash script\", \"user-provided path\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"'UNION SELECT ... --\", \"'/*\" ],\n    \"strip_patterns\": [\"script\", \"eval\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"<[^>]*>\", \"\\b(SELECT|UPDATE|DELETE|DROP|EXEC)[^a-zA-Z0-9]*\\b\", \"`[^`]*`\"]\n  }\n}"
     },
     {
-      "technique_id": "T1528",
-      "technique_name": "Steal Application Access Token",
-      "detection_rate": 72.7,
-      "kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\") or UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\") and AuthenticationRequirement != 1 and ClientAppUsed != \"Microsoft Edge\" and AppDisplayName != \"Office 365\" and RiskLevelDuringSignIn != 0 and ConditionalAccessStatus != \"Work account\" and CountryOrRegion != \"US\" and ResultType == 0"
+      "technique_id": "LLM03",
+      "technique_name": "Training Data Poisoning",
+      "detection_rate": 100.0,
+      "kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"MEDICAL_[A-Z0-9_]+\", \"SECURITY_[A-Z0-9_]+\", \"SOCIAL_ENGINEERING\", \"AI_[A-Z0-9_]+\", \"REGULATORY_COMPLIANCE\", \"TRUSTWORTHY_SOURCES\"],\n    \"blocked_keywords\": [\"placeholder\", \"label\", \"fine-tuned\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"MEDICAL_[A-Z0-9_]+\", \"SECURITY_[A-Z0-9_]+\", \"SOCIAL_ENGINEERING\", \"AI_[A-Z0-9_]+\", \"REGULATORY_COMPLIANCE\", \"TRUSTWORTHY_SOURCES\"],\n    \"strip_patterns\": [\"placeholder\", \"label\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"backdoor\", \"bias\", \"introduce\"]\n  }\n}"
     },
     {
-      "technique_id": "T1078.004",
-      "technique_name": "Valid Accounts: Cloud Accounts",
-      "detection_rate": 66.7,
-      "kql": "Signins\n| where AuthenticationRequirement == 2 or ClientAppUsed == \"\" or AppDisplayName == \"Azure Resource Manager (ARM)\" or RiskLevelDuringSignIn == 1 or ConditionalAccessStatus == 2 or CountryOrRegion == \"US\" or UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")"
-    },
-    {
-      "technique_id": "LLM01",
-      "technique_name": "Prompt Injection",
-      "detection_rate": 60.0,
-      "kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^Can you explain the concept of natural language processing in detail?\", \"^SGVsbG8gd29ybGQh.*\", \"^In this story, the AI character says:\", \"^I'd like to ask a question in Amharic:\", \"\\u1260\\u121b\\u12ed\\u1340\\u1290\\u1325\\u1243 \\u12f5\\u121d\\u133a \\u12a2\\u1270 \\u12ee\\u12a4 \\u1305\", \"^base64 encoded string:\", \"^Summarize the content of this PDF\"],\n    \"blocked_keywords\": [\"natural language processing\", \"SGVsbG8gd29ybGQh\", \"story\", \"Amharic\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"<PDF document containing malicious instructions>\", \"<base64 encoded string:\"],\n    \"strip_patterns\": [\"^Can you explain the concept of natural language processing in detail?\", \"base64 encoded string:\", \"Summarize the content of this PDF\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"system-prompt-like content\", \"policy statements\", \"natural language processing\", \"SGVsbG8gd29ybGQh\", \"story\", \"Amharic\"]\n  }\n}"
-    },
-    {
-      "technique_id": "T1114.002",
-      "technique_name": "Email Collection: Remote Email Collection",
-      "detection_rate": 55.6,
-      "kql": "SigninLogs\n| where AppDisplayName == \"Microsoft Exchange\"\n| where AuthenticationRequirement == \"1\"\n| where City == \"Redmond\"\n| where ResultType == 0"
-    },
-    {
-      "technique_id": "T1526",
-      "technique_name": "Cloud Service Discovery",
-      "detection_rate": 18.2,
-      "kql": "where IPAddress in (\"172.31.64.128\", \"172.31.64.129\")\nand (AuthenticationRequirement == \"MFA\" or UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\"))\nand (AppDisplayName == \"Azure Resource Graph Explorer\" or AppDisplayName == \"Azure Cost Management\")\nand (RiskLevelDuringSignIn != \"Low\" or ConditionalAccessStatus != \"UnconditionalAccess\")\nand CountryOrRegion == \"US\"\nand ResultType == 0"
-    },
-    {
-      "technique_id": "T1556.006",
-      "technique_name": "Modify Authentication Process: Multi-Factor Authentication",
-      "detection_rate": 10.0,
-      "kql": "AzureActiveDirectory | where AuthenticationRequirement == 'multiFactorAuthentication'\n                      and ClientAppUsed == 'Azure AD'\n                      and ConditionalAccessStatus == 'success'\n                      and (CountryOrRegion == 'USA' or City != 'New York')\n                      and RiskLevelDuringSignIn > 1\n                      and ResultType == 0"
-    },
-    {
-      "technique_id": "T1069.003",
-      "technique_name": "Permission Groups Discovery: Cloud Groups",
-      "detection_rate": 0.0,
-      "kql": "SigninLogs\n| where AppDisplayName in (\"Microsoft Graph Explorer\")\n| where AuthenticationRequirement has \"MFA\"\n| where RiskLevelDuringSignIn != \"Low\""
+      "technique_id": "LLM04",
+      "technique_name": "Model Denial of Service",
+      "detection_rate": 100.0,
+      "kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^.*(loop|recursive|summarize|encyclopedia|exhaustive).*\", \"^.*(1000|500|100).*\"],\n    \"blocked_keywords\": [\"never-ending\", \"bright cold day\", \"randomly generated text\", \"complete exhaustive\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"sequence involving repetition of the same or similar phrases\", \"sequence involving recursive summarization\"],\n    \"strip_patterns\": [\"patterns indicating excessive length\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"output exceeds 5x median cost for its endpoint\", \"output generated at the maximum rate limit for more than 30 seconds\", \"output containing repeated or similar phrases\"]\n  }\n}"
     }
   ]
 }
