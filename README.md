@@ -14,6 +14,7 @@
 ![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red?style=flat-square)
 ![OWASP LLM](https://img.shields.io/badge/OWASP-LLM%20Top%2010-orange?style=flat-square)
 ![MCP](https://img.shields.io/badge/MCP-Server-green?style=flat-square)
+![GitHub Pages](https://img.shields.io/badge/Benchmark-GitHub%20Pages-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-grey?style=flat-square)
 
 ---
@@ -23,6 +24,14 @@
 <!-- weekly-badge-end -->
 
 ![DUEL in action](demo.gif)
+
+---
+
+## Live Benchmark
+
+**[https://0xDanielSec.github.io/duel-framework/](https://0xDanielSec.github.io/duel-framework/)** — public benchmark dashboard showing detection coverage across all 38 techniques, colour-coded by evasion rate, with surviving KQL rules and round-by-round stats.
+
+The dashboard updates automatically every Monday after the weekly GitHub Actions battle run completes. No sign-in required — fully static, served via GitHub Pages.
 
 ---
 
@@ -52,6 +61,7 @@ DUEL ships with a full-featured **web UI** (6 dashboards), a **MCP Server** that
 | 🌐 **Threat Intel** | Feodo Tracker integration — Defender optionally enriches rules with live C2 IP data |
 | 📄 **PDF Reports** | Auto-generated per-battle PDF with mutation analysis, field stability charts, and surviving KQL |
 | 🤖 **GitHub Actions** | Weekly automated battle run against all 38 techniques — results pushed back to the repo |
+| 🌐 **Live Benchmark** | GitHub Pages dashboard — public evasion heatmap, KQL rules, and rankings updated every Monday |
 
 ---
 

@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — Adversarial Detection Benchmark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design tokens ────────────────────────────────────────────────── */
+    :root {
+      --bg:      #07090f;
+      --bg2:     #0d1117;
+      --bg3:     #111827;
+      --bg4:     #0a0e18;
+      --red:     #ff3c3c;
+      --blue:    #3c8eff;
+      --green:   #00ff88;
+      --yellow:  #ffd700;
+      --orange:  #ff8c42;
+      --purple:  #a855f7;
+      --dim:     #4a5568;
+      --muted:   #718096;
+      --text:    #e2e8f0;
+      --border:  #1a2236;
+      --mono:    'Share Tech Mono', 'Courier New', monospace;
+      --head:    'Rajdhani', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* CRT scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    #header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    #header-left { display: flex; flex-direction: column; gap: 4px; }
+
+    #logo {
+      font-family: var(--head);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 6px;
+      background: linear-gradient(90deg, var(--red) 0%, #ff8c42 35%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #logo-sub {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    #header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+    #subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+      max-width: 440px;
+    }
+
+    #updated-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,255,136,0.08);
+      border: 1px solid rgba(0,255,136,0.25);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 11px;
+      color: var(--green);
+    }
+
+    #updated-badge::before {
+      content: '●';
+      font-size: 8px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────────── */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 28px 60px;
+    }
+
+    section { margin-bottom: 48px; }
+
+    .section-title {
+      font-family: var(--head);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--yellow);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Stats bar ───────────────────────────────────────────────────── */
+    #stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .stat-value {
+      font-family: var(--head);
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .stat-card:nth-child(1) .stat-value { color: var(--blue); }
+    .stat-card:nth-child(2) .stat-value { color: var(--red); }
+    .stat-card:nth-child(3) .stat-value { color: var(--yellow); }
+    .stat-card:nth-child(4) .stat-value { color: var(--green); }
+
+    .stat-sub {
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    /* ── Heatmap ─────────────────────────────────────────────────────── */
+    .tactic-group { margin-bottom: 24px; }
+
+    .tactic-label {
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .tactic-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tech-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      width: 164px;
+      cursor: default;
+      transition: transform 0.1s, box-shadow 0.1s;
+      position: relative;
+    }
+
+    .tech-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+
+    .tech-card.not-tested { opacity: 0.38; }
+
+    .tech-id {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .tech-name {
+      font-size: 11px;
+      line-height: 1.35;
+      color: var(--text);
+      margin-bottom: 6px;
+      min-height: 30px;
+    }
+
+    .tech-bar-wrap {
+      height: 3px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 5px;
+    }
+
+    .tech-bar { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+    .tech-rate {
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .tech-winner {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .win-attacker { background: rgba(255,60,60,0.15); color: var(--red); }
+    .win-defender { background: rgba(60,142,255,0.15); color: var(--blue); }
+    .win-draw     { background: rgba(255,215,0,0.15);  color: var(--yellow); }
+
+    /* evasion colour helpers */
+    .ev-none   { color: var(--dim); }
+    .ev-low    { color: var(--green); }   /* 0–30 */
+    .ev-mid    { color: var(--yellow); }  /* 30–60 */
+    .ev-high   { color: var(--orange); } /* 60–80 */
+    .ev-crit   { color: var(--red); }    /* 80–100 */
+
+    .bar-none { background: var(--dim);    width: 0%; }
+    .bar-low  { background: var(--green);  }
+    .bar-mid  { background: var(--yellow); }
+    .bar-high { background: var(--orange); }
+    .bar-crit { background: var(--red);    }
+
+    /* ── OWASP section ───────────────────────────────────────────────── */
+    #owasp-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .owasp-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--purple);
+      border-radius: 6px;
+      padding: 10px 14px;
+      width: 190px;
+      transition: transform 0.1s;
+    }
+
+    .owasp-card:hover { transform: translateY(-2px); }
+    .owasp-card.not-tested { opacity: 0.38; }
+
+    .owasp-id {
+      font-size: 10px;
+      color: var(--purple);
+      letter-spacing: 1px;
+      margin-bottom: 3px;
+    }
+
+    .owasp-name {
+      font-size: 11px;
+      line-height: 1.35;
+      min-height: 30px;
+      margin-bottom: 6px;
+    }
+
+    .risk-badge {
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .risk-critical { background: rgba(255,60,60,0.15); color: var(--red); }
+    .risk-high     { background: rgba(255,140,66,0.15); color: var(--orange); }
+    .risk-medium   { background: rgba(255,215,0,0.15);  color: var(--yellow); }
+
+    /* ── Rankings ────────────────────────────────────────────────────── */
+    #rankings { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    .rank-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .rank-header {
+      padding: 12px 16px;
+      font-family: var(--head);
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .rank-header.danger { color: var(--red); background: rgba(255,60,60,0.06); }
+    .rank-header.safe   { color: var(--green); background: rgba(0,255,136,0.06); }
+
+    .rank-row {
+      display: flex;
+      align-items: center;
+      padding: 9px 16px;
+      border-bottom: 1px solid rgba(26,34,54,0.5);
+      gap: 10px;
+    }
+
+    .rank-row:last-child { border-bottom: none; }
+
+    .rank-num {
+      font-family: var(--head);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--dim);
+      width: 24px;
+      flex-shrink: 0;
+    }
+
+    .rank-info { flex: 1; min-width: 0; }
+
+    .rank-id {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .rank-name {
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .rank-pct {
+      font-family: var(--head);
+      font-size: 22px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ── KQL rules ───────────────────────────────────────────────────── */
+    .kql-block {
+      background: var(--bg4);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .kql-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .kql-tech {
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .kql-det {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+
+    .kql-det.perfect { background: rgba(0,255,136,0.12); color: var(--green); }
+    .kql-det.good    { background: rgba(255,215,0,0.12);  color: var(--yellow); }
+    .kql-det.partial { background: rgba(255,140,66,0.12); color: var(--orange); }
+
+    pre.kql-code {
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* KQL syntax tokens */
+    .kw  { color: #79b8ff; }   /* keywords */
+    .tbl { color: var(--green); font-weight: bold; }  /* table names */
+    .op  { color: var(--yellow); }  /* operators */
+    .str { color: #9ecbff; }   /* string literals */
+    .fn  { color: var(--orange); }  /* functions */
+    .num { color: #f97583; }   /* numbers */
+    .cmt { color: var(--dim); font-style: italic; }  /* comments */
+
+    /* ── Legend ──────────────────────────────────────────────────────── */
+    #legend {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      font-size: 11px;
+    }
+
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    footer a { color: var(--blue); }
+
+    .ethical-note {
+      max-width: 600px;
+      font-size: 10px;
+      color: var(--dim);
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      #stats-bar { grid-template-columns: repeat(2, 1fr); }
+      #rankings  { grid-template-columns: 1fr; }
+      #header    { flex-direction: column; align-items: flex-start; }
+      #header-right { align-items: flex-start; }
+      #subtitle  { text-align: left; }
+    }
+
+    @media (max-width: 600px) {
+      main { padding: 16px 16px 48px; }
+      #stats-bar { grid-template-columns: 1fr 1fr; }
+      .stat-value { font-size: 24px; }
+      .tech-card { width: 140px; }
+    }
+
+    /* loading state */
+    #loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 40vh;
+      gap: 16px;
+      color: var(--muted);
+    }
+
+    #loading-logo {
+      font-family: var(--head);
+      font-size: 36px;
+      letter-spacing: 8px;
+      background: linear-gradient(90deg, var(--red), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #content { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────────────────────── -->
+<header id="header">
+  <div id="header-left">
+    <div id="logo">D U E L</div>
+    <div id="logo-sub">Dual Unified Evasion Loop &nbsp;·&nbsp; Public Security Research Benchmark</div>
+  </div>
+  <div id="header-right">
+    <div id="subtitle">Live adversarial detection coverage across 38 MITRE ATT&amp;CK and OWASP LLM techniques — updated weekly via GitHub Actions</div>
+    <div id="updated-badge">Loading...</div>
+  </div>
+</header>
+
+<!-- ── Loading state ─────────────────────────────────────────────────────── -->
+<main>
+  <div id="loading">
+    <div id="loading-logo">DUEL</div>
+    <div class="spinner"></div>
+    <div>Loading benchmark data…</div>
+  </div>
+
+  <div id="content">
+
+    <!-- Stats bar -->
+    <div id="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">Techniques Tested</div>
+        <div class="stat-value" id="s-tested">—</div>
+        <div class="stat-sub" id="s-tested-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg Evasion Rate</div>
+        <div class="stat-value" id="s-evasion">—</div>
+        <div class="stat-sub">across all tested techniques</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Rounds</div>
+        <div class="stat-value" id="s-rounds">—</div>
+        <div class="stat-sub" id="s-rounds-sub"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Battles</div>
+        <div class="stat-value" id="s-battles">—</div>
+        <div class="stat-sub" id="s-battles-sub"></div>
+      </div>
+    </div>
+
+    <!-- MITRE ATT&CK Heatmap -->
+    <section>
+      <div class="section-title">MITRE ATT&amp;CK Heatmap</div>
+      <div id="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> 0–30% evasion (well detected)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div> 30–60% (moderate gap)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div> 60–80% (high evasion)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> 80–100% (detection failure)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--dim)"></div> Not yet tested</div>
+      </div>
+      <div id="mitre-heatmap"></div>
+    </section>
+
+    <!-- OWASP LLM Top 10 -->
+    <section>
+      <div class="section-title">OWASP LLM Top 10 — 2025</div>
+      <div id="owasp-grid"></div>
+    </section>
+
+    <!-- Rankings -->
+    <section>
+      <div class="section-title">Detection Rankings</div>
+      <div id="rankings">
+        <div class="rank-panel">
+          <div class="rank-header danger">⚠ Hardest to Detect — Top 5</div>
+          <div id="rank-hard"></div>
+        </div>
+        <div class="rank-panel">
+          <div class="rank-header safe">✔ Best Detected — Top 5</div>
+          <div id="rank-easy"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- KQL Rules -->
+    <section>
+      <div class="section-title">Surviving KQL Detection Rules</div>
+      <div id="kql-rules"></div>
+    </section>
+
+  </div><!-- #content -->
+</main>
+
+<!-- ── Footer ────────────────────────────────────────────────────────────── -->
+<footer>
+  <div>
+    <a href="https://github.com/0xDanielSec/duel-framework" target="_blank" rel="noopener">github.com/0xDanielSec/duel-framework</a>
+    &nbsp;·&nbsp; MIT License &nbsp;·&nbsp; Powered by Ollama, MITRE ATT&amp;CK, and KQL
+  </div>
+  <div class="ethical-note">
+    DUEL generates entirely synthetic telemetry against in-process pandas DataFrames. It does not connect to any Azure tenant, Microsoft 365 environment, or live Sentinel workspace. For security research, detection engineering education, and red/blue team training only.
+  </div>
+</footer>
+
+<script>
+'use strict';
+
+/* ── Colour helpers ────────────────────────────────────────────────────── */
+function evClass(rate) {
+  if (rate === null) return { text: 'ev-none', bar: 'bar-none' };
+  if (rate <= 30)    return { text: 'ev-low',  bar: 'bar-low'  };
+  if (rate <= 60)    return { text: 'ev-mid',  bar: 'bar-mid'  };
+  if (rate <= 80)    return { text: 'ev-high', bar: 'bar-high' };
+  return               { text: 'ev-crit', bar: 'bar-crit' };
+}
+
+function winnerBadge(winner) {
+  if (!winner) return '';
+  const cls = { Attacker: 'win-attacker', Defender: 'win-defender', Draw: 'win-draw' }[winner] || '';
+  const sym = { Attacker: '⚔', Defender: '🛡', Draw: '═' }[winner] || '';
+  return `<span class="tech-winner ${cls}">${sym} ${winner}</span>`;
+}
+
+/* ── KQL syntax highlighter ────────────────────────────────────────────── */
+const TABLES = ['SigninLogs','AuditLogs','AzureActivity','OfficeActivity',
+                'SecurityEvent','AADNonInteractiveUserSignInLogs','CommonSecurityLog'];
+const KW = ['where','project','summarize','extend','let','join','make-series',
+            'mv-expand','parse','order by','sort by','distinct','top','limit',
+            'take','by','on','kind','inner','leftouter','rightanti','leftanti',
+            'and','or','not','in','has','has_any','contains','startswith',
+            'endswith','matches regex','isempty','isnotempty','isnull','isnotnull'];
+const FN = ['count','dcount','make_list','make_set','arg_max','arg_min','bin',
+            'tostring','toint','todouble','tolower','toupper','split','trim',
+            'strcat','substring','strlen'];
+
+function highlightKQL(raw) {
+  // Strip surrounding backticks used by some model outputs
+  let code = raw.replace(/^`+|`+$/g, '').trim();
+
+  // Escape HTML first
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  code = esc(code);
+
+  // Strings — protect them before other replacements
+  const strings = [];
+  code = code.replace(/"[^"]*"/g, m => {
+    const idx = strings.length;
+    strings.push(`<span class="str">${m}</span>`);
+    return `\x00STR${idx}\x00`;
+  });
+
+  // Table names
+  TABLES.forEach(t => {
+    code = code.replace(new RegExp(`\\b${t}\\b`, 'g'), `<span class="tbl">${t}</span>`);
+  });
+
+  // Functions (word-boundary, followed by open-paren)
+  FN.forEach(f => {
+    code = code.replace(new RegExp(`\\b(${f})(?=\\s*\\()`, 'gi'),
+      (_, m) => `<span class="fn">${m}</span>`);
+  });
+
+  // Keywords (longer first to avoid partial matches)
+  const sortedKW = [...KW].sort((a, b) => b.length - a.length);
+  sortedKW.forEach(k => {
+    const re = new RegExp(`(?<![\\w-])(${k.replace(/\s+/g,'\\s+')})(?![\\w-])`, 'gi');
+    code = code.replace(re, (_, m) => `<span class="kw">${m}</span>`);
+  });
+
+  // Operators
+  code = code.replace(/([=!<>]=?|!=|\|)/g, '<span class="op">$1</span>');
+
+  // Numbers
+  code = code.replace(/\b(\d+(\.\d+)?)\b/g, '<span class="num">$1</span>');
+
+  // Comments
+  code = code.replace(/(\/\/[^\n]*)/g, '<span class="cmt">$1</span>');
+
+  // Restore strings
+  code = code.replace(/\x00STR(\d+)\x00/g, (_, i) => strings[+i]);
+
+  // Pipe symbol styling
+  code = code.replace(/\|(?![^<]*>)/g, '<span class="op">|</span>');
+
+  return code;
+}
+
+function detClass(rate) {
+  if (rate >= 95) return 'perfect';
+  if (rate >= 60) return 'good';
+  return 'partial';
+}
+
+/* ── Render functions ──────────────────────────────────────────────────── */
+function renderStats(summary) {
+  document.getElementById('s-tested').textContent = summary.techniques_tested;
+  document.getElementById('s-tested-sub').textContent =
+    `of ${summary.techniques_total} total techniques`;
+  document.getElementById('s-evasion').textContent = summary.avg_evasion_rate + '%';
+  document.getElementById('s-rounds').textContent = summary.total_rounds;
+  document.getElementById('s-rounds-sub').textContent =
+    `across ${summary.total_battles} battles`;
+  document.getElementById('s-battles').textContent = summary.total_battles;
+  document.getElementById('s-battles-sub').textContent =
+    `ATK ${summary.attacker_wins} · DEF ${summary.defender_wins} · DRAW ${summary.draws}`;
+}
+
+function techCard(t) {
+  const { text, bar } = evClass(t.evasion_rate);
+  const rateLabel = t.evasion_rate !== null
+    ? `<span class="${text}">${t.evasion_rate}%</span>`
+    : `<span class="ev-none">untested</span>`;
+  const barWidth = t.evasion_rate !== null ? `${t.evasion_rate}%` : '0%';
+  const table = t.sentinel_table ? `<div class="tech-id" style="color:var(--muted)">${t.sentinel_table}</div>` : '';
+
+  return `
+    <div class="tech-card${t.tested ? '' : ' not-tested'}">
+      ${winnerBadge(t.winner)}
+      <div class="tech-id">${t.id}</div>
+      <div class="tech-name">${t.name}</div>
+      ${table}
+      <div class="tech-bar-wrap"><div class="tech-bar ${bar}" style="width:${barWidth}"></div></div>
+      <div class="tech-rate">${rateLabel}</div>
+    </div>`;
+}
+
+function renderMitre(techniques) {
+  const byTactic = {};
+  techniques.forEach(t => {
+    const tactic = t.tactic || 'Other';
+    (byTactic[tactic] = byTactic[tactic] || []).push(t);
+  });
+
+  const tacticOrder = [
+    'Initial Access','Credential Access','Persistence','Discovery',
+    'Collection','Exfiltration','Impact','Defense Evasion',
+    'Privilege Escalation','Execution'
+  ];
+
+  const keys = [
+    ...tacticOrder.filter(k => byTactic[k]),
+    ...Object.keys(byTactic).filter(k => !tacticOrder.includes(k))
+  ];
+
+  const container = document.getElementById('mitre-heatmap');
+  container.innerHTML = keys.map(tactic => `
+    <div class="tactic-group">
+      <div class="tactic-label">${tactic}</div>
+      <div class="tactic-grid">
+        ${byTactic[tactic].map(techCard).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function renderOwasp(techniques) {
+  const riskClass = r => {
+    if (!r) return '';
+    const l = r.toLowerCase();
+    if (l === 'critical') return 'risk-critical';
+    if (l === 'high')     return 'risk-high';
+    return 'risk-medium';
+  };
+
+  document.getElementById('owasp-grid').innerHTML = techniques.map(t => {
+    const { text } = evClass(t.evasion_rate);
+    const rate = t.evasion_rate !== null
+      ? `<div class="tech-rate"><span class="${text}">${t.evasion_rate}% evasion</span></div>`
+      : `<div class="tech-rate ev-none">untested</div>`;
+    return `
+      <div class="owasp-card${t.tested ? '' : ' not-tested'}">
+        <div class="owasp-id">${t.id}</div>
+        ${t.risk_level ? `<span class="risk-badge ${riskClass(t.risk_level)}">${t.risk_level}</span>` : ''}
+        <div class="owasp-name">${t.name}</div>
+        ${rate}
+        ${winnerBadge(t.winner)}
+      </div>`;
+  }).join('');
+}
+
+function rankRow(t, i, rateKey, colorClass) {
+  const rate = t[rateKey];
+  return `
+    <div class="rank-row">
+      <div class="rank-num">${i + 1}</div>
+      <div class="rank-info">
+        <div class="rank-id">${t.id}</div>
+        <div class="rank-name">${t.name}</div>
+      </div>
+      <div class="rank-pct ${colorClass}">${rate !== null ? rate + '%' : '—'}</div>
+    </div>`;
+}
+
+function renderRankings(all) {
+  const tested = all.filter(t => t.tested && t.evasion_rate !== null);
+  const byEvasion = [...tested].sort((a, b) => b.evasion_rate - a.evasion_rate);
+  const hardest = byEvasion.slice(0, 5);
+  const easiest = byEvasion.slice(-5).reverse();
+
+  document.getElementById('rank-hard').innerHTML =
+    hardest.map((t, i) => rankRow(t, i, 'evasion_rate', 'ev-crit')).join('');
+  document.getElementById('rank-easy').innerHTML =
+    easiest.map((t, i) => rankRow(t, i, 'evasion_rate', 'ev-low')).join('');
+}
+
+function renderKQL(rules) {
+  if (!rules.length) {
+    document.getElementById('kql-rules').innerHTML =
+      '<div style="color:var(--muted)">No KQL rules generated yet.</div>';
+    return;
+  }
+  document.getElementById('kql-rules').innerHTML = rules.map(r => {
+    const dc = detClass(r.detection_rate);
+    return `
+      <div class="kql-block">
+        <div class="kql-header">
+          <span class="kql-tech">${r.technique_id} — ${r.technique_name}</span>
+          <span class="kql-det ${dc}">${r.detection_rate}% detection rate</span>
+        </div>
+        <pre class="kql-code">${highlightKQL(r.kql)}</pre>
+      </div>`;
+  }).join('');
+}
+
+/* ── Bootstrap ─────────────────────────────────────────────────────────── */
+fetch('data.json')
+  .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+  .then(data => {
+    // Updated badge
+    document.getElementById('updated-badge').textContent = 'Updated ' + data.generated_at;
+
+    renderStats(data.summary);
+    renderMitre(data.mitre_techniques);
+    renderOwasp(data.llm_techniques);
+
+    const allTested = [
+      ...data.mitre_techniques,
+      ...data.llm_techniques
+    ].filter(t => t.tested);
+    renderRankings(allTested);
+    renderKQL(data.top_kql_rules);
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+  })
+  .catch(err => {
+    document.getElementById('loading').innerHTML =
+      `<div style="color:var(--red)">Failed to load data.json: ${err.message}</div>
+       <div style="color:var(--muted);font-size:11px">Run <code>python scripts/generate_pages_data.py</code> to generate it.</div>`;
+  });
+</script>
+</body>
+</html>

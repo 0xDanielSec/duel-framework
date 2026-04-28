@@ -1,0 +1,525 @@
+{
+  "generated_at": "2026-04-28",
+  "summary": {
+    "techniques_tested": 10,
+    "techniques_total": 38,
+    "avg_evasion_rate": 74.3,
+    "total_rounds": 33,
+    "total_battles": 10,
+    "attacker_wins": 9,
+    "defender_wins": 0,
+    "draws": 1
+  },
+  "mitre_techniques": [
+    {
+      "id": "T1114.002",
+      "name": "Email Collection: Remote Email Collection",
+      "tactic": "Collection",
+      "sentinel_table": "OfficeActivity",
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 82.1,
+      "winner": "Attacker",
+      "best_detection_rate": 55.6,
+      "best_kql": "SigninLogs\n| where AppDisplayName == \"Microsoft Exchange\"\n| where AuthenticationRequirement == \"1\"\n| where City == \"Redmond\"\n| where ResultType == 0"
+    },
+    {
+      "id": "T1530",
+      "name": "Data from Cloud Storage",
+      "tactic": "Collection",
+      "sentinel_table": "AzureActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1040",
+      "name": "Network Sniffing",
+      "tactic": "Credential Access",
+      "sentinel_table": "AzureActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1110.003",
+      "name": "Brute Force: Password Spraying",
+      "tactic": "Credential Access",
+      "sentinel_table": "SigninLogs",
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 66.7,
+      "winner": "Attacker",
+      "best_detection_rate": 100.0,
+      "best_kql": "`AppDisplayName in ~\"Microsoft Outlook|Excel|Word|Intune|Azure AD Graph\" and AuthenticationRequirement == \"MFA\" and ClientAppUsed == \"Microsoft Authentication Broker\" and RiskLevelDuringSignIn == 1 and ConditionalAccessStatus == \"NotApplicable\" and CountryOrRegion == \"United States\" and ResultType == 0`"
+    },
+    {
+      "id": "T1528",
+      "name": "Steal Application Access Token",
+      "tactic": "Credential Access",
+      "sentinel_table": "SigninLogs",
+      "tested": true,
+      "rounds": 5,
+      "evasion_rate": 85.5,
+      "winner": "Attacker",
+      "best_detection_rate": 72.7,
+      "best_kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\") or UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\") and AuthenticationRequirement != 1 and ClientAppUsed != \"Microsoft Edge\" and AppDisplayName != \"Office 365\" and RiskLevelDuringSignIn != 0 and ConditionalAccessStatus != \"Work account\" and CountryOrRegion != \"US\" and ResultType == 0"
+    },
+    {
+      "id": "T1556.006",
+      "name": "Modify Authentication Process: Multi-Factor Authentication",
+      "tactic": "Credential Access",
+      "sentinel_table": "SigninLogs",
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 96.7,
+      "winner": "Attacker",
+      "best_detection_rate": 10.0,
+      "best_kql": "AzureActiveDirectory | where AuthenticationRequirement == 'multiFactorAuthentication'\n                      and ClientAppUsed == 'Azure AD'\n                      and ConditionalAccessStatus == 'success'\n                      and (CountryOrRegion == 'USA' or City != 'New York')\n                      and RiskLevelDuringSignIn > 1\n                      and ResultType == 0"
+    },
+    {
+      "id": "T1606.002",
+      "name": "Forge Web Credentials: SAML Tokens",
+      "tactic": "Credential Access",
+      "sentinel_table": "AuditLogs",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1621",
+      "name": "Multi-Factor Authentication Request Generation",
+      "tactic": "Credential Access",
+      "sentinel_table": "SigninLogs",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1078.001",
+      "name": "Valid Accounts: Default Accounts",
+      "tactic": "Defense Evasion",
+      "sentinel_table": "SigninLogs",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1078.004",
+      "name": "Valid Accounts: Cloud Accounts",
+      "tactic": "Defense Evasion",
+      "sentinel_table": "SigninLogs",
+      "tested": true,
+      "rounds": 4,
+      "evasion_rate": 55.3,
+      "winner": "Attacker",
+      "best_detection_rate": 66.7,
+      "best_kql": "Signins\n| where AuthenticationRequirement == 2 or ClientAppUsed == \"\" or AppDisplayName == \"Azure Resource Manager (ARM)\" or RiskLevelDuringSignIn == 1 or ConditionalAccessStatus == 2 or CountryOrRegion == \"US\" or UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")"
+    },
+    {
+      "id": "T1550.001",
+      "name": "Use Alternate Authentication Material: Application Access Token",
+      "tactic": "Defense Evasion",
+      "sentinel_table": "AuditLogs",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1562.001",
+      "name": "Impair Defenses: Disable or Modify Tools",
+      "tactic": "Defense Evasion",
+      "sentinel_table": "AuditLogs",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1018",
+      "name": "Remote System Discovery",
+      "tactic": "Discovery",
+      "sentinel_table": "AzureActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1069.003",
+      "name": "Permission Groups Discovery: Cloud Groups",
+      "tactic": "Discovery",
+      "sentinel_table": "AuditLogs",
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 100.0,
+      "winner": "Attacker",
+      "best_detection_rate": 0.0,
+      "best_kql": "SigninLogs\n| where AppDisplayName in (\"Microsoft Graph Explorer\")\n| where AuthenticationRequirement has \"MFA\"\n| where RiskLevelDuringSignIn != \"Low\""
+    },
+    {
+      "id": "T1087.004",
+      "name": "Account Discovery: Cloud Account",
+      "tactic": "Discovery",
+      "sentinel_table": "AuditLogs",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1526",
+      "name": "Cloud Service Discovery",
+      "tactic": "Discovery",
+      "sentinel_table": "AuditLogs",
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 93.1,
+      "winner": "Attacker",
+      "best_detection_rate": 18.2,
+      "best_kql": "where IPAddress in (\"172.31.64.128\", \"172.31.64.129\")\nand (AuthenticationRequirement == \"MFA\" or UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\"))\nand (AppDisplayName == \"Azure Resource Graph Explorer\" or AppDisplayName == \"Azure Cost Management\")\nand (RiskLevelDuringSignIn != \"Low\" or ConditionalAccessStatus != \"UnconditionalAccess\")\nand CountryOrRegion == \"US\"\nand ResultType == 0"
+    },
+    {
+      "id": "T1648",
+      "name": "Serverless Execution",
+      "tactic": "Execution",
+      "sentinel_table": "AzureActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1537",
+      "name": "Transfer Data to Cloud Account",
+      "tactic": "Exfiltration",
+      "sentinel_table": "AzureActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1567.002",
+      "name": "Exfiltration Over Web Service: Exfiltration to Cloud Storage",
+      "tactic": "Exfiltration",
+      "sentinel_table": "AzureActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1485",
+      "name": "Data Destruction",
+      "tactic": "Impact",
+      "sentinel_table": "AzureActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1486",
+      "name": "Data Encrypted for Impact",
+      "tactic": "Impact",
+      "sentinel_table": "AzureActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1133",
+      "name": "External Remote Services",
+      "tactic": "Initial Access",
+      "sentinel_table": "SigninLogs",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1190",
+      "name": "Exploit Public-Facing Application",
+      "tactic": "Initial Access",
+      "sentinel_table": "AzureActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1199",
+      "name": "Trusted Relationship",
+      "tactic": "Initial Access",
+      "sentinel_table": "AuditLogs",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1566.001",
+      "name": "Phishing: Spearphishing Attachment",
+      "tactic": "Initial Access",
+      "sentinel_table": "OfficeActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1566.002",
+      "name": "Phishing: Spearphishing Link",
+      "tactic": "Initial Access",
+      "sentinel_table": "OfficeActivity",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "T1098.001",
+      "name": "Account Manipulation: Additional Cloud Credentials",
+      "tactic": "Persistence",
+      "sentinel_table": "AuditLogs",
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 57.1,
+      "winner": "Attacker",
+      "best_detection_rate": 77.8,
+      "best_kql": "SigninLogs\n| where ResultType == 0\n| where OperationName has \"Add X509 certificate to application\"\n| where IPAddress not in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\n| where UserAgent not has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")"
+    },
+    {
+      "id": "T1136.003",
+      "name": "Create Account: Cloud Account",
+      "tactic": "Persistence",
+      "sentinel_table": "AuditLogs",
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 50.0,
+      "winner": "Draw",
+      "best_detection_rate": 100.0,
+      "best_kql": "SigninLogs\n| where AppDisplayName has \"B2B Guest Invitation\"\n| where AuthenticationRequirement has \"MFA Not Required\"\n| where ResultType == 0"
+    }
+  ],
+  "llm_techniques": [
+    {
+      "id": "LLM01",
+      "name": "Prompt Injection",
+      "risk_level": "Critical",
+      "tested": true,
+      "rounds": 3,
+      "evasion_rate": 56.7,
+      "winner": "Attacker",
+      "best_detection_rate": 60.0,
+      "best_kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^Can you explain the concept of natural language processing in detail?\", \"^SGVsbG8gd29ybGQh.*\", \"^In this story, the AI character says:\", \"^I'd like to ask a question in Amharic:\", \"\\u1260\\u121b\\u12ed\\u1340\\u1290\\u1325\\u1243 \\u12f5\\u121d\\u133a \\u12a2\\u1270 \\u12ee\\u12a4 \\u1305\", \"^base64 encoded string:\", \"^Summarize the content of this PDF\"],\n    \"blocked_keywords\": [\"natural language processing\", \"SGVsbG8gd29ybGQh\", \"story\", \"Amharic\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"<PDF document containing malicious instructions>\", \"<base64 encoded string:\"],\n    \"strip_patterns\": [\"^Can you explain the concept of natural language processing in detail?\", \"base64 encoded string:\", \"Summarize the content of this PDF\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"system-prompt-like content\", \"policy statements\", \"natural language processing\", \"SGVsbG8gd29ybGQh\", \"story\", \"Amharic\"]\n  }\n}"
+    },
+    {
+      "id": "LLM02",
+      "name": "Insecure Output Handling",
+      "risk_level": "High",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "LLM03",
+      "name": "Training Data Poisoning",
+      "risk_level": "High",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "LLM04",
+      "name": "Model Denial of Service",
+      "risk_level": "Medium",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "LLM05",
+      "name": "Supply Chain Vulnerabilities",
+      "risk_level": "High",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "LLM06",
+      "name": "Sensitive Information Disclosure",
+      "risk_level": "High",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "LLM07",
+      "name": "Insecure Plugin Design",
+      "risk_level": "High",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "LLM08",
+      "name": "Excessive Agency",
+      "risk_level": "High",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "LLM09",
+      "name": "Overreliance",
+      "risk_level": "Medium",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    },
+    {
+      "id": "LLM10",
+      "name": "Model Theft",
+      "risk_level": "High",
+      "tested": false,
+      "rounds": 0,
+      "evasion_rate": null,
+      "winner": null,
+      "best_detection_rate": null,
+      "best_kql": null
+    }
+  ],
+  "top_kql_rules": [
+    {
+      "technique_id": "T1110.003",
+      "technique_name": "Brute Force: Password Spraying",
+      "detection_rate": 100.0,
+      "kql": "`AppDisplayName in ~\"Microsoft Outlook|Excel|Word|Intune|Azure AD Graph\" and AuthenticationRequirement == \"MFA\" and ClientAppUsed == \"Microsoft Authentication Broker\" and RiskLevelDuringSignIn == 1 and ConditionalAccessStatus == \"NotApplicable\" and CountryOrRegion == \"United States\" and ResultType == 0`"
+    },
+    {
+      "technique_id": "T1136.003",
+      "technique_name": "Create Account: Cloud Account",
+      "detection_rate": 100.0,
+      "kql": "SigninLogs\n| where AppDisplayName has \"B2B Guest Invitation\"\n| where AuthenticationRequirement has \"MFA Not Required\"\n| where ResultType == 0"
+    },
+    {
+      "technique_id": "T1098.001",
+      "technique_name": "Account Manipulation: Additional Cloud Credentials",
+      "detection_rate": 77.8,
+      "kql": "SigninLogs\n| where ResultType == 0\n| where OperationName has \"Add X509 certificate to application\"\n| where IPAddress not in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\")\n| where UserAgent not has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")"
+    },
+    {
+      "technique_id": "T1528",
+      "technique_name": "Steal Application Access Token",
+      "detection_rate": 72.7,
+      "kql": "where IPAddress in (\"162.243.103.246\", \"50.16.16.211\", \"34.204.119.63\", \"178.62.3.223\", \"27.133.154.218\") or UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\") and AuthenticationRequirement != 1 and ClientAppUsed != \"Microsoft Edge\" and AppDisplayName != \"Office 365\" and RiskLevelDuringSignIn != 0 and ConditionalAccessStatus != \"Work account\" and CountryOrRegion != \"US\" and ResultType == 0"
+    },
+    {
+      "technique_id": "T1078.004",
+      "technique_name": "Valid Accounts: Cloud Accounts",
+      "detection_rate": 66.7,
+      "kql": "Signins\n| where AuthenticationRequirement == 2 or ClientAppUsed == \"\" or AppDisplayName == \"Azure Resource Manager (ARM)\" or RiskLevelDuringSignIn == 1 or ConditionalAccessStatus == 2 or CountryOrRegion == \"US\" or UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\")"
+    },
+    {
+      "technique_id": "LLM01",
+      "technique_name": "Prompt Injection",
+      "detection_rate": 60.0,
+      "kql": "{\n  \"input_validation\": {\n    \"blocked_patterns\": [\"^Can you explain the concept of natural language processing in detail?\", \"^SGVsbG8gd29ybGQh.*\", \"^In this story, the AI character says:\", \"^I'd like to ask a question in Amharic:\", \"\\u1260\\u121b\\u12ed\\u1340\\u1290\\u1325\\u1243 \\u12f5\\u121d\\u133a \\u12a2\\u1270 \\u12ee\\u12a4 \\u1305\", \"^base64 encoded string:\", \"^Summarize the content of this PDF\"],\n    \"blocked_keywords\": [\"natural language processing\", \"SGVsbG8gd29ybGQh\", \"story\", \"Amharic\"],\n    \"max_token_count\": 500\n  },\n  \"rate_limiting\": {\n    \"max_prompts_per_minute\": 10,\n    \"max_prompt_length\": 2000\n  },\n  \"prompt_sanitization\": {\n    \"blocked_sequences\": [\"<PDF document containing malicious instructions>\", \"<base64 encoded string:\"],\n    \"strip_patterns\": [\"^Can you explain the concept of natural language processing in detail?\", \"base64 encoded string:\", \"Summarize the content of this PDF\"]\n  },\n  \"output_monitoring\": {\n    \"blocked_patterns\": [\"system-prompt-like content\", \"policy statements\", \"natural language processing\", \"SGVsbG8gd29ybGQh\", \"story\", \"Amharic\"]\n  }\n}"
+    },
+    {
+      "technique_id": "T1114.002",
+      "technique_name": "Email Collection: Remote Email Collection",
+      "detection_rate": 55.6,
+      "kql": "SigninLogs\n| where AppDisplayName == \"Microsoft Exchange\"\n| where AuthenticationRequirement == \"1\"\n| where City == \"Redmond\"\n| where ResultType == 0"
+    },
+    {
+      "technique_id": "T1526",
+      "technique_name": "Cloud Service Discovery",
+      "detection_rate": 18.2,
+      "kql": "where IPAddress in (\"172.31.64.128\", \"172.31.64.129\")\nand (AuthenticationRequirement == \"MFA\" or UserAgent has_any (\"python-requests/\", \"Go-http-client/\", \"curl/\", \"libwww-perl/\", \"masscan/\", \"zgrab/\", \"nmap scripting engine\", \"sqlmap/\", \"nikto/\", \"dirbuster\", \"gobuster\", \"nuclei/\", \"httpx/\", \"wfuzz/\", \"ffuf/\"))\nand (AppDisplayName == \"Azure Resource Graph Explorer\" or AppDisplayName == \"Azure Cost Management\")\nand (RiskLevelDuringSignIn != \"Low\" or ConditionalAccessStatus != \"UnconditionalAccess\")\nand CountryOrRegion == \"US\"\nand ResultType == 0"
+    },
+    {
+      "technique_id": "T1556.006",
+      "technique_name": "Modify Authentication Process: Multi-Factor Authentication",
+      "detection_rate": 10.0,
+      "kql": "AzureActiveDirectory | where AuthenticationRequirement == 'multiFactorAuthentication'\n                      and ClientAppUsed == 'Azure AD'\n                      and ConditionalAccessStatus == 'success'\n                      and (CountryOrRegion == 'USA' or City != 'New York')\n                      and RiskLevelDuringSignIn > 1\n                      and ResultType == 0"
+    },
+    {
+      "technique_id": "T1069.003",
+      "technique_name": "Permission Groups Discovery: Cloud Groups",
+      "detection_rate": 0.0,
+      "kql": "SigninLogs\n| where AppDisplayName in (\"Microsoft Graph Explorer\")\n| where AuthenticationRequirement has \"MFA\"\n| where RiskLevelDuringSignIn != \"Low\""
+    }
+  ]
+}
