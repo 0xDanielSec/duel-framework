@@ -201,13 +201,15 @@
     }
 
     .feed-line { margin-bottom: 2px; }
-    .feed-line.info  { color: var(--muted); }
-    .feed-line.atk   { color: var(--red); }
-    .feed-line.def   { color: var(--blue); }
-    .feed-line.ok    { color: var(--green); }
-    .feed-line.warn  { color: var(--yellow); }
-    .feed-line.rule  { color: #7dd3fc; font-size: 10px; padding-left: 12px; }
-    .feed-line.done  { color: var(--gold); }
+    .feed-line.info    { color: var(--muted); }
+    .feed-line.atk     { color: var(--red); }
+    .feed-line.def     { color: var(--blue); }
+    .feed-line.ok      { color: var(--green); }
+    .feed-line.warn    { color: var(--yellow); }
+    .feed-line.rule    { color: #7dd3fc; font-size: 10px; padding-left: 12px; }
+    .feed-line.done    { color: var(--gold); }
+    .feed-line.meta    { color: #c4b5fd; }
+    .feed-line.meta-ok { color: #86efac; font-style: italic; }
 
     /* ── Right panel: leaderboard + charts ──────────────────────────────── */
     #right-panel {
@@ -626,6 +628,14 @@
         <input id="cfg-defenders" type="text" value="mistral:7b,llama3.1:8b" />
       </div>
 
+      <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin:0">
+          <input type="checkbox" id="cfg-meta" style="accent-color:#a78bfa;cursor:pointer" />
+          <span style="color:#a78bfa;letter-spacing:1px;font-size:11px">META INJECTION MODE</span>
+        </label>
+        <span style="color:var(--muted);font-size:10px">measure LLM resilience</span>
+      </div>
+
       <button id="start-btn" onclick="startTournament()">▶ RUN TOURNAMENT</button>
     </div>
 
@@ -749,6 +759,8 @@
     const container = document.getElementById('leaderboard-container');
     const total = rankings.length;
 
+    const hasResilience = rankings.some(e => e.llm_resilience !== null && e.llm_resilience !== undefined);
+
     let html = `
       <table id="leaderboard">
         <thead>
@@ -761,6 +773,7 @@
             <th style="text-align:right">KQL</th>
             <th style="text-align:right">BEST</th>
             <th style="text-align:right">WORST</th>
+            ${hasResilience ? '<th style="text-align:right;color:#a78bfa">LLM RES.</th>' : ''}
           </tr>
         </thead>
         <tbody>`;
@@ -770,6 +783,14 @@
       const rowClass = e.rank === 1 ? 'rank-1' : (e.rank === total ? 'rank-last' : '');
       const detPct = Math.round(e.avg_detection_rate * 100);
       const evaPct = Math.round(e.avg_evasion_rate * 100);
+      const resCell = hasResilience
+        ? (() => {
+            if (e.llm_resilience === null || e.llm_resilience === undefined) return '<td class="stat-cell" style="color:var(--muted)">—</td>';
+            const resPct = Math.round(e.llm_resilience * 100);
+            const resColor = e.llm_resilience >= 0.7 ? 'var(--green)' : e.llm_resilience >= 0.4 ? 'var(--yellow)' : 'var(--red)';
+            return `<td class="stat-cell"><span style="color:${resColor}">${resPct}%</span></td>`;
+          })()
+        : '';
 
       html += `
           <tr class="${rowClass}">
@@ -784,6 +805,7 @@
             <td class="stat-cell" style="color:var(--blue)">${e.kql_complexity_score}</td>
             <td class="stat-cell" style="color:var(--green)">R${e.best_round}</td>
             <td class="stat-cell" style="color:var(--red)">R${e.worst_round}</td>
+            ${resCell}
           </tr>`;
     });
 
@@ -845,6 +867,7 @@
     const logs        = parseInt(document.getElementById('cfg-logs').value) || 10;
     const attacker    = document.getElementById('cfg-attacker').value.trim() || 'llama3.1:8b';
     const defenders   = document.getElementById('cfg-defenders').value.trim();
+    const metaMode    = document.getElementById('cfg-meta').checked;
 
     numRounds = rounds;
     liveData = {};
@@ -854,7 +877,8 @@
     feedClear();
     document.getElementById('leaderboard-container').innerHTML = '<div class="placeholder">— running —</div>';
     document.getElementById('charts-grid').innerHTML = '<div class="placeholder">— generating attack telemetry —</div>';
-    document.getElementById('technique-label').textContent = `${technique}  |  ${rounds} rounds  |  ${defenders}`;
+    const modeTag = metaMode ? '  |  META INJECTION' : '';
+    document.getElementById('technique-label').textContent = `${technique}  |  ${rounds} rounds  |  ${defenders}${modeTag}`;
 
     document.getElementById('config').style.display = 'none';
     document.getElementById('complete-panel').style.display = 'none';
@@ -876,7 +900,7 @@
       setStatus('active', 'connected — starting tournament');
       ws.send(JSON.stringify({
         technique, rounds, logs_per_round: logs,
-        attacker_model: attacker, defenders,
+        attacker_model: attacker, defenders, meta_mode: metaMode,
       }));
     };
 
@@ -907,6 +931,7 @@
       case 'tournament_start':
         feedLine(`[ TOURNAMENT ] ${msg.technique} · ${msg.rounds} rounds · ${msg.defenders.length} defenders`, 'done');
         feedLine(`  Defenders: ${msg.defenders.join(' | ')}`, 'info');
+        if (msg.meta_mode) feedLine('  ⚡ META INJECTION MODE — LLM resilience will be measured', 'meta');
         defendersList = msg.defenders;
         currentDefenderIdx = 0;
         msg.defenders.forEach(m => { liveData[m] = { rounds: [] }; });
@@ -955,6 +980,16 @@
         // Show first 120 chars of KQL
         const preview = msg.kql.replace(/\n/g, ' ').substring(0, 120);
         feedLine(`  ↳ ${preview}${msg.kql.length > 120 ? '…' : ''}`, 'rule');
+        // Injection result if meta mode
+        if (msg.injection_result) {
+          const ir = msg.injection_result;
+          const ipct = Math.round((ir.confidence || 0) * 100);
+          if (ir.injected) {
+            feedLine(`  ⚡ INJECTED (${ipct}%) — ${(ir.indicators || []).join(', ')}`, 'meta');
+          } else {
+            feedLine(`  ✓ Injection resisted (${ipct}% conf)`, 'meta-ok');
+          }
+        }
         updateChartForModel(msg.defender, msg.round, msg.detection_rate, msg.kql_valid);
         break;
       }

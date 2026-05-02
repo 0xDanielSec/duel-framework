@@ -18,6 +18,8 @@ from rich import box
 from agents.attacker import AttackerAgent
 from agents.defender import DefenderAgent
 from engine.detection import DetectionEngine
+from engine.injection_detector import InjectionDetector
+from engine.meta_attacker import MetaAttacker
 from engine.scoring import BattleScorer
 
 console = Console()
@@ -99,6 +101,16 @@ def print_attack_sample(logs: list[dict], n: int = 3):
     ))
 
 
+def print_injection_result(result: dict, strategy: str):
+    status = "[red bold]SUCCESS — Defender was manipulated[/red bold]" \
+             if result["injected"] else "[green bold]FAILED — Defender resisted[/green bold]"
+    indicators = ", ".join(result["indicators"]) if result["indicators"] else "none"
+    console.print(
+        f"  [bold magenta]Injection attempt[/bold magenta] ({strategy}): {status}\n"
+        f"  Confidence: {result['confidence']:.0%}  Indicators: {indicators}"
+    )
+
+
 def run_duel(
     technique_id: str,
     rounds: int,
@@ -106,11 +118,16 @@ def run_duel(
     defender_model: str,
     logs_per_round: int,
     verbose: bool,
+    meta_mode: bool = False,
 ):
     Path("output").mkdir(exist_ok=True)
 
     technique = load_technique(technique_id)
-    attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
+    if meta_mode:
+        attacker: AttackerAgent = MetaAttacker(model=attacker_model, num_logs=logs_per_round)
+        console.print("[bold magenta]META MODE[/bold magenta] — prompt injection payloads embedded in attack logs\n")
+    else:
+        attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
     defender = DefenderAgent(model=defender_model)
     scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id)
 
@@ -181,6 +198,12 @@ def run_duel(
         if not det_result["kql_valid"]:
             console.print("[yellow]  KQL parse/execution error — Defender scored 0 this round[/yellow]")
 
+        if meta_mode and isinstance(attacker, MetaAttacker):
+            prev_kql = scorer.rounds[-2]["kql_rule"] if len(scorer.rounds) >= 2 else None
+            injection_result = attacker.check_injection_success(kql_rule, prev_kql=prev_kql)
+            strategy = attacker.get_current_strategy(round_num)
+            print_injection_result(injection_result, strategy)
+
     # ── Final results ────────────────────────────────────────────────────
     console.rule("[bold green]BATTLE COMPLETE[/bold green]")
 
@@ -235,6 +258,8 @@ Examples:
                         help="Attack logs generated per round (default: 10)")
     parser.add_argument("--verbose", action="store_true",
                         help="Print attack telemetry and KQL rules each round")
+    parser.add_argument("--mode", choices=["normal", "meta"], default="normal",
+                        help="Battle mode: 'normal' (default) or 'meta' (prompt injection)")
     args = parser.parse_args()
 
     run_duel(
@@ -244,6 +269,7 @@ Examples:
         defender_model=args.defender_model,
         logs_per_round=args.logs,
         verbose=args.verbose,
+        meta_mode=(args.mode == "meta"),
     )
 
 

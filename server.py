@@ -21,6 +21,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from agents.attacker import AttackerAgent
 from agents.defender import DefenderAgent
 from engine.detection import DetectionEngine
+from engine.injection_detector import InjectionDetector
+from engine.meta_attacker import MetaAttacker
 from engine.scoring import BattleScorer
 from engine.tournament_scorer import TournamentScorer
 from campaign import CAMPAIGNS, build_campaign_context
@@ -432,6 +434,7 @@ async def ws_battle(websocket: WebSocket):
         logs_per_round: int = max(5, int(cfg.get("logs_per_round", 10)))
         attacker_model: str = cfg.get("attacker_model", "llama3.1:8b")
         defender_model: str = cfg.get("defender_model", "mistral:7b")
+        meta_mode: bool = cfg.get("mode", "normal") == "meta"
 
         try:
             technique = await _in_thread(_load_technique, technique_id)
@@ -440,7 +443,11 @@ async def ws_battle(websocket: WebSocket):
             return
 
         Path("output").mkdir(exist_ok=True)
-        attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
+        if meta_mode:
+            attacker: AttackerAgent = MetaAttacker(model=attacker_model, num_logs=logs_per_round)
+            await send({"type": "meta_mode_start", "message": "META MODE — prompt injection payloads active"})
+        else:
+            attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
         defender = DefenderAgent(model=defender_model)
         scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id)
 
@@ -507,6 +514,23 @@ async def ws_battle(websocket: WebSocket):
                 "kql": kql_rule,
                 "reasoning": reasoning,
             })
+
+            # ── Meta injection analysis ──────────────────────────────────────
+            if meta_mode and isinstance(attacker, MetaAttacker):
+                prev_kql = scorer.rounds[-1]["kql_rule"] if scorer.rounds else None
+                inj_result = attacker.check_injection_success(kql_rule, prev_kql=prev_kql)
+                strategy   = attacker.get_current_strategy(round_num)
+                injections = attacker.get_round_injections()
+                await send({
+                    "type":             "injection_result",
+                    "round":            round_num,
+                    "strategy":         strategy,
+                    "injected":         inj_result["injected"],
+                    "confidence":       inj_result["confidence"],
+                    "indicators":       inj_result["indicators"],
+                    "injection_count":  len(injections),
+                    "kql":              kql_rule,
+                })
 
             # ── Detection phase ─────────────────────────────────────────────
             if technique_id.upper().startswith("LLM"):
@@ -590,6 +614,7 @@ async def ws_tournament(websocket: WebSocket):
         attacker_model: str = cfg.get("attacker_model", "llama3.1:8b")
         raw_defenders: str  = cfg.get("defenders", "mistral:7b")
         defenders: list[str] = [m.strip() for m in raw_defenders.split(",") if m.strip()]
+        tourn_meta_mode: bool = bool(cfg.get("meta_mode", False))
 
         if not defenders:
             await send({"type": "error", "message": "No defender models specified."})
@@ -607,10 +632,14 @@ async def ws_tournament(websocket: WebSocket):
             "technique": technique_id,
             "rounds": rounds,
             "defenders": defenders,
+            "meta_mode": tourn_meta_mode,
         })
 
         # ── Phase 1: pre-generate attack logs (identical for all defenders) ──
-        attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
+        if tourn_meta_mode:
+            attacker: AttackerAgent = MetaAttacker(model=attacker_model, num_logs=logs_per_round)
+        else:
+            attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
         all_attack_logs: dict[int, list[dict]] = {}
 
         for round_num in range(1, rounds + 1):
@@ -633,11 +662,16 @@ async def ws_tournament(websocket: WebSocket):
 
         # ── Phase 2: run each defender ────────────────────────────────────────
         defender_results: dict[str, dict] = {}
+        # For meta mode: track per-model injection results
+        injection_results_per_model: dict[str, list[dict]] = {}
+        inj_detector = InjectionDetector() if tourn_meta_mode else None
 
         for defender_model in defenders:
             await send({"type": "defender_battle_start", "defender": defender_model})
             defender_agent = DefenderAgent(model=defender_model)
             scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id)
+            model_inj_results: list[dict] = []
+            prev_kql_for_model: str | None = None
 
             for round_num in range(1, rounds + 1):
                 attack_logs = all_attack_logs[round_num]
@@ -676,7 +710,15 @@ async def ws_tournament(websocket: WebSocket):
                     kql_valid=det_result["kql_valid"],
                 )
 
-                await send({
+                # Meta injection tracking
+                inj_round: dict | None = None
+                if tourn_meta_mode and inj_detector:
+                    inj_round = inj_detector.analyze(kql_rule, prev_kql=prev_kql_for_model)
+                    model_inj_results.append(inj_round)
+
+                prev_kql_for_model = kql_rule
+
+                round_payload: dict = {
                     "type": "defender_round_done",
                     "defender": defender_model,
                     "round": round_num,
@@ -686,7 +728,13 @@ async def ws_tournament(websocket: WebSocket):
                     "detected": record["detected_count"],
                     "evaded": record["evaded_count"],
                     "kql_valid": det_result["kql_valid"],
-                })
+                }
+                if inj_round:
+                    round_payload["injection_result"] = inj_round
+                await send(round_payload)
+
+            if tourn_meta_mode:
+                injection_results_per_model[defender_model] = model_inj_results
 
             defender_results[defender_model] = {
                 "rounds": scorer.rounds,
@@ -705,12 +753,16 @@ async def ws_tournament(websocket: WebSocket):
             })
 
         # ── Phase 3: rank and emit results ────────────────────────────────────
-        ts = TournamentScorer(technique_id=technique_id, defender_results=defender_results)
+        ts = TournamentScorer(
+            technique_id=technique_id,
+            defender_results=defender_results,
+            injection_results=injection_results_per_model if tourn_meta_mode else None,
+        )
         rankings = ts.rank()
         ts.save(all_attack_logs)
         ts.generate_report(rankings)
 
-        await send({"type": "tournament_complete", "rankings": rankings})
+        await send({"type": "tournament_complete", "rankings": rankings, "meta_mode": tourn_meta_mode})
 
     except WebSocketDisconnect:
         pass

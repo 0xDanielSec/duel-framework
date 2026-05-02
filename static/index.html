@@ -400,6 +400,9 @@
     .fi.evade   { background: rgba(255,60,60,0.09);  border-color: var(--red);  color: var(--red); }
     .fi.think   { background: transparent;           border-color: var(--dim); color: var(--dim); font-style: italic; }
     .fi.err     { background: rgba(255,60,60,0.12);  border-color: #ff6060; color: #ff6060; }
+    .fi.meta    { background: rgba(167,139,250,0.08); border-color: #a78bfa; color: #c4b5fd; }
+    .fi.meta-fail { background: rgba(167,139,250,0.04); border-color: #6d54c4; color: #9c84e8; font-style: italic; }
+    .kql-injected { outline: 1px solid rgba(255,60,60,0.5); border-radius: 2px; }
 
     .ft { font-size: 9px; opacity: 0.55; margin-right: 6px; }
 
@@ -961,6 +964,13 @@
     <input type="number" id="inp-logs" value="10" min="5" max="30" />
   </div>
 
+  <div class="ctrl-group" style="align-items:center;gap:6px">
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);font-size:10px;letter-spacing:1px">
+      <input type="checkbox" id="chk-meta" style="accent-color:#a78bfa;cursor:pointer" />
+      <span style="color:#a78bfa">META</span>&nbsp;INJECTION
+    </label>
+  </div>
+
   <button id="start-btn" onclick="startBattle()">&#9654; START BATTLE</button>
 </div>
 
@@ -1434,6 +1444,34 @@ function handle(data) {
       }
       break;
 
+    case 'meta_mode_start':
+      addFeed('⚡ META MODE ACTIVE — prompt injection payloads embedded in attack logs', 'meta');
+      break;
+
+    case 'injection_result': {
+      const strategyLabel = esc(data.strategy || 'unknown');
+      const pct = ((data.confidence || 0) * 100).toFixed(0);
+      const indicators = (data.indicators || []).join(', ') || 'none';
+      if (data.injected) {
+        addFeed(
+          '⚡ INJECTION SUCCESS — strategy: ' + strategyLabel +
+          ' | confidence: ' + pct + '% | indicators: ' + indicators,
+          'meta'
+        );
+        // Highlight the KQL rule in red to signal manipulation
+        const kqlEl = document.getElementById('def-kql');
+        kqlEl.classList.add('kql-injected');
+        setTimeout(() => kqlEl.classList.remove('kql-injected'), 4000);
+      } else {
+        addFeed(
+          '✓ Injection resisted — strategy: ' + strategyLabel +
+          ' | confidence: ' + pct + '%',
+          'meta-fail'
+        );
+      }
+      break;
+    }
+
     case 'error':
       addFeed('ERROR: ' + data.message, 'err');
       active = false;
@@ -1685,6 +1723,7 @@ function startBattle() {
   const technique = document.getElementById('sel-technique').value;
   const rounds    = parseInt(document.getElementById('inp-rounds').value, 10) || 3;
   const logs      = parseInt(document.getElementById('inp-logs').value, 10) || 10;
+  const metaMode  = document.getElementById('chk-meta').checked;
 
   const url = 'ws://' + location.host + '/ws';
   ws = new WebSocket(url);
@@ -1693,13 +1732,15 @@ function startBattle() {
     active = true;
     document.getElementById('start-btn').disabled = true;
     document.getElementById('conn-dot').className = 'on';
-    addFeed('Connected to DUEL engine \u2014 ' + technique + ' \u2014 ' + rounds + ' round(s)', 'sys');
+    const modeLabel = metaMode ? ' \u2014 META INJECTION MODE' : '';
+    addFeed('Connected to DUEL engine \u2014 ' + technique + ' \u2014 ' + rounds + ' round(s)' + modeLabel, 'sys');
     ws.send(JSON.stringify({
       technique,
       rounds,
       logs_per_round: logs,
       attacker_model: 'llama3.1:8b',
       defender_model: 'mistral:7b',
+      mode: metaMode ? 'meta' : 'normal',
     }));
   };
 
