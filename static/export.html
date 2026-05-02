@@ -164,6 +164,15 @@
     #btn-dl-report:hover { background: rgba(255,215,0,0.16); }
     #btn-dl-report:disabled { opacity: 0.35; cursor: not-allowed; }
 
+    #btn-sigma {
+      background: rgba(0,255,136,0.08);
+      border: 1px solid rgba(0,255,136,0.4);
+      color: var(--green);
+    }
+
+    #btn-sigma:hover { background: rgba(0,255,136,0.16); }
+    #btn-sigma:disabled { opacity: 0.35; cursor: not-allowed; }
+
     .export-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
     #rule-count {
@@ -422,6 +431,10 @@
 
   <span style="width:1px;background:var(--border);height:18px;margin:0 4px"></span>
 
+  <button class="export-btn" id="btn-sigma" onclick="exportSigma()" title="Download Sigma rules ZIP — works with any SIEM">⬇ SIGMA</button>
+
+  <span style="width:1px;background:var(--border);height:18px;margin:0 4px"></span>
+
   <button class="export-btn" id="btn-dl-report" onclick="downloadReport()" disabled title="Download PDF report for selected technique">⬇ PDF REPORT</button>
 
   <span id="rule-count">— rules</span>
@@ -477,7 +490,11 @@
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       allRules = await r.json();
       renderTable();
-      if (allRules.length) document.getElementById('btn-dl-report').disabled = false;
+      if (allRules.length) {
+        document.getElementById('btn-dl-report').disabled = false;
+        document.getElementById('btn-sigma').title =
+          `Download ${allRules.length} Sigma rule${allRules.length !== 1 ? 's' : ''} as ZIP — works with any SIEM`;
+      }
       setStatus('ok', `${allRules.length} surviving rule${allRules.length !== 1 ? 's' : ''} loaded`);
     } catch (err) {
       setStatus('error', `Failed to load rules: ${err.message}`);
@@ -639,6 +656,19 @@
     const sevs = [...activeFilters];
     const param = sevs.length === 3 || sevs.length === 0 ? '' : `?severity=${sevs.join(',')}`;
     triggerDownload(`/api/export${param}`, 'sentinel_export.json');
+  }
+
+  function exportSigma() {
+    // Export all sigma rules (no severity filter — Sigma files are per-technique)
+    // If only rows from one technique are visible/selected, filter to that technique
+    const checked = [...document.querySelectorAll('.rule-check:checked')];
+    let param = '';
+    if (checked.length) {
+      const techIds = [...new Set(checked.map(c => c.closest('tr').dataset.group))];
+      if (techIds.length === 1) param = `?technique=${encodeURIComponent(techIds[0])}`;
+    }
+    triggerDownload(`/api/sigma${param}`, `duel_sigma${param ? '_' + param.split('=')[1] : ''}.zip`);
+    showToast('Generating Sigma rules ZIP…');
   }
 
   function exportSelected() {

@@ -41,7 +41,7 @@ DUEL is a fully local, offline adversarial security research framework. Two LLM 
 
 The framework covers **38 techniques**: 28 MITRE ATT&CK cloud/identity techniques spanning all major Microsoft Sentinel tables (`SigninLogs`, `AuditLogs`, `AzureActivity`, `OfficeActivity`) and the full **OWASP LLM Top 10 2025** for AI/LLM-specific attack simulation. The Attacker carries **persistent memory** across sessions — evasion patterns, dangerous field values, and stable mutation strategies accumulate in `output/attacker_memory.json` and feed every subsequent battle.
 
-DUEL ships with a full-featured **web UI** (6 dashboards), a **MCP Server** that exposes all capabilities as tools for Claude Desktop and Cursor, **autonomous red team mode** where an LLM chooses the attack sequence, **tournament mode** for ranking Ollama models, **campaign mode** for multi-stage kill chains, **PDF report generation**, and one-click **Microsoft Sentinel ARM template export**. Zero external API calls — everything runs on Ollama.
+DUEL ships with a full-featured **web UI** (6 dashboards), a **MCP Server** that exposes all capabilities as tools for Claude Desktop and Cursor, **autonomous red team mode** where an LLM chooses the attack sequence, **tournament mode** for ranking Ollama models, **campaign mode** for multi-stage kill chains, **PDF report generation**, one-click **Microsoft Sentinel ARM template export**, and **Sigma rule export** (deploy surviving detections to Splunk, Elastic, QRadar, or any Sigma-compatible SIEM). Zero external API calls — everything runs on Ollama.
 
 ---
 
@@ -53,7 +53,7 @@ DUEL ships with a full-featured **web UI** (6 dashboards), a **MCP Server** that
 | ◈ **Heatmap** | MITRE ATT&CK coverage matrix — evasion rates per technique and tactic |
 | ⚡ **Tournament** | Pit multiple Defender models against the same Attacker — automatic ranking table |
 | ⛓ **Campaign** | Multi-stage kill chains with attacker context carry-forward between techniques |
-| ⬇ **Export** | One-click Microsoft Sentinel ARM template export from surviving KQL rules |
+| ⬇ **Export** | One-click Microsoft Sentinel ARM template export and **Sigma rule export** (ZIP of `.yml` files — Splunk, Elastic, QRadar, and any Sigma-compatible SIEM) |
 | ★ **Autonomous** | LLM-driven red team — objective-based attack sequencing with no human prompts |
 | ⚡ **MCP Server** | 8 tools exposing DUEL to Claude Desktop, Cursor, and any MCP-compatible agent |
 | 🔍 **KQL Engine** | Pandas-backed KQL executor: `where`, `project`, `summarize`, `join`, `let`, `make-series`, `mv-expand`, `parse`, `arg_max` |
@@ -85,6 +85,7 @@ flowchart TD
     subgraph OUT["Output Artifacts"]
         LOGS["📋 BATTLE LOGS<br/>full_battle_log_*.json<br/>battle_analysis.md<br/>duel_report_*.pdf"]
         ARM["📐 SENTINEL EXPORT<br/>sentinel_export.json<br/>ARM template — direct Sentinel deployment"]
+        SGM["σ SIGMA EXPORT<br/>output/sigma/*.yml<br/>SIEM-agnostic — Splunk, Elastic, QRadar…"]
     end
 
     subgraph WEB["Web Interfaces — FastAPI — server.py"]
@@ -116,9 +117,11 @@ flowchart TD
     SCR -->|persist evasion intel| MEM
     SCR --> LOGS
     SCR --> ARM
+    SCR --> SGM
     LOGS --> WEB
     LOGS --> MCPS
     ARM --> EXP
+    SGM --> EXP
     ARM --> MCPS
     MCPS --> CD
     MCPS --> CUR
@@ -132,6 +135,7 @@ flowchart TD
     style SCR  fill:#071a07,stroke:#2ea82e,color:#80d080
     style LOGS fill:#071a07,stroke:#00cc66,color:#00ff88
     style ARM  fill:#071a07,stroke:#00cc66,color:#00ff88
+    style SGM  fill:#071a07,stroke:#00cc66,color:#00ff88
     style TL   fill:#1a1000,stroke:#cc8800,color:#ffb830
     style GHA  fill:#1a1000,stroke:#cc8800,color:#ffb830
     style WR   fill:#1a1a00,stroke:#ccaa00,color:#ffd700
@@ -190,7 +194,7 @@ Start with `python server.py` → `http://localhost:8000`
 | `/heatmap` | **Heatmap** | MITRE ATT&CK coverage matrix — colour-coded by evasion rate, shows which techniques are tested and which are gaps |
 | `/tournament` | **Tournament** | Run multiple Defender models against the same Attacker; auto-ranks by detection rate in a bracket table |
 | `/campaign` | **Campaign** | Run multi-technique kill chains (e.g. Cloud Takeover: T1078 → T1528 → T1098 → T1114) with attacker context carried between stages |
-| `/export` | **Sentinel Export** | Browse all surviving KQL rules, filter by severity, download as a production ARM template ready for deployment |
+| `/export` | **Export** | Browse all surviving KQL rules, filter by severity, download as a Sentinel ARM template or **Sigma ZIP** (SIEM-agnostic — Splunk, Elastic, QRadar) |
 | `/autonomous` | **Autonomous** | Objective-based autonomous red team — LLM selects and chains techniques toward a goal (persistence, exfiltration, credential-access, full-compromise) |
 | `/mcp` | **MCP** | Tool reference, connect instructions for Claude Desktop/Cursor, live MCP server log viewer |
 
@@ -526,6 +530,8 @@ Every battle writes to the `output/` directory:
 | `attacker_memory.json` | `MemoryStore` | Persistent evasion patterns across all battles (never reset) |
 | `sentinel_export.json` | `SentinelExporter` | ARM template for direct Sentinel deployment |
 | `sentinel_export.md` | `SentinelExporter` | Human-readable rule summary |
+| `sigma/*.yml` | `SigmaExporter` | Individual Sigma rules — one file per surviving KQL rule |
+| `sigma_export_summary.md` | `SigmaExporter` | Conversion notes and logsource mapping table |
 | `tournament_<T>.json` | `TournamentScorer` | Per-model scores and rankings |
 | `tournament_report.md` | `TournamentScorer` | Tournament bracket results |
 | `campaign_<name>.md` | `campaign.py` | Kill chain execution summary |

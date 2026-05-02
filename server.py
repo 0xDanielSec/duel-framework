@@ -164,6 +164,36 @@ async def api_export_rules():
     return JSONResponse(rules)
 
 
+@app.get("/api/sigma")
+async def api_sigma(technique: str = ""):
+    """
+    Generate and return a ZIP archive of Sigma YAML detection rules.
+    ?technique=T1078.004  — optional filter to a single technique
+    """
+    import io
+    import zipfile
+    from engine.sigma_export import SigmaExporter
+
+    exporter = SigmaExporter()
+    technique_filter = technique.strip() or None
+    yml_paths, summary_path = await _in_thread(exporter.export, technique_filter)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for p in yml_paths:
+            zf.write(p, arcname=f"sigma/{p.name}")
+        if summary_path.exists():
+            zf.write(summary_path, arcname="sigma_export_summary.md")
+
+    buf.seek(0)
+    fname = f"duel_sigma{'_' + technique_filter if technique_filter else ''}.zip"
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
 @app.get("/api/export")
 async def api_export(severity: str = "", ids: str = ""):
     """
