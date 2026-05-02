@@ -383,6 +383,18 @@ class SigmaExporter:
         md_path = self._write_summary(summary_rows)
         return paths, md_path
 
+    def export_all(self) -> dict:
+        """
+        Export all surviving rules from every battle log to output/sigma/.
+        Returns a summary dict: {count, paths, summary_path}.
+        """
+        paths, summary_path = self.export(technique_filter=None)
+        return {
+            "count": len(paths),
+            "paths": [str(p) for p in paths],
+            "summary_path": str(summary_path),
+        }
+
     def _write_summary(self, rows: list[dict]) -> Path:
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         lines = [
