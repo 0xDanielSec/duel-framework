@@ -139,6 +139,19 @@ async def mcp_page():
     return FileResponse(str(STATIC_DIR / "mcp.html"))
 
 
+@app.get("/history")
+async def history_page():
+    return FileResponse(str(STATIC_DIR / "history.html"))
+
+
+@app.get("/api/history")
+async def api_history(technique: str = ""):
+    from engine.historical_analysis import HistoricalAnalyzer
+    analyzer = HistoricalAnalyzer()
+    data = await _in_thread(analyzer.analyze, technique.strip() or None)
+    return JSONResponse(content=data)
+
+
 @app.get("/api/mcp/log")
 async def api_mcp_log():
     """Return the last 40 lines of the MCP server log for the live log viewer."""

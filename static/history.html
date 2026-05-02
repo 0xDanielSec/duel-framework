@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — Historical Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:      #07090f;
+      --bg2:     #0d1117;
+      --bg3:     #111827;
+      --red:     #ff3c3c;
+      --blue:    #3c8eff;
+      --green:   #00ff88;
+      --yellow:  #ffd700;
+      --cyan:    #06b6d4;
+      --purple:  #a78bfa;
+      --dim:     #4a5568;
+      --muted:   #718096;
+      --text:    #e2e8f0;
+      --border:  #1a2236;
+      --mono:    'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    body { display: flex; flex-direction: column; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--red) 0%, #ff8c42 40%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+    }
+
+    #mode-badge {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--cyan);
+      border: 1px solid rgba(6,182,212,.4);
+      background: rgba(6,182,212,.06);
+      padding: 2px 10px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    #summary-stats {
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .stat-item { color: var(--muted); }
+    .stat-val  { color: var(--cyan); font-weight: bold; }
+
+    #nav-links { margin-left: auto; display: flex; gap: 8px; font-size: 11px; letter-spacing: 1px; }
+    #nav-links a { color: var(--muted); text-decoration: none; padding: 3px 9px; border: 1px solid transparent; border-radius: 3px; transition: all .15s; white-space: nowrap; }
+    #nav-links a.nav-warroom:hover    { color: var(--text);   border-color: var(--dim); }
+    #nav-links a.nav-heatmap:hover    { color: var(--yellow); border-color: var(--dim); }
+    #nav-links a.nav-tournament:hover { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-campaign:hover   { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-export:hover     { color: var(--blue);   border-color: var(--dim); }
+    #nav-links a.nav-autonomous:hover { color: var(--purple); border-color: var(--dim); }
+    #nav-links a.nav-mcp:hover        { color: var(--green);  border-color: var(--dim); }
+    #nav-links a.nav-history:hover    { color: var(--cyan);   border-color: var(--dim); }
+    #nav-links a.active.nav-warroom    { color: var(--text);   border-color: rgba(226,232,240,.35); }
+    #nav-links a.active.nav-heatmap    { color: var(--yellow); border-color: rgba(255,215,0,.4); }
+    #nav-links a.active.nav-tournament { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-campaign   { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-export     { color: var(--blue);   border-color: rgba(60,142,255,.4); }
+    #nav-links a.active.nav-autonomous { color: var(--purple); border-color: rgba(167,139,250,.4); }
+    #nav-links a.active.nav-mcp        { color: var(--green);  border-color: rgba(0,255,136,.4); }
+    #nav-links a.active.nav-history    { color: var(--cyan);   border-color: rgba(6,182,212,.4); }
+
+    /* ── Controls bar ────────────────────────────────────────────────────── */
+    #controls {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #controls label { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+
+    #sel-technique {
+      background: var(--bg3);
+      color: var(--text);
+      border: 1px solid var(--dim);
+      border-radius: 3px;
+      padding: 3px 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    #btn-refresh {
+      background: rgba(6,182,212,.1);
+      color: var(--cyan);
+      border: 1px solid rgba(6,182,212,.4);
+      border-radius: 3px;
+      padding: 3px 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    #btn-refresh:hover { background: rgba(6,182,212,.2); }
+
+    #loading {
+      color: var(--cyan);
+      font-size: 11px;
+      letter-spacing: 1px;
+      display: none;
+    }
+    #loading.active { display: inline; }
+
+    /* ── Main scroll ─────────────────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Section cards ───────────────────────────────────────────────────── */
+    .section {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .section-hdr {
+      padding: 10px 16px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-hdr .hdr-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: normal;
+      letter-spacing: 0;
+      color: var(--muted);
+      margin-left: 8px;
+    }
+
+    .section-body { padding: 16px; }
+
+    /* ── Chart wrappers ──────────────────────────────────────────────────── */
+    .chart-wrap {
+      padding: 16px;
+      position: relative;
+    }
+
+    .chart-wrap canvas { max-height: 320px; }
+
+    /* ── Attacker / Defender two-col ─────────────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+    }
+
+    .two-col > .chart-wrap {
+      background: var(--bg2);
+    }
+
+    @media (max-width: 900px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    /* ── Field heatmap grid ──────────────────────────────────────────────── */
+    #field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 6px;
+      padding: 16px;
+    }
+
+    .field-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 6px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      text-align: center;
+      transition: transform .1s;
+      cursor: default;
+    }
+
+    .field-cell:hover { transform: scale(1.04); }
+
+    .field-name {
+      font-size: 10px;
+      letter-spacing: .5px;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    .field-count {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-top: 2px;
+    }
+
+    /* ── Session comparison table ────────────────────────────────────────── */
+    #session-table-wrap { padding: 16px; overflow-x: auto; }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 6px 10px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .data-table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(26,34,54,.6);
+      white-space: nowrap;
+    }
+
+    .data-table tr:hover td { background: rgba(255,255,255,.02); }
+
+    .td-tid { color: var(--yellow); font-size: 11px; }
+    .td-sess { color: var(--muted); font-size: 11px; }
+    .td-att  { color: var(--red);  }
+    .td-def  { color: var(--blue); }
+    .td-winner-att { color: var(--red);  font-weight: bold; }
+    .td-winner-def { color: var(--blue); font-weight: bold; }
+
+    .bar-inline {
+      display: inline-block;
+      height: 6px;
+      border-radius: 2px;
+      margin-left: 6px;
+      vertical-align: middle;
+      min-width: 2px;
+    }
+
+    /* ── Empty / error states ────────────────────────────────────────────── */
+    .empty-state {
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div id="logo">DUEL</div>
+  <div id="mode-badge">HISTORY</div>
+  <div id="summary-stats">
+    <span class="stat-item"><span class="stat-val" id="stat-battles">—</span>&nbsp;BATTLES</span>
+    <span class="stat-item"><span class="stat-val" id="stat-techniques">—</span>&nbsp;TECHNIQUES</span>
+    <span class="stat-item"><span class="stat-val" id="stat-rounds">—</span>&nbsp;TOTAL ROUNDS</span>
+  </div>
+  <nav id="nav-links">
+    <a href="/"            class="nav-warroom">⚔ WAR ROOM</a>
+    <a href="/heatmap"     class="nav-heatmap">◈ HEATMAP</a>
+    <a href="/tournament"  class="nav-tournament">⚡ TOURNAMENT</a>
+    <a href="/campaign"    class="nav-campaign">⛓ CAMPAIGN</a>
+    <a href="/export"      class="nav-export">⬇ EXPORT</a>
+    <a href="/autonomous"  class="nav-autonomous">★ AUTONOMOUS</a>
+    <a href="/mcp"         class="nav-mcp">⚡ MCP</a>
+    <a href="/history"     class="nav-history active">⏱ HISTORY</a>
+  </nav>
+</div>
+
+<div id="controls">
+  <label>TECHNIQUE:</label>
+  <select id="sel-technique">
+    <option value="">ALL TECHNIQUES</option>
+  </select>
+  <button id="btn-refresh">↻ REFRESH</button>
+  <span id="loading">LOADING…</span>
+</div>
+
+<main id="main">
+
+  <!-- Evasion Rate Over Time ─────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-hdr">
+      📈 EVASION RATE OVER TIME
+      <span class="hdr-sub">attacker evasion per round — individual techniques + average</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="chart-evasion"></canvas>
+    </div>
+  </div>
+
+  <!-- Attacker Learning + Defender Improvement (two-col) ──────────────────── -->
+  <div class="section">
+    <div class="section-hdr">
+      ⚔ ATTACKER LEARNING vs DEFENDER IMPROVEMENT
+      <span class="hdr-sub">evasion Δ (red) vs detection Δ (blue) — round 1 → last round</span>
+    </div>
+    <div class="two-col">
+      <div class="chart-wrap">
+        <canvas id="chart-learning"></canvas>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart-defender"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mutation Velocity ────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-hdr">
+      🔄 MUTATION VELOCITY
+      <span class="hdr-sub">KQL field changes between rounds — higher = Defender rotated more</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="chart-velocity"></canvas>
+    </div>
+  </div>
+
+  <!-- Field Rotation Heatmap ──────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-hdr">
+      🔥 FIELD ROTATION HEATMAP
+      <span class="hdr-sub">how often each Sentinel field was targeted by Defender KQL rules</span>
+    </div>
+    <div id="field-grid"></div>
+  </div>
+
+  <!-- Session Comparison ──────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-hdr">
+      📊 SESSION COMPARISON
+      <span class="hdr-sub">per-session stats across all techniques</span>
+    </div>
+    <div id="session-table-wrap">
+      <table class="data-table" id="session-table">
+        <thead>
+          <tr>
+            <th>TECHNIQUE</th>
+            <th>SESSION</th>
+            <th>ROUNDS</th>
+            <th>AVG EVASION</th>
+            <th>AVG DETECTION</th>
+            <th>FINAL EVASION</th>
+            <th>FINAL DETECTION</th>
+            <th>WINNER</th>
+          </tr>
+        </thead>
+        <tbody id="session-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── Chart.js global defaults ────────────────────────────────────────────────
+Chart.defaults.color          = '#718096';
+Chart.defaults.borderColor    = '#1a2236';
+Chart.defaults.font.family    = "'Courier New', Courier, monospace";
+Chart.defaults.font.size      = 11;
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+
+const C = {
+  red:    '#ff3c3c',
+  blue:   '#3c8eff',
+  green:  '#00ff88',
+  yellow: '#ffd700',
+  cyan:   '#06b6d4',
+  muted:  '#718096',
+  bg3:    '#111827',
+};
+
+// ── State ───────────────────────────────────────────────────────────────────
+let _data      = null;
+let _charts    = {};
+
+// ── Load data ───────────────────────────────────────────────────────────────
+async function load() {
+  const tech = document.getElementById('sel-technique').value;
+  const loading = document.getElementById('loading');
+  loading.classList.add('active');
+  try {
+    const url = '/api/history' + (tech ? `?technique=${encodeURIComponent(tech)}` : '');
+    const res = await fetch(url, { cache: 'no-store' });
+    _data = await res.json();
+    render();
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading.classList.remove('active');
+  }
+}
+
+// ── Populate technique filter ────────────────────────────────────────────────
+function populateTechFilter(evasionTrend) {
+  const sel = document.getElementById('sel-technique');
+  const existing = new Set([...sel.options].map(o => o.value));
+  const tids = Object.keys(evasionTrend).sort();
+  for (const tid of tids) {
+    if (!existing.has(tid)) {
+      const opt = document.createElement('option');
+      opt.value = tid;
+      opt.textContent = tid;
+      sel.appendChild(opt);
+    }
+  }
+}
+
+// ── Main render ──────────────────────────────────────────────────────────────
+function render() {
+  if (!_data) return;
+
+  const d = _data;
+
+  // Summary stats
+  document.getElementById('stat-battles').textContent    = d.total_battles;
+  document.getElementById('stat-techniques').textContent = d.total_techniques;
+  const totalRounds = Object.values(d.evasion_trend).reduce((s, arr) => s + arr.length, 0);
+  document.getElementById('stat-rounds').textContent = totalRounds;
+
+  populateTechFilter(d.evasion_trend);
+
+  renderEvasionTrend(d.evasion_trend);
+  renderAttackerLearning(d.attacker_learning);
+  renderDefenderImprovement(d.defender_improvement);
+  renderMutationVelocity(d.mutation_velocity);
+  renderFieldHeatmap(d.field_rotation_map);
+  renderSessionTable(d.session_comparison);
+}
+
+// ── Evasion Rate Over Time ───────────────────────────────────────────────────
+function renderEvasionTrend(trend) {
+  destroyChart('chart-evasion');
+
+  const techniques = Object.keys(trend);
+  if (!techniques.length) {
+    showEmpty('chart-evasion', 'No battle data found.');
+    return;
+  }
+
+  // Build one dataset per technique (dim lines)
+  const datasets = [];
+  const roundNums = [1, 2, 3, 4, 5];
+
+  // Per-technique dim lines
+  for (const tid of techniques) {
+    const pts = trend[tid];
+    const byRound = {};
+    for (const p of pts) byRound[p.round] = p.evasion_rate;
+    const data = roundNums.map(r => byRound[r] !== undefined ? byRound[r] : null);
+    datasets.push({
+      label: tid,
+      data,
+      borderColor: 'rgba(255,60,60,0.18)',
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      pointRadius: 2,
+      pointHoverRadius: 4,
+      tension: 0.3,
+      spanGaps: true,
+      borderDash: [],
+    });
+  }
+
+  // Average line per round
+  const avgData = roundNums.map(r => {
+    const vals = techniques
+      .map(tid => {
+        const pt = trend[tid].find(p => p.round === r);
+        return pt ? pt.evasion_rate : null;
+      })
+      .filter(v => v !== null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  });
+
+  // Average detection line
+  const avgDetData = roundNums.map(r => {
+    const vals = techniques
+      .map(tid => {
+        const pt = trend[tid].find(p => p.round === r);
+        return pt ? pt.detection_rate : null;
+      })
+      .filter(v => v !== null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  });
+
+  datasets.push({
+    label: 'AVG EVASION',
+    data: avgData,
+    borderColor: C.red,
+    backgroundColor: 'rgba(255,60,60,0.08)',
+    borderWidth: 3,
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    tension: 0.3,
+    spanGaps: true,
+    fill: true,
+    order: 0,
+  });
+
+  datasets.push({
+    label: 'AVG DETECTION',
+    data: avgDetData,
+    borderColor: C.blue,
+    backgroundColor: 'rgba(60,142,255,0.08)',
+    borderWidth: 3,
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    tension: 0.3,
+    spanGaps: true,
+    fill: true,
+    order: 0,
+  });
+
+  const ctx = document.getElementById('chart-evasion').getContext('2d');
+  _charts['chart-evasion'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: roundNums.map(r => `Round ${r}`),
+      datasets,
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            filter: item => item.text.startsWith('AVG'),
+            color: C.muted,
+          },
+        },
+        tooltip: {
+          filter: item => item.dataset.label.startsWith('AVG'),
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${(ctx.raw * 100).toFixed(1)}%`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: { color: 'rgba(26,34,54,.8)' }, ticks: { color: C.muted } },
+        y: {
+          min: 0, max: 1,
+          grid: { color: 'rgba(26,34,54,.8)' },
+          ticks: {
+            color: C.muted,
+            callback: v => `${(v * 100).toFixed(0)}%`,
+          },
+        },
+      },
+    },
+  });
+}
+
+// ── Attacker Learning Curve ──────────────────────────────────────────────────
+function renderAttackerLearning(learning) {
+  destroyChart('chart-learning');
+  if (!learning || !learning.length) {
+    showEmpty('chart-learning', 'Not enough round data.');
+    return;
+  }
+
+  // Show top 20 by absolute improvement
+  const sorted = [...learning].sort((a, b) => b.improvement - a.improvement).slice(0, 20);
+  const labels  = sorted.map(r => r.technique_id);
+  const vals    = sorted.map(r => r.improvement);
+  const colors  = vals.map(v => v > 0 ? 'rgba(255,60,60,0.75)' : 'rgba(60,142,255,0.65)');
+
+  const ctx = document.getElementById('chart-learning').getContext('2d');
+  _charts['chart-learning'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Evasion Δ (R1 → Last)',
+        data: vals,
+        backgroundColor: colors,
+        borderColor: colors.map(c => c.replace('0.75', '1').replace('0.65', '1')),
+        borderWidth: 1,
+        borderRadius: 2,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw;
+              const sign = v >= 0 ? '+' : '';
+              return `Δ evasion: ${sign}${(v * 100).toFixed(1)}%`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(26,34,54,.8)' },
+          ticks: {
+            color: C.muted,
+            callback: v => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(0)}%`,
+          },
+        },
+        y: {
+          grid: { color: 'transparent' },
+          ticks: { color: C.yellow, font: { size: 10 } },
+        },
+      },
+    },
+  });
+}
+
+// ── Defender Improvement ─────────────────────────────────────────────────────
+function renderDefenderImprovement(improvement) {
+  destroyChart('chart-defender');
+  if (!improvement || !improvement.length) {
+    showEmpty('chart-defender', 'Not enough round data.');
+    return;
+  }
+
+  const sorted = [...improvement].sort((a, b) => b.improvement - a.improvement).slice(0, 20);
+  const labels  = sorted.map(r => r.technique_id);
+  const vals    = sorted.map(r => r.improvement);
+  const colors  = vals.map(v => v > 0 ? 'rgba(60,142,255,0.75)' : 'rgba(255,60,60,0.65)');
+
+  const ctx = document.getElementById('chart-defender').getContext('2d');
+  _charts['chart-defender'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Detection Δ (R1 → Last)',
+        data: vals,
+        backgroundColor: colors,
+        borderColor: colors.map(c => c.replace('0.75', '1').replace('0.65', '1')),
+        borderWidth: 1,
+        borderRadius: 2,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw;
+              const sign = v >= 0 ? '+' : '';
+              return `Δ detection: ${sign}${(v * 100).toFixed(1)}%`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(26,34,54,.8)' },
+          ticks: {
+            color: C.muted,
+            callback: v => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(0)}%`,
+          },
+        },
+        y: {
+          grid: { color: 'transparent' },
+          ticks: { color: C.yellow, font: { size: 10 } },
+        },
+      },
+    },
+  });
+}
+
+// ── Mutation Velocity ────────────────────────────────────────────────────────
+function renderMutationVelocity(velocity) {
+  destroyChart('chart-velocity');
+  if (!velocity || !Object.keys(velocity).length) {
+    showEmpty('chart-velocity', 'No multi-round data available.');
+    return;
+  }
+
+  // Average velocity per technique
+  const rows = Object.entries(velocity).map(([tid, rounds]) => {
+    const avg = rounds.reduce((s, r) => s + r.velocity, 0) / rounds.length;
+    return { tid, avg };
+  }).sort((a, b) => b.avg - a.avg).slice(0, 25);
+
+  const ctx = document.getElementById('chart-velocity').getContext('2d');
+  _charts['chart-velocity'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r.tid),
+      datasets: [{
+        label: 'Avg Field Changes / Round',
+        data: rows.map(r => +r.avg.toFixed(2)),
+        backgroundColor: 'rgba(6,182,212,0.5)',
+        borderColor: C.cyan,
+        borderWidth: 1,
+        borderRadius: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.raw} field changes/round avg`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(26,34,54,.8)' },
+          ticks: { color: C.yellow, font: { size: 10 }, maxRotation: 45 },
+        },
+        y: {
+          grid: { color: 'rgba(26,34,54,.8)' },
+          ticks: { color: C.muted },
+          title: { display: true, text: 'fields changed', color: C.muted },
+        },
+      },
+    },
+  });
+}
+
+// ── Field Rotation Heatmap ───────────────────────────────────────────────────
+function renderFieldHeatmap(rotMap) {
+  const grid = document.getElementById('field-grid');
+  grid.innerHTML = '';
+
+  if (!rotMap || !Object.keys(rotMap).length) {
+    grid.innerHTML = '<div class="empty-state">No KQL field data.</div>';
+    return;
+  }
+
+  const entries = Object.entries(rotMap);
+  const max = entries[0][1];
+
+  for (const [field, count] of entries) {
+    const ratio = count / max;
+    // Heat colour: low = dim blue, high = bright red
+    const r = Math.round(60  + (255 - 60)  * ratio);
+    const g = Math.round(142 + (60  - 142) * ratio);
+    const b = Math.round(255 + (60  - 255) * ratio);
+    const bg   = `rgba(${r},${g},${b},${0.08 + 0.18 * ratio})`;
+    const bdr  = `rgba(${r},${g},${b},${0.2  + 0.5  * ratio})`;
+    const txt  = `rgb(${r},${g},${b})`;
+
+    const cell = document.createElement('div');
+    cell.className = 'field-cell';
+    cell.style.background   = bg;
+    cell.style.borderColor  = bdr;
+    cell.title = `${field}: referenced in ${count} KQL rule(s)`;
+    cell.innerHTML = `
+      <div class="field-name">${field}</div>
+      <div class="field-count" style="color:${txt}">${count}</div>
+    `;
+    grid.appendChild(cell);
+  }
+}
+
+// ── Session Comparison Table ─────────────────────────────────────────────────
+function renderSessionTable(comparison) {
+  const tbody = document.getElementById('session-tbody');
+  tbody.innerHTML = '';
+
+  const rows = [];
+  for (const [tid, sessions] of Object.entries(comparison)) {
+    for (const s of sessions) {
+      rows.push({ tid, ...s });
+    }
+  }
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No session data.</td></tr>';
+    return;
+  }
+
+  rows.sort((a, b) => a.tid.localeCompare(b.tid));
+
+  for (const r of rows) {
+    const winnerCls  = r.winner === 'Attacker' ? 'td-winner-att' : 'td-winner-def';
+    const winnerText = r.winner || '—';
+
+    const evaBar  = `<span class="bar-inline" style="width:${(r.avg_evasion_rate   * 60).toFixed(0)}px;background:var(--red)"></span>`;
+    const detBar  = `<span class="bar-inline" style="width:${(r.avg_detection_rate * 60).toFixed(0)}px;background:var(--blue)"></span>`;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="td-tid">${r.tid}</td>
+      <td class="td-sess">${r.session.replace('full_battle_log_', '')}</td>
+      <td style="color:var(--muted);text-align:center">${r.total_rounds}</td>
+      <td class="td-att">${(r.avg_evasion_rate   * 100).toFixed(0)}%${evaBar}</td>
+      <td class="td-def">${(r.avg_detection_rate * 100).toFixed(0)}%${detBar}</td>
+      <td class="td-att">${(r.final_evasion      * 100).toFixed(0)}%</td>
+      <td class="td-def">${(r.final_detection    * 100).toFixed(0)}%</td>
+      <td class="${winnerCls}">${winnerText}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function destroyChart(id) {
+  if (_charts[id]) {
+    _charts[id].destroy();
+    delete _charts[id];
+  }
+  // Clear canvas
+  const el = document.getElementById(id);
+  if (el) {
+    const parent = el.parentNode;
+    const newCanvas = document.createElement('canvas');
+    newCanvas.id = id;
+    parent.replaceChild(newCanvas, el);
+  }
+}
+
+function showEmpty(canvasId, msg) {
+  const el = document.getElementById(canvasId);
+  if (!el) return;
+  const wrap = el.parentNode;
+  wrap.innerHTML = `<div class="empty-state">${msg}</div>`;
+}
+
+// ── Event wiring ─────────────────────────────────────────────────────────────
+document.getElementById('btn-refresh').addEventListener('click', load);
+document.getElementById('sel-technique').addEventListener('change', load);
+
+// Initial load
+load();
+</script>
+</body>
+</html>
