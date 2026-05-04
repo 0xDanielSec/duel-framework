@@ -28,18 +28,21 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
-      height: 100%;
+      min-height: 100%;
+      height: auto;
       background: var(--bg);
       color: var(--text);
       font-family: var(--mono);
       font-size: 13px;
     }
 
+    html { scrollbar-width: thin; scrollbar-color: #1e2530 #0d1117; }
+
     body { display: flex; flex-direction: column; }
 
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1117; }
+    ::-webkit-scrollbar-thumb { background: #1e2530; border-radius: 2px; }
 
     /* ── Header ─────────────────────────────────────────────────────────── */
     #header {
@@ -154,8 +157,7 @@
 
     /* ── Main scroll ─────────────────────────────────────────────────────── */
     #main {
-      flex: 1;
-      overflow-y: auto;
+      overflow-y: visible;
       padding: 20px;
       display: flex;
       flex-direction: column;
@@ -167,13 +169,14 @@
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: 6px;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .section-hdr {
       padding: 10px 16px;
       background: var(--bg3);
       border-bottom: 1px solid var(--border);
+      border-radius: 6px 6px 0 0;
       font-family: 'Rajdhani', sans-serif;
       font-size: 13px;
       font-weight: 700;
@@ -220,11 +223,20 @@
     }
 
     /* ── Field heatmap grid ──────────────────────────────────────────────── */
+    #field-grid-wrap {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 480px;
+      padding: 16px;
+      scrollbar-width: thin;
+      scrollbar-color: #1e2530 #0d1117;
+    }
+
     #field-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 6px;
-      padding: 16px;
+      min-width: 0;
     }
 
     .field-cell {
@@ -257,7 +269,14 @@
     }
 
     /* ── Session comparison table ────────────────────────────────────────── */
-    #session-table-wrap { padding: 16px; overflow-x: auto; }
+    #session-table-wrap {
+      padding: 16px;
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 500px;
+      scrollbar-width: thin;
+      scrollbar-color: #1e2530 #0d1117;
+    }
 
     .data-table {
       width: 100%;
@@ -387,7 +406,9 @@
       🔥 FIELD ROTATION HEATMAP
       <span class="hdr-sub">how often each Sentinel field was targeted by Defender KQL rules</span>
     </div>
-    <div id="field-grid"></div>
+    <div id="field-grid-wrap">
+      <div id="field-grid"></div>
+    </div>
   </div>
 
   <!-- Session Comparison ──────────────────────────────────────────────────── -->
