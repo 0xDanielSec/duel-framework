@@ -9,20 +9,21 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg:      #07090f;
-      --bg2:     #0d1117;
-      --bg3:     #111827;
-      --red:     #ff3c3c;
-      --blue:    #3c8eff;
-      --green:   #00ff88;
-      --yellow:  #ffd700;
-      --cyan:    #06b6d4;
-      --purple:  #a78bfa;
-      --dim:     #4a5568;
-      --muted:   #718096;
-      --text:    #e2e8f0;
-      --border:  #1a2236;
-      --mono:    'Courier New', Courier, monospace;
+      --bg:     #07090f;
+      --bg2:    #0d1117;
+      --bg3:    #111827;
+      --red:    #ff3c3c;
+      --blue:   #3c8eff;
+      --green:  #00ff88;
+      --yellow: #ffd700;
+      --cyan:   #06b6d4;
+      --purple: #a78bfa;
+      --orange: #f97316;
+      --dim:    #4a5568;
+      --muted:  #718096;
+      --text:   #e2e8f0;
+      --border: #1a2236;
+      --mono:   'Courier New', Courier, monospace;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -37,7 +38,6 @@
     }
 
     html { scrollbar-width: thin; scrollbar-color: #1e2530 #0d1117; }
-
     body { display: flex; flex-direction: column; }
 
     ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -54,7 +54,6 @@
       background: var(--bg2);
       border-bottom: 1px solid var(--border);
     }
-
     #logo {
       font-family: 'Rajdhani', sans-serif;
       font-size: 22px;
@@ -66,7 +65,6 @@
       background-clip: text;
       white-space: nowrap;
     }
-
     #mode-badge {
       font-family: 'Rajdhani', sans-serif;
       font-size: 11px;
@@ -79,13 +77,12 @@
       border-radius: 3px;
       white-space: nowrap;
     }
-
     #nav-links { margin-left: auto; display: flex; gap: 8px; font-size: 11px; letter-spacing: 1px; }
     #nav-links a { color: var(--muted); text-decoration: none; padding: 3px 9px; border: 1px solid transparent; border-radius: 3px; transition: all .15s; white-space: nowrap; }
     #nav-links a.nav-warroom:hover    { color: var(--text);   border-color: var(--dim); }
     #nav-links a.nav-heatmap:hover    { color: var(--yellow); border-color: var(--dim); }
-    #nav-links a.nav-tournament:hover { color: #f97316;       border-color: var(--dim); }
-    #nav-links a.nav-campaign:hover   { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-tournament:hover { color: var(--orange); border-color: var(--dim); }
+    #nav-links a.nav-campaign:hover   { color: var(--orange); border-color: var(--dim); }
     #nav-links a.nav-export:hover     { color: var(--blue);   border-color: var(--dim); }
     #nav-links a.nav-autonomous:hover { color: var(--purple); border-color: var(--dim); }
     #nav-links a.nav-mcp:hover        { color: var(--green);  border-color: var(--dim); }
@@ -93,30 +90,24 @@
     #nav-links a.nav-dna:hover        { color: var(--green);  border-color: var(--dim); }
     #nav-links a.active.nav-warroom    { color: var(--text);   border-color: rgba(226,232,240,.35); }
     #nav-links a.active.nav-heatmap    { color: var(--yellow); border-color: rgba(255,215,0,.4); }
-    #nav-links a.active.nav-tournament { color: #f97316;       border-color: rgba(249,115,22,.4); }
-    #nav-links a.active.nav-campaign   { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-tournament { color: var(--orange); border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-campaign   { color: var(--orange); border-color: rgba(249,115,22,.4); }
     #nav-links a.active.nav-export     { color: var(--blue);   border-color: rgba(60,142,255,.4); }
     #nav-links a.active.nav-autonomous { color: var(--purple); border-color: rgba(167,139,250,.4); }
     #nav-links a.active.nav-mcp        { color: var(--green);  border-color: rgba(0,255,136,.4); }
     #nav-links a.active.nav-history    { color: var(--cyan);   border-color: rgba(6,182,212,.4); }
     #nav-links a.active.nav-dna        { color: var(--green);  border-color: rgba(0,255,136,.4); }
 
-    /* ── Main ────────────────────────────────────────────────────────────── */
-    #main {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
+    /* ── Page layout ─────────────────────────────────────────────────────── */
+    #main { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
 
-    /* ── Section shell ───────────────────────────────────────────────────── */
+    /* ── Outer section shell (fingerprint header + model grid wrapper) ────── */
     .section {
       background: var(--bg2);
       border: 1px solid var(--border);
       border-radius: 6px;
       overflow: visible;
     }
-
     .section-hdr {
       padding: 10px 16px;
       background: var(--bg3);
@@ -131,7 +122,6 @@
       align-items: center;
       gap: 8px;
     }
-
     .section-hdr .hdr-sub {
       font-family: var(--mono);
       font-size: 10px;
@@ -143,13 +133,10 @@
 
     /* ── Model grid ──────────────────────────────────────────────────────── */
     #model-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
-      gap: 20px;
-    }
-
-    @media (max-width: 600px) {
-      #model-grid { grid-template-columns: 1fr; }
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
     }
 
     /* ── Model card ──────────────────────────────────────────────────────── */
@@ -160,35 +147,33 @@
       overflow: visible;
     }
 
+    /* ── Card header ─────────────────────────────────────────────────────── */
     .model-hdr {
-      padding: 12px 16px;
+      padding: 14px 20px;
       background: var(--bg3);
       border-bottom: 1px solid var(--border);
       border-radius: 6px 6px 0 0;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
       flex-wrap: wrap;
     }
-
     .personality-badge {
       font-family: 'Rajdhani', sans-serif;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
-      letter-spacing: 3px;
-      padding: 3px 12px;
+      letter-spacing: 4px;
+      padding: 4px 14px;
       border-radius: 3px;
       white-space: nowrap;
     }
-
     .model-name {
       font-family: 'Rajdhani', sans-serif;
-      font-size: 15px;
+      font-size: 18px;
       font-weight: 700;
-      letter-spacing: 2px;
+      letter-spacing: 3px;
       color: var(--text);
     }
-
     .model-win-rate {
       margin-left: auto;
       font-size: 11px;
@@ -196,120 +181,288 @@
       letter-spacing: 1px;
     }
 
-    /* ── Stats grid ──────────────────────────────────────────────────────── */
-    .stats-grid {
+    /* ── Stats strip ─────────────────────────────────────────────────────── */
+    .stats-strip {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 1px;
       background: var(--border);
+      border-bottom: 1px solid var(--border);
     }
-
     .stat-cell {
       background: var(--bg2);
-      padding: 10px 8px;
+      padding: 12px 10px;
       text-align: center;
     }
-
     .stat-n {
       font-family: 'Rajdhani', sans-serif;
-      font-size: 22px;
+      font-size: 28px;
       font-weight: 700;
+      line-height: 1;
     }
-
     .stat-lbl {
       font-size: 9px;
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
       color: var(--muted);
-      margin-top: 2px;
+      margin-top: 4px;
     }
 
-    /* ── Two-col: radar + dimensions ─────────────────────────────────────── */
-    .card-body {
+    /* ── Primary body: large radar + dimension panel ─────────────────────── */
+    .card-primary {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 55% 45%;
       gap: 1px;
       background: var(--border);
+      border-bottom: 1px solid var(--border);
     }
-
-    @media (max-width: 760px) {
-      .card-body { grid-template-columns: 1fr; }
+    @media (max-width: 900px) {
+      .card-primary { grid-template-columns: 1fr; }
     }
 
     .radar-panel {
       background: var(--bg2);
-      padding: 16px;
+      padding: 24px;
+      min-height: 440px;
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
     }
-
-    .radar-panel canvas { max-width: 260px; max-height: 260px; }
+    .radar-panel canvas {
+      display: block;
+      width: 100% !important;
+      max-width: 500px;
+      height: 400px !important;
+    }
 
     .dim-panel {
       background: var(--bg2);
-      padding: 16px;
+      padding: 20px 24px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      justify-content: center;
+      gap: 0;
     }
-
+    .dim-panel-title {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
     .dim-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+      padding: 5px 0;
     }
-
     .dim-name {
-      width: 110px;
+      width: 108px;
       font-size: 9px;
       letter-spacing: 1px;
       color: var(--muted);
       flex-shrink: 0;
     }
-
     .dim-bar-wrap {
       flex: 1;
-      height: 6px;
+      height: 7px;
       background: var(--bg3);
       border-radius: 2px;
       overflow: hidden;
     }
-
-    .dim-bar {
-      height: 100%;
-      border-radius: 2px;
-    }
-
+    .dim-bar { height: 100%; border-radius: 2px; }
     .dim-val {
       width: 36px;
+      text-align: right;
+      font-size: 12px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+    }
+
+    /* ── Strongest / Weakest callouts ────────────────────────────────────── */
+    .sw-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .sw-badge {
+      padding: 10px 12px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .sw-badge-label {
+      font-size: 8px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .sw-badge-dim {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    .sw-badge-val {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    /* ── Behavioral analysis narrative ───────────────────────────────────── */
+    .narrative-section {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .narrative-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      opacity: .7;
+    }
+    .narrative-content {}
+    .narrative-title {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .narrative-text {
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--text);
+      opacity: .9;
+    }
+
+    /* ── Lower body: technique breakdown + timeline ───────────────────────── */
+    .card-lower {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    @media (max-width: 900px) {
+      .card-lower { grid-template-columns: 1fr; }
+    }
+
+    .lower-panel {
+      background: var(--bg2);
+      padding: 18px 20px;
+    }
+    .lower-panel-title {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* technique breakdown */
+    .tech-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(26,34,54,.5);
+    }
+    .tech-row:last-child { border-bottom: none; }
+    .tech-tid {
+      width: 100px;
+      font-size: 11px;
+      letter-spacing: .5px;
+      color: var(--yellow);
+      flex-shrink: 0;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+    }
+    .tech-bar-wrap {
+      flex: 1;
+      height: 5px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .tech-bar { height: 100%; border-radius: 2px; }
+    .tech-pct {
+      width: 38px;
       text-align: right;
       font-size: 11px;
       font-family: 'Rajdhani', sans-serif;
       font-weight: 700;
     }
-
-    /* ── DNA strand bar ───────────────────────────────────────────────────── */
-    .dna-strand-section {
-      padding: 12px 16px;
-      border-top: 1px solid var(--border);
+    .tech-count {
+      width: 28px;
+      text-align: right;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: .5px;
     }
 
+    /* mutation timeline */
+    .timeline-entry {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(26,34,54,.5);
+    }
+    .timeline-entry:last-child { border-bottom: none; }
+    .tl-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 2px solid transparent;
+    }
+    .tl-date {
+      width: 78px;
+      font-size: 9px;
+      color: var(--muted);
+      flex-shrink: 0;
+      letter-spacing: .5px;
+    }
+    .tl-tid {
+      flex: 1;
+      font-size: 11px;
+      color: var(--yellow);
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      letter-spacing: .5px;
+    }
+    .tl-eva {
+      font-size: 11px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      width: 38px;
+      text-align: right;
+    }
+    .tl-winner {
+      width: 60px;
+      text-align: right;
+      font-size: 9px;
+      letter-spacing: .5px;
+    }
+
+    /* ── DNA strand ──────────────────────────────────────────────────────── */
+    .dna-strand-section {
+      padding: 14px 20px;
+      border-radius: 0 0 6px 6px;
+    }
     .dna-strand-label {
       font-size: 9px;
       letter-spacing: 2px;
       color: var(--muted);
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
-
     .dna-strand {
       display: flex;
-      height: 20px;
+      height: 24px;
       border-radius: 3px;
       overflow: hidden;
       gap: 1px;
     }
-
     .dna-seg {
       display: flex;
       align-items: center;
@@ -317,11 +470,10 @@
       font-size: 8px;
       letter-spacing: .3px;
       font-weight: 700;
-      color: rgba(0,0,0,.7);
+      color: rgba(0,0,0,.65);
       overflow: hidden;
       white-space: nowrap;
       min-width: 0;
-      transition: flex .4s ease;
       cursor: default;
     }
 
@@ -333,13 +485,11 @@
       scrollbar-width: thin;
       scrollbar-color: #1e2530 #0d1117;
     }
-
     .cmp-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
     }
-
     .cmp-table th {
       text-align: left;
       padding: 6px 10px;
@@ -350,32 +500,30 @@
       letter-spacing: 1px;
       white-space: nowrap;
     }
-
     .cmp-table td {
       padding: 5px 10px;
       border-bottom: 1px solid rgba(26,34,54,.6);
       white-space: nowrap;
     }
-
     .cmp-table tr:hover td { background: rgba(255,255,255,.02); }
 
-    /* ── Empty state ─────────────────────────────────────────────────────── */
+    /* ── Empty / loading ─────────────────────────────────────────────────── */
     .empty-state {
-      padding: 48px;
+      padding: 60px 20px;
       text-align: center;
       color: var(--muted);
       font-size: 12px;
       letter-spacing: 1px;
       line-height: 1.8;
     }
-
-    .empty-state .big { font-family: 'Rajdhani', sans-serif; font-size: 32px; display: block; margin-bottom: 12px; opacity: .3; }
-
-    #loading {
-      color: var(--green);
-      font-size: 11px;
-      letter-spacing: 1px;
+    .empty-state .big {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 40px;
+      display: block;
+      margin-bottom: 14px;
+      opacity: .2;
     }
+    #loading { color: var(--green); font-size: 11px; letter-spacing: 1px; }
   </style>
 </head>
 <body>
@@ -399,14 +547,12 @@
 
 <main id="main">
 
-  <!-- Model fingerprint cards ─────────────────────────────────────────────── -->
   <div class="section">
     <div class="section-hdr">
       ⬡ BEHAVIORAL FINGERPRINTING
-      <span class="hdr-sub">6-dimension mutation profile per Ollama model</span>
+      <span class="hdr-sub">6-dimension mutation profile per Ollama model — personality classification + tactical analysis</span>
     </div>
-    <div style="padding: 20px">
-      <div id="model-grid"></div>
+    <div id="model-grid">
       <div id="empty-state" class="empty-state" style="display:none">
         <span class="big">⬡</span>
         NO BATTLE DATA FOUND<br>
@@ -415,14 +561,13 @@
     </div>
   </div>
 
-  <!-- Model comparison table (shown only when ≥2 models) ─────────────────── -->
   <div id="comparison-section" class="section" style="display:none">
     <div class="section-hdr">
       ⚖ MODEL COMPARISON
       <span class="hdr-sub">side-by-side dimension scores across all tested models</span>
     </div>
     <div id="comparison-wrap">
-      <table class="cmp-table" id="cmp-table">
+      <table class="cmp-table">
         <thead>
           <tr>
             <th>MODEL</th>
@@ -446,20 +591,10 @@
 </main>
 
 <script>
-// ── Chart.js defaults ───────────────────────────────────────────────────────
-Chart.defaults.color          = '#718096';
-Chart.defaults.borderColor    = '#1a2236';
-Chart.defaults.font.family    = "'Courier New', Courier, monospace";
-Chart.defaults.font.size      = 10;
-
-const RADAR_LABELS = [
-  'FIELD PREF',
-  'INNOVATION',
-  'REACTION',
-  'RISK TOLER.',
-  'PERSISTENCE',
-  'ADAPTABILITY',
-];
+Chart.defaults.color       = '#718096';
+Chart.defaults.borderColor = '#1a2236';
+Chart.defaults.font.family = "'Courier New', Courier, monospace";
+Chart.defaults.font.size   = 10;
 
 const DIM_KEYS = [
   'field_preference_score',
@@ -488,29 +623,89 @@ const DIM_COLORS = {
   adaptability:           '#00ff88',
 };
 
-// ── Render a single model card ───────────────────────────────────────────────
-function renderCard(fp) {
-  const { model, personality, color, dimensions, dna_strand, stats } = fp;
+const RADAR_LABELS = DIM_KEYS.map(k => DIM_LABELS[k]);
 
-  const card = document.createElement('div');
+// ── Evasion rate → display color ─────────────────────────────────────────────
+function evasionColor(rate) {
+  if (rate >= 0.75) return '#ff3c3c';
+  if (rate >= 0.5)  return '#f97316';
+  if (rate >= 0.25) return '#ffd700';
+  return '#00ff88';
+}
+
+// ── Behavioral narrative generator ───────────────────────────────────────────
+function generateNarrative(fp) {
+  const { model, personality, dimensions, stats } = fp;
+
+  const entries  = Object.entries(dimensions).sort((a, b) => b[1] - a[1]);
+  const [topKey, topVal] = entries[0];
+  const [botKey, botVal] = entries[entries.length - 1];
+
+  const intros = {
+    Ghost:      `${model} operates as a Ghost — combining high evasion innovation with low risk tolerance to slip through detection grids undetected`,
+    Berserker:  `${model} charges as a Berserker — leveraging aggressive risk-taking and rapid adaptation after every detection event`,
+    Strategist: `${model} operates as a Strategist — applying methodical field coverage and systematic mutation patterns across all techniques`,
+    Chameleon:  `${model} adapts as a Chameleon — continuously reinventing its evasion signature with strong cross-session learning`,
+    Novice:     `${model} is classified as a Novice — showing limited strategic depth and inconsistent evasion patterns across rounds`,
+  };
+
+  const topNarr = {
+    field_preference_score: `it targets a broad range of Sentinel fields per round, maximising signature diversity and reducing predictability`,
+    evasion_innovation:     `it rarely repeats field values across rounds, preventing the Defender from anchoring rules to stable patterns`,
+    reaction_speed:         `it pivots aggressively within a single round of being caught, minimising the Defender's window of advantage`,
+    risk_tolerance:         `it willingly reuses fields the Defender has already targeted, betting on rule latency and configuration drift`,
+    persistence:            `it sustains winning field configurations across rounds rather than mutating away from what is already working`,
+    adaptability:           `it consistently improves its evasion rate session-over-session, demonstrating genuine cross-battle learning`,
+  };
+
+  const botNarr = {
+    field_preference_score: `it concentrates on a narrow field set, creating a predictable telemetry signature that stable Defender rules can anchor to`,
+    evasion_innovation:     `it relies on familiar field values across rounds rather than generating fresh telemetry — making Defender rules durable`,
+    reaction_speed:         `it is slow to adapt after detection events, often carrying the same field patterns into the following round`,
+    risk_tolerance:         `it avoids burned fields cautiously — operating conservatively and rarely challenging rules it has already triggered`,
+    persistence:            `it mutates aggressively even when a strategy is working, sacrificing tactical consistency for constant change`,
+    adaptability:           `its evasion performance does not compound across sessions — each battle begins from roughly the same baseline`,
+  };
+
+  const intro   = intros[personality]  || intros.Novice;
+  const topText = topNarr[topKey] || `scores highest on ${DIM_LABELS[topKey]}`;
+  const botText = botNarr[botKey] || `scores lowest on ${DIM_LABELS[botKey]}`;
+  const bw = stats.total_battles    === 1 ? 'battle'    : 'battles';
+  const tw = stats.total_techniques === 1 ? 'technique' : 'techniques';
+
+  return `${intro}. Its strongest dimension is ${DIM_LABELS[topKey]} at ${(topVal*100).toFixed(0)}% — ` +
+         `${topText}. ${DIM_LABELS[botKey]} is its weakest trait at ${(botVal*100).toFixed(0)}% — ` +
+         `${botText}. Across ${stats.total_battles} ${bw} spanning ${stats.total_techniques} ${tw}, ` +
+         `it averaged ${(stats.avg_evasion_rate*100).toFixed(0)}% evasion and won ` +
+         `${(stats.win_rate*100).toFixed(0)}% of engagements.`;
+}
+
+// ── Render a model card ───────────────────────────────────────────────────────
+function renderCard(fp) {
+  const { model, personality, color, dimensions, dna_strand, stats,
+          technique_breakdown, battle_timeline } = fp;
+
+  const card    = document.createElement('div');
   card.className = 'model-card';
 
-  // Header
+  // ── Card header ────────────────────────────────────────────────────────────
   const hdr = document.createElement('div');
   hdr.className = 'model-hdr';
   hdr.innerHTML = `
     <span class="personality-badge"
-          style="color:${color};background:${color}18;border:1px solid ${color}55">
+          style="color:${color};background:${color}14;border:1px solid ${color}55">
       ${personality.toUpperCase()}
     </span>
     <span class="model-name">${model}</span>
-    <span class="model-win-rate">${(stats.win_rate * 100).toFixed(0)}% WIN RATE</span>
+    <span class="model-win-rate">${(stats.win_rate * 100).toFixed(0)}% WIN RATE
+      &nbsp;·&nbsp; ${stats.attacker_wins} / ${stats.total_battles} VICTORIES
+    </span>
   `;
 
-  // Stats bar
-  const statsGrid = document.createElement('div');
-  statsGrid.className = 'stats-grid';
-  statsGrid.innerHTML = `
+  // ── Stats strip ────────────────────────────────────────────────────────────
+  const strip = document.createElement('div');
+  strip.className = 'stats-strip';
+  strip.innerHTML = `
     <div class="stat-cell">
       <div class="stat-n" style="color:${color}">${stats.total_battles}</div>
       <div class="stat-lbl">BATTLES</div>
@@ -524,24 +719,26 @@ function renderCard(fp) {
       <div class="stat-lbl">TECHNIQUES</div>
     </div>
     <div class="stat-cell">
-      <div class="stat-n" style="color:#ff3c3c">${(stats.avg_evasion_rate * 100).toFixed(0)}%</div>
+      <div class="stat-n" style="color:${evasionColor(stats.avg_evasion_rate)}">${(stats.avg_evasion_rate*100).toFixed(0)}%</div>
       <div class="stat-lbl">AVG EVASION</div>
     </div>
   `;
 
-  // Two-col body: radar chart + dimension bars
-  const body = document.createElement('div');
-  body.className = 'card-body';
+  // ── Primary body: radar + dimension panel ─────────────────────────────────
+  const primary = document.createElement('div');
+  primary.className = 'card-primary';
 
   // Radar panel
   const radarPanel = document.createElement('div');
   radarPanel.className = 'radar-panel';
-  const canvasId = `radar-${model.replace(/[^a-zA-Z0-9]/g, '_')}`;
-  radarPanel.innerHTML = `<canvas id="${canvasId}"></canvas>`;
+  const cid = `radar-${model.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  radarPanel.innerHTML = `<canvas id="${cid}"></canvas>`;
 
-  // Dimension bars panel
+  // Dimension panel
   const dimPanel = document.createElement('div');
   dimPanel.className = 'dim-panel';
+  dimPanel.innerHTML = `<div class="dim-panel-title">DIMENSION SCORES</div>`;
+
   for (const key of DIM_KEYS) {
     const val = dimensions[key];
     const c   = DIM_COLORS[key];
@@ -558,60 +755,155 @@ function renderCard(fp) {
     dimPanel.appendChild(row);
   }
 
-  body.appendChild(radarPanel);
-  body.appendChild(dimPanel);
+  // Strongest / weakest badges
+  const sorted  = Object.entries(dimensions).sort((a, b) => b[1] - a[1]);
+  const [sk, sv] = sorted[0];
+  const [wk, wv] = sorted[sorted.length - 1];
+  const swRow = document.createElement('div');
+  swRow.className = 'sw-row';
+  swRow.innerHTML = `
+    <div class="sw-badge" style="background:${DIM_COLORS[sk]}12;border:1px solid ${DIM_COLORS[sk]}44">
+      <div class="sw-badge-label">STRONGEST</div>
+      <div class="sw-badge-dim" style="color:${DIM_COLORS[sk]}">${DIM_LABELS[sk]}</div>
+      <div class="sw-badge-val" style="color:${DIM_COLORS[sk]}">${(sv*100).toFixed(0)}%</div>
+    </div>
+    <div class="sw-badge" style="background:#1a2236;border:1px solid #2d3748">
+      <div class="sw-badge-label">WEAKEST</div>
+      <div class="sw-badge-dim" style="color:var(--muted)">${DIM_LABELS[wk]}</div>
+      <div class="sw-badge-val" style="color:var(--muted)">${(wv*100).toFixed(0)}%</div>
+    </div>
+  `;
+  dimPanel.appendChild(swRow);
 
-  // DNA strand
+  primary.appendChild(radarPanel);
+  primary.appendChild(dimPanel);
+
+  // ── Behavioral analysis ────────────────────────────────────────────────────
+  const narrative = document.createElement('div');
+  narrative.className = 'narrative-section';
+  narrative.style.borderLeft = `3px solid ${color}66`;
+  narrative.innerHTML = `
+    <div class="narrative-icon" style="color:${color}">⬡</div>
+    <div class="narrative-content">
+      <div class="narrative-title">BEHAVIORAL ANALYSIS</div>
+      <div class="narrative-text">${generateNarrative(fp)}</div>
+    </div>
+  `;
+
+  // ── Lower body: technique breakdown + timeline ─────────────────────────────
+  const lower = document.createElement('div');
+  lower.className = 'card-lower';
+
+  // Technique breakdown
+  const techPanel = document.createElement('div');
+  techPanel.className = 'lower-panel';
+  techPanel.innerHTML = `<div class="lower-panel-title">TECHNIQUE BREAKDOWN — top evasion rates</div>`;
+
+  const breakdown = technique_breakdown || [];
+  if (breakdown.length) {
+    for (const row of breakdown) {
+      const c   = evasionColor(row.avg_evasion_rate);
+      const pct = (row.avg_evasion_rate * 100).toFixed(0);
+      const el  = document.createElement('div');
+      el.className = 'tech-row';
+      el.innerHTML = `
+        <span class="tech-tid">${row.technique_id}</span>
+        <div class="tech-bar-wrap">
+          <div class="tech-bar" style="width:${pct}%;background:${c}88"></div>
+        </div>
+        <span class="tech-pct" style="color:${c}">${pct}%</span>
+        <span class="tech-count">${row.battle_count}×</span>
+      `;
+      techPanel.appendChild(el);
+    }
+  } else {
+    techPanel.innerHTML += `<div style="color:var(--muted);font-size:11px;padding-top:8px">No technique data.</div>`;
+  }
+
+  // Mutation timeline
+  const tlPanel = document.createElement('div');
+  tlPanel.className = 'lower-panel';
+  tlPanel.innerHTML = `<div class="lower-panel-title">MUTATION TIMELINE — last ${Math.min((battle_timeline||[]).length, 5)} battles</div>`;
+
+  const timeline = battle_timeline || [];
+  if (timeline.length) {
+    for (const entry of [...timeline].reverse()) {
+      const c      = evasionColor(entry.final_evasion);
+      const pct    = (entry.final_evasion * 100).toFixed(0);
+      const winner = entry.winner === 'Attacker' ? 'ATK WON' : entry.winner === 'Defender' ? 'DEF WON' : 'DRAW';
+      const wColor = entry.winner === 'Attacker' ? 'var(--red)' : entry.winner === 'Defender' ? 'var(--blue)' : 'var(--muted)';
+      const el = document.createElement('div');
+      el.className = 'timeline-entry';
+      el.innerHTML = `
+        <div class="tl-dot" style="background:${c};border-color:${c}66"></div>
+        <span class="tl-date">${entry.date}</span>
+        <span class="tl-tid">${entry.technique_id}</span>
+        <span class="tl-eva" style="color:${c}">${pct}%</span>
+        <span class="tl-winner" style="color:${wColor}">${winner}</span>
+      `;
+      tlPanel.appendChild(el);
+    }
+  } else {
+    tlPanel.innerHTML += `<div style="color:var(--muted);font-size:11px;padding-top:8px">No timeline data.</div>`;
+  }
+
+  lower.appendChild(techPanel);
+  lower.appendChild(tlPanel);
+
+  // ── DNA strand ─────────────────────────────────────────────────────────────
   const strandSection = document.createElement('div');
   strandSection.className = 'dna-strand-section';
-  strandSection.innerHTML = `<div class="dna-strand-label">DNA STRAND — proportional mutation signature</div>`;
+  strandSection.innerHTML = `<div class="dna-strand-label">MUTATION SIGNATURE — proportional DNA strand</div>`;
 
   const strand = document.createElement('div');
   strand.className = 'dna-strand';
-  const total = dna_strand.reduce((s, seg) => s + seg.score, 0) || 1;
   for (const seg of dna_strand) {
-    const segEl = document.createElement('div');
-    segEl.className = 'dna-seg';
-    segEl.style.flex  = String(Math.max(seg.score, 0.02));
-    segEl.style.background = seg.color;
-    segEl.title = `${seg.label}: ${(seg.score * 100).toFixed(0)}%`;
-    segEl.textContent = seg.score > 0.12 ? seg.label.split(' ')[0] : '';
-    strand.appendChild(segEl);
+    const el = document.createElement('div');
+    el.className = 'dna-seg';
+    el.style.flex       = String(Math.max(seg.score, 0.02));
+    el.style.background = seg.color;
+    el.title = `${seg.label}: ${(seg.score * 100).toFixed(0)}%`;
+    el.textContent = seg.score > 0.1 ? seg.label.split(' ')[0] : '';
+    strand.appendChild(el);
   }
   strandSection.appendChild(strand);
 
-  // Assemble card
+  // ── Assemble card ──────────────────────────────────────────────────────────
   card.appendChild(hdr);
-  card.appendChild(statsGrid);
-  card.appendChild(body);
+  card.appendChild(strip);
+  card.appendChild(primary);
+  card.appendChild(narrative);
+  card.appendChild(lower);
   card.appendChild(strandSection);
 
-  // Draw radar chart after card is in DOM
+  // Draw radar after card is in DOM
   requestAnimationFrame(() => {
-    const ctx = document.getElementById(canvasId);
+    const ctx = document.getElementById(cid);
     if (!ctx) return;
     new Chart(ctx, {
       type: 'radar',
       data: {
         labels: RADAR_LABELS,
         datasets: [{
-          label: model,
-          data: DIM_KEYS.map(k => dimensions[k]),
-          borderColor:     color,
-          backgroundColor: color + '18',
-          borderWidth: 2,
-          pointRadius: 3,
+          data:             DIM_KEYS.map(k => dimensions[k]),
+          borderColor:      color,
+          backgroundColor:  color + '15',
+          borderWidth:      2,
+          pointRadius:      4,
           pointBackgroundColor: color,
-          pointHoverRadius: 5,
+          pointBorderColor: color,
+          pointHoverRadius: 6,
         }],
       },
       options: {
-        responsive: true,
+        responsive:          true,
+        maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: ctx => `${ctx.label}: ${(ctx.raw * 100).toFixed(0)}%`,
+              title: items => RADAR_LABELS[items[0].dataIndex],
+              label: item  => `${(item.raw * 100).toFixed(0)}%`,
             },
           },
         },
@@ -629,8 +921,8 @@ function renderCard(fp) {
             grid:       { color: '#1a2236' },
             angleLines: { color: '#1a2236' },
             pointLabels: {
-              color: '#718096',
-              font: { size: 9, family: "'Courier New', Courier, monospace" },
+              color: '#a0aec0',
+              font: { size: 10, family: "'Courier New', Courier, monospace" },
             },
           },
         },
@@ -641,47 +933,38 @@ function renderCard(fp) {
   return card;
 }
 
-// ── Render comparison table ──────────────────────────────────────────────────
+// ── Comparison table ──────────────────────────────────────────────────────────
 function renderComparison(fingerprints) {
   const tbody = document.getElementById('cmp-tbody');
   tbody.innerHTML = '';
-
-  const models = Object.keys(fingerprints).sort();
-  for (const model of models) {
-    const fp = fingerprints[model];
-    const { personality, color, dimensions, stats } = fp;
+  for (const model of Object.keys(fingerprints).sort()) {
+    const { personality, color, dimensions, stats } = fingerprints[model];
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="color:var(--text);font-family:'Rajdhani',sans-serif;letter-spacing:1px">${model}</td>
-      <td>
-        <span style="color:${color};font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:11px">
-          ${personality.toUpperCase()}
-        </span>
-      </td>
+      <td><span style="color:${color};font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:11px">${personality.toUpperCase()}</span></td>
       <td style="color:var(--muted);text-align:center">${stats.total_battles}</td>
-      <td style="color:#ff3c3c">${(stats.avg_evasion_rate * 100).toFixed(0)}%</td>
-      <td style="color:${color}">${(stats.win_rate * 100).toFixed(0)}%</td>
-      ${DIM_KEYS.map(k => `<td style="color:${DIM_COLORS[k]}">${(dimensions[k] * 100).toFixed(0)}%</td>`).join('')}
+      <td style="color:${evasionColor(stats.avg_evasion_rate)}">${(stats.avg_evasion_rate*100).toFixed(0)}%</td>
+      <td style="color:${color}">${(stats.win_rate*100).toFixed(0)}%</td>
+      ${DIM_KEYS.map(k => `<td style="color:${DIM_COLORS[k]}">${(dimensions[k]*100).toFixed(0)}%</td>`).join('')}
     `;
     tbody.appendChild(tr);
   }
 }
 
-// ── Main render ──────────────────────────────────────────────────────────────
+// ── Main load ─────────────────────────────────────────────────────────────────
 async function load() {
   const loading = document.getElementById('loading');
   loading.style.display = 'inline';
-
   try {
-    const res = await fetch('/api/dna', { cache: 'no-store' });
-    const data = await res.json();
-    const models = Object.keys(data);
+    const res    = await fetch('/api/dna', { cache: 'no-store' });
+    const data   = await res.json();
+    const models = Object.keys(data).sort();
 
     loading.style.display = 'none';
 
     const grid  = document.getElementById('model-grid');
     const empty = document.getElementById('empty-state');
-    grid.innerHTML = '';
 
     if (!models.length) {
       empty.style.display = 'block';
@@ -689,7 +972,8 @@ async function load() {
     }
 
     empty.style.display = 'none';
-    for (const model of models.sort()) {
+
+    for (const model of models) {
       grid.appendChild(renderCard(data[model]));
     }
 
@@ -699,7 +983,7 @@ async function load() {
     }
   } catch (e) {
     console.error(e);
-    loading.style.display = 'none';
+    document.getElementById('loading').style.display = 'none';
     document.getElementById('empty-state').style.display = 'block';
   }
 }

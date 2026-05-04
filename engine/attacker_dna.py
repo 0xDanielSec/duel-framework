@@ -279,6 +279,53 @@ class DNAAnalyzer:
             "win_rate":         round(wins / len(battles), 4) if battles else 0.0,
         }
 
+    # ── Technique breakdown ───────────────────────────────────────────────────
+
+    def _technique_breakdown(self, battles: list[dict]) -> list[dict]:
+        """Top techniques by average evasion rate across all battles."""
+        by_tech: dict[str, list[float]] = {}
+        battle_counts: dict[str, int] = {}
+        for battle in battles:
+            tid = battle.get("technique_id", "")
+            if not tid:
+                continue
+            rates = [float(r.get("evasion_rate", 0.0)) for r in battle.get("rounds", [])]
+            if rates:
+                by_tech.setdefault(tid, []).extend(rates)
+                battle_counts[tid] = battle_counts.get(tid, 0) + 1
+        rows = [
+            {
+                "technique_id":    tid,
+                "avg_evasion_rate": round(sum(vals) / len(vals), 4),
+                "battle_count":    battle_counts.get(tid, 0),
+            }
+            for tid, vals in by_tech.items()
+        ]
+        return sorted(rows, key=lambda r: r["avg_evasion_rate"], reverse=True)[:5]
+
+    # ── Battle timeline ───────────────────────────────────────────────────────
+
+    def _battle_timeline(self, battles: list[dict]) -> list[dict]:
+        """Last 5 battles in chronological order with date, technique, evasion."""
+        entries = []
+        for battle in battles:
+            tid    = battle.get("technique_id", "")
+            rounds = battle.get("rounds", [])
+            if not rounds:
+                continue
+            ts = next((r.get("timestamp", "") for r in rounds if r.get("timestamp")), "")
+            date_str = ts[:10] if len(ts) >= 10 else "unknown"
+            final_evasion = float(rounds[-1].get("evasion_rate", 0.0))
+            entries.append({
+                "technique_id":  tid,
+                "date":          date_str,
+                "timestamp":     ts,
+                "final_evasion": round(final_evasion, 4),
+                "winner":        battle.get("winner", ""),
+            })
+        entries.sort(key=lambda e: (e["timestamp"], e["technique_id"]))
+        return entries[-5:]
+
     # ── DNA strand segments ───────────────────────────────────────────────────
 
     def _dna_strand(self, dims: dict) -> list[dict]:
@@ -309,12 +356,14 @@ class DNAAnalyzer:
             }
             personality, color = self._personality(dims)
             fingerprints[model] = {
-                "model":       model,
-                "personality": personality,
-                "color":       color,
-                "dimensions":  dims,
-                "dna_strand":  self._dna_strand(dims),
-                "stats":       self._model_stats(battles),
+                "model":                model,
+                "personality":          personality,
+                "color":                color,
+                "dimensions":           dims,
+                "dna_strand":           self._dna_strand(dims),
+                "stats":                self._model_stats(battles),
+                "technique_breakdown":  self._technique_breakdown(battles),
+                "battle_timeline":      self._battle_timeline(battles),
             }
         return fingerprints
 
