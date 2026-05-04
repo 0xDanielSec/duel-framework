@@ -129,7 +129,7 @@ def run_duel(
     else:
         attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
     defender = DefenderAgent(model=defender_model)
-    scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id)
+    scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id, attacker_model=attacker_model)
 
     print_banner()
     console.print(f"\n[bold]Technique:[/bold] {technique_id} — {technique['name']}")
@@ -218,6 +218,12 @@ def run_duel(
     log_path      = scorer.save_full_battle_log()
     report_path   = scorer.generate_report()
     analysis_path = scorer.generate_analysis()
+
+    try:
+        from engine.attacker_dna import DNAAnalyzer
+        DNAAnalyzer().save()
+    except Exception as exc:
+        logger.warning("DNA update skipped: %s", exc)
 
     try:
         from engine.report_generator import ReportGenerator

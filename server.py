@@ -144,6 +144,18 @@ async def history_page():
     return FileResponse(str(STATIC_DIR / "history.html"))
 
 
+@app.get("/dna")
+async def dna_page():
+    return FileResponse(str(STATIC_DIR / "dna.html"))
+
+
+@app.get("/api/dna")
+async def api_dna():
+    from engine.attacker_dna import DNAAnalyzer
+    data = await _in_thread(DNAAnalyzer().analyze)
+    return JSONResponse(content=data)
+
+
 @app.get("/api/history")
 async def api_history(technique: str = ""):
     from engine.historical_analysis import HistoricalAnalyzer
@@ -492,7 +504,7 @@ async def ws_battle(websocket: WebSocket):
         else:
             attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
         defender = DefenderAgent(model=defender_model)
-        scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id)
+        scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id, attacker_model=attacker_model)
 
         for round_num in range(1, rounds + 1):
             await send({
@@ -615,6 +627,12 @@ async def ws_battle(websocket: WebSocket):
         # ── Battle complete ─────────────────────────────────────────────────
         scorer.save_full_battle_log()
         scorer.generate_report()
+
+        try:
+            from engine.attacker_dna import DNAAnalyzer
+            await _in_thread(DNAAnalyzer().save)
+        except Exception:
+            pass
 
         if scorer.attacker_score > scorer.defender_score:
             winner = "Attacker"

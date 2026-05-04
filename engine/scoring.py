@@ -14,9 +14,10 @@ OUTPUT_DIR = Path(__file__).parent.parent / "output"
 
 
 class BattleScorer:
-    def __init__(self, total_rounds: int, technique_id: str):
+    def __init__(self, total_rounds: int, technique_id: str, attacker_model: str = "llama3.1:8b"):
         self.total_rounds = total_rounds
         self.technique_id = technique_id
+        self.attacker_model = attacker_model
         self.rounds: list[dict] = []
         self.attacker_score = 0
         self.defender_score = 0
@@ -127,12 +128,13 @@ class BattleScorer:
     def save_full_battle_log(self) -> Path:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         battle = {
-            "technique_id": self.technique_id,
-            "total_rounds": self.total_rounds,
+            "technique_id":        self.technique_id,
+            "attacker_model":      self.attacker_model,
+            "total_rounds":        self.total_rounds,
             "final_attacker_score": self.attacker_score,
             "final_defender_score": self.defender_score,
-            "winner": self._determine_winner(),
-            "rounds": self.rounds,
+            "winner":              self._determine_winner(),
+            "rounds":              self.rounds,
             "surviving_kql_rules": self.surviving_kql,
         }
         path = OUTPUT_DIR / f"full_battle_log_{self.technique_id}.json"

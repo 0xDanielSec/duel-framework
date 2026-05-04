@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — Attacker DNA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:      #07090f;
+      --bg2:     #0d1117;
+      --bg3:     #111827;
+      --red:     #ff3c3c;
+      --blue:    #3c8eff;
+      --green:   #00ff88;
+      --yellow:  #ffd700;
+      --cyan:    #06b6d4;
+      --purple:  #a78bfa;
+      --dim:     #4a5568;
+      --muted:   #718096;
+      --text:    #e2e8f0;
+      --border:  #1a2236;
+      --mono:    'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      height: auto;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    html { scrollbar-width: thin; scrollbar-color: #1e2530 #0d1117; }
+
+    body { display: flex; flex-direction: column; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1117; }
+    ::-webkit-scrollbar-thumb { background: #1e2530; border-radius: 2px; }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--red) 0%, #ff8c42 40%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+    }
+
+    #mode-badge {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--green);
+      border: 1px solid rgba(0,255,136,.4);
+      background: rgba(0,255,136,.06);
+      padding: 2px 10px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    #nav-links { margin-left: auto; display: flex; gap: 8px; font-size: 11px; letter-spacing: 1px; }
+    #nav-links a { color: var(--muted); text-decoration: none; padding: 3px 9px; border: 1px solid transparent; border-radius: 3px; transition: all .15s; white-space: nowrap; }
+    #nav-links a.nav-warroom:hover    { color: var(--text);   border-color: var(--dim); }
+    #nav-links a.nav-heatmap:hover    { color: var(--yellow); border-color: var(--dim); }
+    #nav-links a.nav-tournament:hover { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-campaign:hover   { color: #f97316;       border-color: var(--dim); }
+    #nav-links a.nav-export:hover     { color: var(--blue);   border-color: var(--dim); }
+    #nav-links a.nav-autonomous:hover { color: var(--purple); border-color: var(--dim); }
+    #nav-links a.nav-mcp:hover        { color: var(--green);  border-color: var(--dim); }
+    #nav-links a.nav-history:hover    { color: var(--cyan);   border-color: var(--dim); }
+    #nav-links a.nav-dna:hover        { color: var(--green);  border-color: var(--dim); }
+    #nav-links a.active.nav-warroom    { color: var(--text);   border-color: rgba(226,232,240,.35); }
+    #nav-links a.active.nav-heatmap    { color: var(--yellow); border-color: rgba(255,215,0,.4); }
+    #nav-links a.active.nav-tournament { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-campaign   { color: #f97316;       border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-export     { color: var(--blue);   border-color: rgba(60,142,255,.4); }
+    #nav-links a.active.nav-autonomous { color: var(--purple); border-color: rgba(167,139,250,.4); }
+    #nav-links a.active.nav-mcp        { color: var(--green);  border-color: rgba(0,255,136,.4); }
+    #nav-links a.active.nav-history    { color: var(--cyan);   border-color: rgba(6,182,212,.4); }
+    #nav-links a.active.nav-dna        { color: var(--green);  border-color: rgba(0,255,136,.4); }
+
+    /* ── Main ────────────────────────────────────────────────────────────── */
+    #main {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Section shell ───────────────────────────────────────────────────── */
+    .section {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: visible;
+    }
+
+    .section-hdr {
+      padding: 10px 16px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      border-radius: 6px 6px 0 0;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-hdr .hdr-sub {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: normal;
+      letter-spacing: 0;
+      color: var(--muted);
+      margin-left: 8px;
+    }
+
+    /* ── Model grid ──────────────────────────────────────────────────────── */
+    #model-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+      gap: 20px;
+    }
+
+    @media (max-width: 600px) {
+      #model-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Model card ──────────────────────────────────────────────────────── */
+    .model-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: visible;
+    }
+
+    .model-hdr {
+      padding: 12px 16px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .personality-badge {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      padding: 3px 12px;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    .model-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--text);
+    }
+
+    .model-win-rate {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    /* ── Stats grid ──────────────────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+    }
+
+    .stat-cell {
+      background: var(--bg2);
+      padding: 10px 8px;
+      text-align: center;
+    }
+
+    .stat-n {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .stat-lbl {
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── Two-col: radar + dimensions ─────────────────────────────────────── */
+    .card-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+    }
+
+    @media (max-width: 760px) {
+      .card-body { grid-template-columns: 1fr; }
+    }
+
+    .radar-panel {
+      background: var(--bg2);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .radar-panel canvas { max-width: 260px; max-height: 260px; }
+
+    .dim-panel {
+      background: var(--bg2);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .dim-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dim-name {
+      width: 110px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .dim-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .dim-bar {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    .dim-val {
+      width: 36px;
+      text-align: right;
+      font-size: 11px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+    }
+
+    /* ── DNA strand bar ───────────────────────────────────────────────────── */
+    .dna-strand-section {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .dna-strand-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .dna-strand {
+      display: flex;
+      height: 20px;
+      border-radius: 3px;
+      overflow: hidden;
+      gap: 1px;
+    }
+
+    .dna-seg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      letter-spacing: .3px;
+      font-weight: 700;
+      color: rgba(0,0,0,.7);
+      overflow: hidden;
+      white-space: nowrap;
+      min-width: 0;
+      transition: flex .4s ease;
+      cursor: default;
+    }
+
+    /* ── Comparison table ────────────────────────────────────────────────── */
+    #comparison-wrap {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 400px;
+      scrollbar-width: thin;
+      scrollbar-color: #1e2530 #0d1117;
+    }
+
+    .cmp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .cmp-table th {
+      text-align: left;
+      padding: 6px 10px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .cmp-table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(26,34,54,.6);
+      white-space: nowrap;
+    }
+
+    .cmp-table tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* ── Empty state ─────────────────────────────────────────────────────── */
+    .empty-state {
+      padding: 48px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 1px;
+      line-height: 1.8;
+    }
+
+    .empty-state .big { font-family: 'Rajdhani', sans-serif; font-size: 32px; display: block; margin-bottom: 12px; opacity: .3; }
+
+    #loading {
+      color: var(--green);
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div id="logo">DUEL</div>
+  <div id="mode-badge">ATTACKER DNA</div>
+  <span id="loading">SCANNING…</span>
+  <nav id="nav-links">
+    <a href="/"            class="nav-warroom">⚔ WAR ROOM</a>
+    <a href="/heatmap"     class="nav-heatmap">◈ HEATMAP</a>
+    <a href="/tournament"  class="nav-tournament">⚡ TOURNAMENT</a>
+    <a href="/campaign"    class="nav-campaign">⛓ CAMPAIGN</a>
+    <a href="/export"      class="nav-export">⬇ EXPORT</a>
+    <a href="/autonomous"  class="nav-autonomous">★ AUTONOMOUS</a>
+    <a href="/mcp"         class="nav-mcp">⚡ MCP</a>
+    <a href="/history"     class="nav-history">⏱ HISTORY</a>
+    <a href="/dna"         class="nav-dna active">⬡ DNA</a>
+  </nav>
+</div>
+
+<main id="main">
+
+  <!-- Model fingerprint cards ─────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-hdr">
+      ⬡ BEHAVIORAL FINGERPRINTING
+      <span class="hdr-sub">6-dimension mutation profile per Ollama model</span>
+    </div>
+    <div style="padding: 20px">
+      <div id="model-grid"></div>
+      <div id="empty-state" class="empty-state" style="display:none">
+        <span class="big">⬡</span>
+        NO BATTLE DATA FOUND<br>
+        <span style="font-size:11px">Run a battle via the WAR ROOM or CLI to generate a DNA fingerprint.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Model comparison table (shown only when ≥2 models) ─────────────────── -->
+  <div id="comparison-section" class="section" style="display:none">
+    <div class="section-hdr">
+      ⚖ MODEL COMPARISON
+      <span class="hdr-sub">side-by-side dimension scores across all tested models</span>
+    </div>
+    <div id="comparison-wrap">
+      <table class="cmp-table" id="cmp-table">
+        <thead>
+          <tr>
+            <th>MODEL</th>
+            <th>PERSONALITY</th>
+            <th>BATTLES</th>
+            <th>AVG EVASION</th>
+            <th>WIN RATE</th>
+            <th>FIELD PREF</th>
+            <th>INNOVATION</th>
+            <th>REACTION</th>
+            <th>RISK</th>
+            <th>PERSISTENCE</th>
+            <th>ADAPTABILITY</th>
+          </tr>
+        </thead>
+        <tbody id="cmp-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── Chart.js defaults ───────────────────────────────────────────────────────
+Chart.defaults.color          = '#718096';
+Chart.defaults.borderColor    = '#1a2236';
+Chart.defaults.font.family    = "'Courier New', Courier, monospace";
+Chart.defaults.font.size      = 10;
+
+const RADAR_LABELS = [
+  'FIELD PREF',
+  'INNOVATION',
+  'REACTION',
+  'RISK TOLER.',
+  'PERSISTENCE',
+  'ADAPTABILITY',
+];
+
+const DIM_KEYS = [
+  'field_preference_score',
+  'evasion_innovation',
+  'reaction_speed',
+  'risk_tolerance',
+  'persistence',
+  'adaptability',
+];
+
+const DIM_LABELS = {
+  field_preference_score: 'FIELD PREF',
+  evasion_innovation:     'INNOVATION',
+  reaction_speed:         'REACTION',
+  risk_tolerance:         'RISK TOLER.',
+  persistence:            'PERSISTENCE',
+  adaptability:           'ADAPTABILITY',
+};
+
+const DIM_COLORS = {
+  field_preference_score: '#06b6d4',
+  evasion_innovation:     '#a78bfa',
+  reaction_speed:         '#ffd700',
+  risk_tolerance:         '#ff3c3c',
+  persistence:            '#3c8eff',
+  adaptability:           '#00ff88',
+};
+
+// ── Render a single model card ───────────────────────────────────────────────
+function renderCard(fp) {
+  const { model, personality, color, dimensions, dna_strand, stats } = fp;
+
+  const card = document.createElement('div');
+  card.className = 'model-card';
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.className = 'model-hdr';
+  hdr.innerHTML = `
+    <span class="personality-badge"
+          style="color:${color};background:${color}18;border:1px solid ${color}55">
+      ${personality.toUpperCase()}
+    </span>
+    <span class="model-name">${model}</span>
+    <span class="model-win-rate">${(stats.win_rate * 100).toFixed(0)}% WIN RATE</span>
+  `;
+
+  // Stats bar
+  const statsGrid = document.createElement('div');
+  statsGrid.className = 'stats-grid';
+  statsGrid.innerHTML = `
+    <div class="stat-cell">
+      <div class="stat-n" style="color:${color}">${stats.total_battles}</div>
+      <div class="stat-lbl">BATTLES</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-n" style="color:#ffd700">${stats.total_rounds}</div>
+      <div class="stat-lbl">ROUNDS</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-n" style="color:#06b6d4">${stats.total_techniques}</div>
+      <div class="stat-lbl">TECHNIQUES</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-n" style="color:#ff3c3c">${(stats.avg_evasion_rate * 100).toFixed(0)}%</div>
+      <div class="stat-lbl">AVG EVASION</div>
+    </div>
+  `;
+
+  // Two-col body: radar chart + dimension bars
+  const body = document.createElement('div');
+  body.className = 'card-body';
+
+  // Radar panel
+  const radarPanel = document.createElement('div');
+  radarPanel.className = 'radar-panel';
+  const canvasId = `radar-${model.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  radarPanel.innerHTML = `<canvas id="${canvasId}"></canvas>`;
+
+  // Dimension bars panel
+  const dimPanel = document.createElement('div');
+  dimPanel.className = 'dim-panel';
+  for (const key of DIM_KEYS) {
+    const val = dimensions[key];
+    const c   = DIM_COLORS[key];
+    const pct = (val * 100).toFixed(0);
+    const row = document.createElement('div');
+    row.className = 'dim-row';
+    row.innerHTML = `
+      <span class="dim-name">${DIM_LABELS[key]}</span>
+      <div class="dim-bar-wrap">
+        <div class="dim-bar" style="width:${pct}%;background:${c}"></div>
+      </div>
+      <span class="dim-val" style="color:${c}">${pct}%</span>
+    `;
+    dimPanel.appendChild(row);
+  }
+
+  body.appendChild(radarPanel);
+  body.appendChild(dimPanel);
+
+  // DNA strand
+  const strandSection = document.createElement('div');
+  strandSection.className = 'dna-strand-section';
+  strandSection.innerHTML = `<div class="dna-strand-label">DNA STRAND — proportional mutation signature</div>`;
+
+  const strand = document.createElement('div');
+  strand.className = 'dna-strand';
+  const total = dna_strand.reduce((s, seg) => s + seg.score, 0) || 1;
+  for (const seg of dna_strand) {
+    const segEl = document.createElement('div');
+    segEl.className = 'dna-seg';
+    segEl.style.flex  = String(Math.max(seg.score, 0.02));
+    segEl.style.background = seg.color;
+    segEl.title = `${seg.label}: ${(seg.score * 100).toFixed(0)}%`;
+    segEl.textContent = seg.score > 0.12 ? seg.label.split(' ')[0] : '';
+    strand.appendChild(segEl);
+  }
+  strandSection.appendChild(strand);
+
+  // Assemble card
+  card.appendChild(hdr);
+  card.appendChild(statsGrid);
+  card.appendChild(body);
+  card.appendChild(strandSection);
+
+  // Draw radar chart after card is in DOM
+  requestAnimationFrame(() => {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: RADAR_LABELS,
+        datasets: [{
+          label: model,
+          data: DIM_KEYS.map(k => dimensions[k]),
+          borderColor:     color,
+          backgroundColor: color + '18',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: color,
+          pointHoverRadius: 5,
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.label}: ${(ctx.raw * 100).toFixed(0)}%`,
+            },
+          },
+        },
+        scales: {
+          r: {
+            min: 0,
+            max: 1,
+            ticks: {
+              stepSize: 0.25,
+              color: '#4a5568',
+              backdropColor: 'transparent',
+              font: { size: 9 },
+              callback: v => `${(v * 100).toFixed(0)}%`,
+            },
+            grid:       { color: '#1a2236' },
+            angleLines: { color: '#1a2236' },
+            pointLabels: {
+              color: '#718096',
+              font: { size: 9, family: "'Courier New', Courier, monospace" },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  return card;
+}
+
+// ── Render comparison table ──────────────────────────────────────────────────
+function renderComparison(fingerprints) {
+  const tbody = document.getElementById('cmp-tbody');
+  tbody.innerHTML = '';
+
+  const models = Object.keys(fingerprints).sort();
+  for (const model of models) {
+    const fp = fingerprints[model];
+    const { personality, color, dimensions, stats } = fp;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text);font-family:'Rajdhani',sans-serif;letter-spacing:1px">${model}</td>
+      <td>
+        <span style="color:${color};font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:11px">
+          ${personality.toUpperCase()}
+        </span>
+      </td>
+      <td style="color:var(--muted);text-align:center">${stats.total_battles}</td>
+      <td style="color:#ff3c3c">${(stats.avg_evasion_rate * 100).toFixed(0)}%</td>
+      <td style="color:${color}">${(stats.win_rate * 100).toFixed(0)}%</td>
+      ${DIM_KEYS.map(k => `<td style="color:${DIM_COLORS[k]}">${(dimensions[k] * 100).toFixed(0)}%</td>`).join('')}
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// ── Main render ──────────────────────────────────────────────────────────────
+async function load() {
+  const loading = document.getElementById('loading');
+  loading.style.display = 'inline';
+
+  try {
+    const res = await fetch('/api/dna', { cache: 'no-store' });
+    const data = await res.json();
+    const models = Object.keys(data);
+
+    loading.style.display = 'none';
+
+    const grid  = document.getElementById('model-grid');
+    const empty = document.getElementById('empty-state');
+    grid.innerHTML = '';
+
+    if (!models.length) {
+      empty.style.display = 'block';
+      return;
+    }
+
+    empty.style.display = 'none';
+    for (const model of models.sort()) {
+      grid.appendChild(renderCard(data[model]));
+    }
+
+    if (models.length >= 2) {
+      document.getElementById('comparison-section').style.display = 'block';
+      renderComparison(data);
+    }
+  } catch (e) {
+    console.error(e);
+    loading.style.display = 'none';
+    document.getElementById('empty-state').style.display = 'block';
+  }
+}
+
+load();
+</script>
+</body>
+</html>
