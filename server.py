@@ -149,6 +149,19 @@ async def dna_page():
     return FileResponse(str(STATIC_DIR / "dna.html"))
 
 
+@app.get("/benchmark")
+async def benchmark_page():
+    return FileResponse(str(STATIC_DIR / "benchmark.html"))
+
+
+@app.get("/api/dabs")
+async def api_dabs():
+    """Return all saved DABS benchmark results grouped by model."""
+    from engine.dabs_scorer import DABSScorer
+    models = await _in_thread(DABSScorer.load_all)
+    return JSONResponse({"models": models})
+
+
 @app.get("/api/dna")
 async def api_dna():
     from engine.attacker_dna import DNAAnalyzer
@@ -1325,6 +1338,193 @@ async def ws_autonomous(websocket: WebSocket):
             "decisions":    red_team._decisions,
             "success_rate": round(overall_success, 4),
             "report_path":  str(report_path),
+        })
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as exc:
+        try:
+            await send({"type": "error", "message": str(exc)})
+        except Exception:
+            pass
+
+
+# ── WebSocket benchmark loop ─────────────────────────────────────────────────
+
+# Representative quick subset for a ~10-minute benchmark run
+_BENCHMARK_QUICK = [
+    "T1078.004", "T1110.003", "T1098.001", "T1566.001", "T1485",
+    "LLM01", "LLM02", "LLM03", "LLM06", "LLM10",
+]
+
+
+@app.websocket("/ws/benchmark")
+async def ws_benchmark(websocket: WebSocket):
+    await websocket.accept()
+
+    async def send(payload: dict):
+        await websocket.send_text(json.dumps(payload, default=str))
+
+    try:
+        from engine.dabs_scorer import DABSScorer
+
+        cfg             = await websocket.receive_json()
+        defender_model: str = cfg.get("model",         "mistral:7b")
+        attacker_model: str = cfg.get("attacker",      "llama3.1:8b")
+        rounds: int         = max(1, int(cfg.get("rounds", 3)))
+        logs_per_round: int = max(5, int(cfg.get("logs_per_round", 10)))
+        raw_techniques: str = cfg.get("techniques",    "quick")
+
+        all_techniques = _available_techniques()
+        if raw_techniques.lower() == "all":
+            technique_ids = all_techniques
+        elif raw_techniques.lower() == "quick":
+            technique_ids = [t for t in _BENCHMARK_QUICK if t in all_techniques]
+        else:
+            technique_ids = [t.strip() for t in raw_techniques.split(",") if t.strip()]
+
+        Path("output").mkdir(exist_ok=True)
+
+        await send({
+            "type":             "benchmark_start",
+            "model":            defender_model,
+            "attacker":         attacker_model,
+            "techniques_count": len(technique_ids),
+            "rounds":           rounds,
+        })
+
+        technique_results: dict[str, dict] = {}
+
+        for idx, tech_id in enumerate(technique_ids):
+            try:
+                technique = await _in_thread(_load_technique, tech_id)
+            except FileNotFoundError:
+                await send({"type": "technique_skip", "technique_id": tech_id})
+                continue
+
+            await send({
+                "type":         "technique_start",
+                "technique_id": tech_id,
+                "name":         technique.get("name", tech_id),
+                "idx":          idx + 1,
+                "total":        len(technique_ids),
+            })
+
+            attacker_agent = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
+            defender_agent = DefenderAgent(model=defender_model)
+            scorer = BattleScorer(
+                total_rounds=rounds,
+                technique_id=tech_id,
+                attacker_model=attacker_model,
+            )
+
+            for round_num in range(1, rounds + 1):
+                last_kql      = scorer.rounds[-1]["kql_rule"] if scorer.rounds else None
+                detected_logs = scorer.get_last_detected_logs()
+                evaded_logs   = scorer.get_last_evaded_logs()
+
+                try:
+                    attack_logs = await _in_thread(
+                        attacker_agent.generate_logs,
+                        technique=technique,
+                        round_num=round_num,
+                        total_rounds=rounds,
+                        last_kql=last_kql,
+                        detected_logs=detected_logs,
+                        evaded_logs=evaded_logs,
+                    )
+                except Exception as exc:
+                    await send({"type": "error", "message": f"Attacker error on {tech_id} R{round_num}: {exc}"})
+                    break
+
+                try:
+                    kql_rule = await _in_thread(
+                        defender_agent.generate_rule,
+                        technique=technique,
+                        round_num=round_num,
+                        total_rounds=rounds,
+                        attack_logs=attack_logs,
+                        detected_logs=detected_logs,
+                        evaded_logs=evaded_logs,
+                    )
+                except Exception:
+                    kql_rule = "SigninLogs | where ResultType != 0"
+
+                if tech_id.upper().startswith("LLM"):
+                    from engine.llm_detection import LLMDetectionEngine
+                    engine = LLMDetectionEngine(attack_logs)
+                else:
+                    engine = DetectionEngine(attack_logs)
+
+                det_result    = engine.run(kql_rule)
+                total_logs    = len(attack_logs)
+                detected_n    = len(det_result["detected_ids"])
+                evaded_n      = total_logs - detected_n
+                rate          = detected_n / total_logs if total_logs else 0.0
+
+                scorer.record_round(
+                    round_num=round_num,
+                    attack_logs=attack_logs,
+                    kql_rule=kql_rule,
+                    detected_ids=det_result["detected_ids"],
+                    kql_valid=det_result["kql_valid"],
+                )
+
+                await send({
+                    "type":           "round_complete",
+                    "round":          round_num,
+                    "technique_id":   tech_id,
+                    "detected":       detected_n,
+                    "evaded":         evaded_n,
+                    "detection_rate": round(rate, 4),
+                    "evasion_rate":   round(1 - rate, 4),
+                })
+
+            # Technique done — compute running DABS
+            t_rounds = scorer.rounds
+            technique_results[tech_id] = {
+                "rounds": t_rounds,
+                "tactic": technique.get("tactic", technique.get("owasp_category", "Unknown")),
+                "name":   technique.get("name", tech_id),
+            }
+
+            running = DABSScorer(
+                model=defender_model,
+                technique_results=technique_results,
+                attacker_model=attacker_model,
+                total_techniques=len(technique_ids),
+            ).compute()
+
+            n_rounds = len(t_rounds)
+            avg_det  = sum(r["detection_rate"] for r in t_rounds) / n_rounds if n_rounds else 0.0
+            avg_eva  = sum(r["evasion_rate"]   for r in t_rounds) / n_rounds if n_rounds else 0.0
+
+            await send({
+                "type":               "technique_complete",
+                "technique_id":       tech_id,
+                "idx":                idx + 1,
+                "total":              len(technique_ids),
+                "model":              defender_model,
+                "avg_detection_rate": round(avg_det, 4),
+                "avg_evasion_rate":   round(avg_eva,  4),
+                "dabs_running":       running.dabs_score,
+                "partial_components": running.components,
+            })
+
+        # ── Final score ───────────────────────────────────────────────────
+        final_scorer = DABSScorer(
+            model=defender_model,
+            technique_results=technique_results,
+            attacker_model=attacker_model,
+            total_techniques=len(all_techniques),
+        )
+        final_result = final_scorer.compute()
+        saved_path   = await _in_thread(final_scorer.save, final_result)
+
+        await send({
+            "type":   "benchmark_complete",
+            "result": final_result.to_dict(),
+            "file":   saved_path.name,
         })
 
     except WebSocketDisconnect:

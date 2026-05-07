@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — DABS Benchmark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:     #07090f;
+      --bg2:    #0d1117;
+      --bg3:    #111827;
+      --red:    #ff3c3c;
+      --blue:   #3c8eff;
+      --green:  #00ff88;
+      --yellow: #ffd700;
+      --cyan:   #06b6d4;
+      --purple: #a78bfa;
+      --orange: #f97316;
+      --dim:    #4a5568;
+      --muted:  #718096;
+      --text:   #e2e8f0;
+      --border: #1a2236;
+      --gold:   #ffd700;
+      --mono:   'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    body { display: flex; flex-direction: column; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--yellow) 0%, #f97316 50%, var(--red) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #mode-badge {
+      padding: 2px 10px;
+      border: 1px solid rgba(255,215,0,0.5);
+      background: rgba(255,215,0,0.07);
+      border-radius: 3px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--gold);
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+    }
+
+    #nav-links { margin-left: auto; display: flex; gap: 8px; font-size: 11px; letter-spacing: 1px; }
+    #nav-links a { color: var(--muted); text-decoration: none; padding: 3px 9px; border: 1px solid transparent; border-radius: 3px; transition: all .15s; white-space: nowrap; }
+    #nav-links a.nav-warroom:hover    { color: var(--text);   border-color: var(--dim); }
+    #nav-links a.nav-heatmap:hover    { color: var(--yellow); border-color: var(--dim); }
+    #nav-links a.nav-tournament:hover { color: var(--orange); border-color: var(--dim); }
+    #nav-links a.nav-campaign:hover   { color: var(--orange); border-color: var(--dim); }
+    #nav-links a.nav-export:hover     { color: var(--blue);   border-color: var(--dim); }
+    #nav-links a.nav-autonomous:hover { color: var(--purple); border-color: var(--dim); }
+    #nav-links a.nav-mcp:hover        { color: var(--green);  border-color: var(--dim); }
+    #nav-links a.nav-history:hover    { color: var(--cyan);   border-color: var(--dim); }
+    #nav-links a.nav-dna:hover        { color: var(--green);  border-color: var(--dim); }
+    #nav-links a.nav-dabs:hover       { color: var(--yellow); border-color: var(--dim); }
+    #nav-links a.active.nav-warroom    { color: var(--text);   border-color: rgba(226,232,240,.35); }
+    #nav-links a.active.nav-heatmap    { color: var(--yellow); border-color: rgba(255,215,0,.4); }
+    #nav-links a.active.nav-tournament { color: var(--orange); border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-campaign   { color: var(--orange); border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-export     { color: var(--blue);   border-color: rgba(60,142,255,.4); }
+    #nav-links a.active.nav-autonomous { color: var(--purple); border-color: rgba(167,139,250,.4); }
+    #nav-links a.active.nav-mcp        { color: var(--green);  border-color: rgba(0,255,136,.4); }
+    #nav-links a.active.nav-history    { color: var(--cyan);   border-color: rgba(6,182,212,.4); }
+    #nav-links a.active.nav-dna        { color: var(--green);  border-color: rgba(0,255,136,.4); }
+    #nav-links a.active.nav-dabs       { color: var(--yellow); border-color: rgba(255,215,0,.4); }
+
+    /* ── Controls ─────────────────────────────────────────────────────────── */
+    #controls {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .ctrl-label { font-size: 10px; letter-spacing: 1px; color: var(--muted); white-space: nowrap; }
+
+    .ctrl-input {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .ctrl-input:focus { border-color: var(--yellow); }
+
+    #inp-model   { width: 140px; }
+    #inp-attacker { width: 120px; }
+    #inp-rounds  { width: 50px; }
+
+    #sel-techs {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 6px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    #btn-start {
+      padding: 5px 16px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      border: 1px solid rgba(255,215,0,0.5);
+      background: rgba(255,215,0,0.1);
+      color: var(--yellow);
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    #btn-start:hover { background: rgba(255,215,0,0.2); }
+    #btn-start.running { border-color: rgba(255,60,60,0.5); background: rgba(255,60,60,0.12); color: var(--red); }
+
+    /* ── Main grid ────────────────────────────────────────────────────────── */
+    #main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── Left pane ────────────────────────────────────────────────────────── */
+    #left-pane {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .pane-hdr {
+      flex-shrink: 0;
+      padding: 8px 16px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--yellow);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pane-hdr .sub { font-family: var(--mono); font-size: 10px; font-weight: normal; color: var(--muted); letter-spacing: 0; }
+
+    /* ── Leaderboard ──────────────────────────────────────────────────────── */
+    #lb-wrap { flex: 1; overflow-y: auto; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+    thead { position: sticky; top: 0; z-index: 5; background: var(--bg3); }
+
+    thead th {
+      padding: 6px 10px;
+      text-align: left;
+      font-size: 9px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    thead th.center { text-align: center; }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(26,34,54,0.6);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    tbody tr:hover { background: rgba(255,215,0,0.04); }
+    tbody tr.selected { background: rgba(255,215,0,0.07); }
+
+    td { padding: 7px 10px; vertical-align: middle; }
+    td.center { text-align: center; }
+
+    .model-cell {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--text);
+    }
+
+    .dabs-cell {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .tier-badge {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 2px 7px;
+      border: 1px solid;
+      border-radius: 3px;
+      white-space: nowrap;
+    }
+
+    .comp-mini { font-size: 11px; text-align: center; }
+
+    #lb-empty {
+      display: none;
+      padding: 40px 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    /* ── Live log ─────────────────────────────────────────────────────────── */
+    #log-section {
+      display: none;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      height: 200px;
+      overflow: hidden;
+      flex-direction: column;
+    }
+
+    #log-section.visible { display: flex; }
+
+    #bench-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 14px;
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    .log-line { color: var(--muted); }
+    .log-line.ok { color: var(--green); }
+    .log-line.error { color: var(--red); }
+    .log-line.complete { color: var(--yellow); font-weight: bold; }
+    .log-line.dim { color: #3a4560; }
+
+    /* ── Right pane ───────────────────────────────────────────────────────── */
+    #right-pane { display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Score detail ─────────────────────────────────────────────────────── */
+    #score-header {
+      flex-shrink: 0;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    #detail-model {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--text);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #detail-score {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      line-height: 1;
+      color: var(--yellow);
+    }
+
+    #detail-score-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    #detail-tier {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--yellow);
+    }
+
+    #detail-meta {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Running overlay */
+    #run-overlay {
+      display: none;
+      flex-shrink: 0;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    #run-overlay.visible { display: block; }
+
+    #run-label { font-size: 9px; letter-spacing: 2px; color: var(--muted); margin-bottom: 4px; }
+    #run-current { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: var(--cyan); margin-bottom: 8px; }
+    #run-score-big {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 48px;
+      font-weight: 700;
+      color: var(--yellow);
+      line-height: 1;
+    }
+
+    #progress-bar-wrap { margin: 10px 0 4px; background: var(--bg3); border-radius: 2px; height: 4px; }
+    #progress-bar-fill { height: 4px; background: var(--yellow); border-radius: 2px; width: 0%; transition: width 0.4s ease; }
+    #progress-label { font-size: 10px; color: var(--muted); }
+
+    /* ── Radar chart ──────────────────────────────────────────────────────── */
+    #radar-section { flex-shrink: 0; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    #radar-section .pane-hdr { padding: 0; border: none; background: none; margin-bottom: 8px; }
+    #radar-canvas-wrap { position: relative; max-height: 200px; }
+
+    /* ── Component bars ───────────────────────────────────────────────────── */
+    #comp-section { flex: 1; overflow-y: auto; padding: 12px 16px; }
+    #comp-section .pane-hdr { padding: 0; border: none; background: none; margin-bottom: 10px; }
+
+    .comp-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 11px;
+    }
+
+    .comp-lbl { color: var(--muted); width: 80px; flex-shrink: 0; font-size: 10px; }
+    .comp-track {
+      flex: 1;
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .comp-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+    .comp-val { width: 30px; text-align: right; font-size: 11px; flex-shrink: 0; }
+    .comp-wt { width: 28px; text-align: right; color: var(--dim); font-size: 10px; flex-shrink: 0; }
+
+    /* ── Status bar ───────────────────────────────────────────────────────── */
+    #status-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 16px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    #status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+    #status-dot.ok   { background: var(--green); }
+    #status-dot.error { background: var(--red); }
+    #status-dot.load { background: var(--yellow); animation: pulse 1s infinite; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* ── Empty / placeholder states ───────────────────────────────────────── */
+    #placeholder {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    #placeholder .big {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: rgba(255,215,0,0.25);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<div id="header">
+  <div id="logo">DUEL</div>
+  <div id="mode-badge">DABS BENCHMARK</div>
+  <nav id="nav-links">
+    <a href="/"          class="nav-warroom">⚔ WAR ROOM</a>
+    <a href="/heatmap"   class="nav-heatmap">◈ HEATMAP</a>
+    <a href="/tournament" class="nav-tournament">⚡ TOURNAMENT</a>
+    <a href="/campaign"  class="nav-campaign">⛓ CAMPAIGN</a>
+    <a href="/export"    class="nav-export">⬇ EXPORT</a>
+    <a href="/autonomous" class="nav-autonomous">★ AUTONOMOUS</a>
+    <a href="/mcp"       class="nav-mcp">⚡ MCP</a>
+    <a href="/history"   class="nav-history">⏱ HISTORY</a>
+    <a href="/dna"       class="nav-dna">⬡ DNA</a>
+    <a href="/benchmark" class="nav-dabs active">⭐ DABS</a>
+  </nav>
+</div>
+
+<!-- ── Controls ────────────────────────────────────────────────────────── -->
+<div id="controls">
+  <span class="ctrl-label">DEFENDER</span>
+  <input class="ctrl-input" id="inp-model" type="text" value="mistral:7b" />
+
+  <span class="ctrl-label">ATTACKER</span>
+  <input class="ctrl-input" id="inp-attacker" type="text" value="llama3.1:8b" />
+
+  <span class="ctrl-label">ROUNDS</span>
+  <input class="ctrl-input" id="inp-rounds" type="number" value="3" min="1" max="10" />
+
+  <span class="ctrl-label">SCOPE</span>
+  <select id="sel-techs">
+    <option value="quick">Quick — 10 techniques (~10 min)</option>
+    <option value="all">Full — all 38 techniques (~40 min)</option>
+  </select>
+
+  <button id="btn-start" onclick="toggleBenchmark()">⭐ RUN BENCHMARK</button>
+</div>
+
+<!-- ── Main ────────────────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- ── Left pane ─────────────────────────────────────────────────────── -->
+  <div id="left-pane">
+    <div class="pane-hdr">
+      ⭐ LEADERBOARD
+      <span class="sub" id="lb-count"></span>
+    </div>
+
+    <div id="lb-wrap">
+      <div id="lb-empty">
+        No benchmark results yet.<br><br>
+        Run your first benchmark to see DABS scores here.<br>
+        <span style="color:var(--dim)">python benchmark.py --model mistral:7b</span>
+      </div>
+
+      <table id="lb-table" style="display:none">
+        <thead>
+          <tr>
+            <th class="center" style="width:40px">RANK</th>
+            <th>MODEL</th>
+            <th class="center" style="width:70px">DABS</th>
+            <th style="min-width:160px">TIER</th>
+            <th class="center" style="width:54px" title="Detection Coverage">COV</th>
+            <th class="center" style="width:54px" title="Resilience">RES</th>
+            <th class="center" style="width:54px" title="Hardening Rate">HARD</th>
+            <th class="center" style="width:54px" title="Consistency">CON</th>
+            <th class="center" style="width:50px" title="Techniques benchmarked">TECHS</th>
+          </tr>
+        </thead>
+        <tbody id="lb-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Live benchmark log -->
+    <div id="log-section">
+      <div class="pane-hdr" style="flex-shrink:0;padding:6px 14px;border-top:1px solid var(--border);font-size:11px">
+        ⚡ LIVE LOG
+        <span class="sub" id="log-status"></span>
+      </div>
+      <div id="bench-log"></div>
+    </div>
+  </div>
+
+  <!-- ── Right pane ────────────────────────────────────────────────────── -->
+  <div id="right-pane">
+
+    <!-- Score display (at rest) -->
+    <div id="score-header">
+      <div id="detail-model" style="color:var(--muted)">No model selected</div>
+      <div id="detail-score-label">DABS SCORE</div>
+      <div id="detail-score" style="color:var(--dim)">—</div>
+      <div id="detail-tier" style="color:var(--dim)">Run a benchmark to see scores</div>
+      <div id="detail-meta"></div>
+    </div>
+
+    <!-- Running overlay (replaces score header during benchmark) -->
+    <div id="run-overlay">
+      <div id="run-label">RUNNING DABS ESTIMATE</div>
+      <div id="run-current">—</div>
+      <div id="run-score-big">—</div>
+      <div id="progress-bar-wrap"><div id="progress-bar-fill"></div></div>
+      <div id="progress-label">0 / 0 techniques</div>
+    </div>
+
+    <!-- Radar chart -->
+    <div id="radar-section">
+      <div class="pane-hdr">◉ SCORE BREAKDOWN</div>
+      <div id="radar-canvas-wrap">
+        <canvas id="radar-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Component bars -->
+    <div id="comp-section">
+      <div class="pane-hdr">▦ COMPONENTS</div>
+      <div id="comp-bars">
+        <div id="placeholder" style="display:flex">
+          <div class="big">DABS</div>
+          <div>Run a benchmark to populate scores</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Status bar ───────────────────────────────────────────────────────── -->
+<div id="status-bar">
+  <div id="status-dot" class="load"></div>
+  <span id="status-text">Loading benchmark results…</span>
+  <span style="margin-left:auto;color:var(--dim)">DABS = weighted avg of Coverage·Resilience·Hardening·Consistency·Meta-Resilience</span>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────
+  let allModels    = [];
+  let selectedModel = null;
+  let radarChart   = null;
+  let ws           = null;
+  let benchRunning = false;
+  let techIdx      = 0;
+  let techTotal    = 0;
+  let partialResults = {};
+
+  // ── Boot ───────────────────────────────────────────────────────────────
+  loadDabs();
+
+  async function loadDabs() {
+    setStatus('load', 'Loading benchmark results…');
+    try {
+      const r = await fetch('/api/dabs');
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      allModels = data.models || [];
+      renderLeaderboard();
+      if (allModels.length > 0) {
+        selectModel(allModels[0].latest.model);
+      }
+      const n = allModels.length;
+      setStatus('ok', `${n} model${n !== 1 ? 's' : ''} benchmarked — select a row to explore`);
+    } catch (err) {
+      setStatus('error', `Failed to load: ${err.message}`);
+    }
+  }
+
+  // ── Leaderboard ────────────────────────────────────────────────────────
+  function renderLeaderboard() {
+    const tbody = document.getElementById('lb-body');
+    tbody.innerHTML = '';
+    const sorted = [...allModels].sort((a, b) => b.latest.dabs_score - a.latest.dabs_score);
+
+    if (!sorted.length) {
+      document.getElementById('lb-empty').style.display = 'block';
+      document.getElementById('lb-table').style.display = 'none';
+      document.getElementById('lb-count').textContent = '';
+      return;
+    }
+
+    document.getElementById('lb-empty').style.display = 'none';
+    document.getElementById('lb-table').style.display = 'table';
+    document.getElementById('lb-count').textContent =
+      `${sorted.length} model${sorted.length !== 1 ? 's' : ''}`;
+
+    const medals = ['🥇', '🥈', '🥉'];
+    sorted.forEach((m, i) => {
+      const r    = m.latest;
+      const comp = r.components || {};
+      const tc   = r.tier_color || '#e2e8f0';
+      const tr   = document.createElement('tr');
+      tr.dataset.model = r.model;
+      tr.onclick = () => selectModel(r.model);
+      if (r.model === selectedModel) tr.classList.add('selected');
+
+      tr.innerHTML = `
+        <td class="center" style="color:var(--muted)">${medals[i] || '#' + (i + 1)}</td>
+        <td class="model-cell">${escHtml(r.model)}</td>
+        <td class="dabs-cell" style="color:${tc}">${r.dabs_score.toFixed(1)}</td>
+        <td><span class="tier-badge" style="color:${tc};border-color:${tc}25">${escHtml(r.tier)}</span></td>
+        <td class="comp-mini">${fmtComp(comp.coverage)}</td>
+        <td class="comp-mini">${fmtComp(comp.resilience)}</td>
+        <td class="comp-mini">${fmtComp(comp.hardening)}</td>
+        <td class="comp-mini">${fmtComp(comp.consistency)}</td>
+        <td class="center" style="color:var(--muted);font-size:10px">${r.techniques_benchmarked}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function fmtComp(v) {
+    if (v == null) return `<span style="color:var(--dim)">—</span>`;
+    const n = parseFloat(v);
+    const c = n >= 60 ? 'var(--green)' : n >= 40 ? '#e5c043' : 'var(--red)';
+    return `<span style="color:${c}">${n.toFixed(0)}</span>`;
+  }
+
+  // ── Select model ───────────────────────────────────────────────────────
+  function selectModel(name) {
+    selectedModel = name;
+    const m = allModels.find(x => x.latest.model === name);
+    if (!m) return;
+    document.querySelectorAll('#lb-body tr').forEach(tr => {
+      tr.classList.toggle('selected', tr.dataset.model === name);
+    });
+    const r  = m.latest;
+    const tc = r.tier_color || '#ffd700';
+
+    document.getElementById('detail-model').textContent  = r.model;
+    document.getElementById('detail-model').style.color  = '#e2e8f0';
+    document.getElementById('detail-score').textContent  = r.dabs_score.toFixed(2);
+    document.getElementById('detail-score').style.color  = tc;
+    document.getElementById('detail-tier').textContent   = tierStars(r.tier) + '  ' + r.tier;
+    document.getElementById('detail-tier').style.color   = tc;
+    document.getElementById('detail-meta').textContent   =
+      `${r.confidence} confidence · ${r.techniques_benchmarked}/${r.total_techniques} techniques`;
+
+    renderRadar(r);
+    renderCompBars(r);
+  }
+
+  function tierStars(t) {
+    return { 'Elite Defender': '★★★★★', 'Strong Defender': '★★★★☆',
+             'Moderate Defender': '★★★☆☆', 'Weak Defender': '★★☆☆☆',
+             'Vulnerable': '★☆☆☆☆' }[t] || '';
+  }
+
+  // ── Radar chart ────────────────────────────────────────────────────────
+  function renderRadar(r, partialLabel) {
+    const comp   = r.components || {};
+    const tc     = r.tier_color || '#ffd700';
+    const values = [
+      comp.coverage        ?? 0,
+      comp.resilience      ?? 0,
+      comp.hardening       ?? 0,
+      comp.consistency     ?? 0,
+      comp.meta_resilience ?? 0,
+    ];
+    const ctx = document.getElementById('radar-canvas').getContext('2d');
+    if (radarChart) radarChart.destroy();
+    radarChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: ['Coverage', 'Resilience', 'Hardening', 'Consistency', 'Meta-Res'],
+        datasets: [{
+          label: partialLabel || r.model,
+          data:  values,
+          backgroundColor: hexAlpha(tc, 0.10),
+          borderColor:     tc,
+          pointBackgroundColor: tc,
+          borderWidth:     2,
+          pointRadius:     4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          r: {
+            min: 0, max: 100,
+            ticks:       { stepSize: 25, color: '#4a5568', font: { size: 9 }, backdropColor: 'transparent' },
+            grid:        { color: '#1a2236' },
+            angleLines:  { color: '#1a2236' },
+            pointLabels: { color: '#e2e8f0', font: { size: 10 } },
+          },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+  }
+
+  // ── Component bars ─────────────────────────────────────────────────────
+  function renderCompBars(r) {
+    const comp = r.components || {};
+    const defs = [
+      ['coverage',        'Coverage',    0.30],
+      ['resilience',      'Resilience',  0.25],
+      ['hardening',       'Hardening',   0.20],
+      ['consistency',     'Consistency', 0.15],
+      ['meta_resilience', 'Meta-Res',    0.10],
+    ];
+    const el = document.getElementById('comp-bars');
+    el.innerHTML = '';
+    defs.forEach(([key, label, w]) => {
+      const val = comp[key];
+      const pct = val ?? 0;
+      const col = pct >= 60 ? 'var(--green)' : pct >= 40 ? '#e5c043' : val != null ? 'var(--red)' : 'var(--dim)';
+      el.innerHTML += `
+        <div class="comp-row">
+          <span class="comp-lbl">${label}</span>
+          <div class="comp-track">
+            <div class="comp-fill" style="width:${pct}%;background:${col}"></div>
+          </div>
+          <span class="comp-val" style="color:${col}">${val != null ? pct.toFixed(0) : '—'}</span>
+          <span class="comp-wt">${(w * 100).toFixed(0)}%</span>
+        </div>
+      `;
+    });
+  }
+
+  // ── Benchmark WebSocket ─────────────────────────────────────────────────
+  function toggleBenchmark() {
+    if (benchRunning) { stopBenchmark(); return; }
+    startBenchmark();
+  }
+
+  function startBenchmark() {
+    const model    = document.getElementById('inp-model').value.trim();
+    const attacker = document.getElementById('inp-attacker').value.trim();
+    const rounds   = parseInt(document.getElementById('inp-rounds').value) || 3;
+    const techs    = document.getElementById('sel-techs').value;
+
+    if (!model) { setStatus('error', 'Enter a Defender model name'); return; }
+
+    benchRunning   = true;
+    partialResults = {};
+    techIdx        = 0;
+    techTotal      = 0;
+
+    const btn = document.getElementById('btn-start');
+    btn.textContent = '■ STOP';
+    btn.classList.add('running');
+
+    document.getElementById('log-section').classList.add('visible');
+    document.getElementById('bench-log').innerHTML = '';
+    document.getElementById('run-overlay').classList.add('visible');
+    document.getElementById('score-header').style.display = 'none';
+    document.getElementById('run-score-big').textContent = '—';
+    document.getElementById('run-current').textContent   = '—';
+    document.getElementById('progress-bar-fill').style.width = '0%';
+    document.getElementById('progress-label').textContent = '0 / 0 techniques';
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/ws/benchmark`);
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ model, attacker, rounds, techniques: techs, logs_per_round: 10 }));
+      setStatus('load', `Benchmarking ${model}…`);
+    };
+    ws.onmessage = e => handleMsg(JSON.parse(e.data));
+    ws.onclose   = ()  => endBenchmark();
+    ws.onerror   = ()  => { setStatus('error', 'WebSocket error'); endBenchmark(); };
+  }
+
+  function stopBenchmark() {
+    if (ws) { ws.close(); ws = null; }
+    endBenchmark();
+    setStatus('ok', 'Benchmark stopped');
+  }
+
+  function endBenchmark() {
+    benchRunning = false;
+    const btn = document.getElementById('btn-start');
+    btn.textContent = '⭐ RUN BENCHMARK';
+    btn.classList.remove('running');
+  }
+
+  function handleMsg(d) {
+    switch (d.type) {
+      case 'benchmark_start':
+        techTotal = d.techniques_count;
+        document.getElementById('progress-label').textContent = `0 / ${techTotal} techniques`;
+        appendLog(`Benchmarking ${d.model} — ${d.techniques_count} techniques × ${d.rounds} rounds`);
+        break;
+
+      case 'technique_start':
+        techIdx = d.idx;
+        document.getElementById('run-current').textContent = `${d.technique_id} — ${d.name}`;
+        document.getElementById('progress-bar-fill').style.width = `${((d.idx - 1) / d.total) * 100}%`;
+        document.getElementById('progress-label').textContent = `${d.idx} / ${d.total} techniques`;
+        appendLog(`[${d.idx}/${d.total}] ${d.technique_id}`);
+        break;
+
+      case 'round_complete': {
+        const pct = Math.round(d.detection_rate * 100);
+        const col = pct >= 50 ? 'var(--green)' : pct >= 25 ? '#e5c043' : 'var(--red)';
+        appendLog(`  R${d.round} → det ${d.detected}/${d.detected + d.evaded} (${pct}%)`, null, col);
+        break;
+      }
+
+      case 'technique_complete': {
+        const dabs = d.dabs_running.toFixed(1);
+        document.getElementById('run-score-big').textContent = dabs;
+        document.getElementById('progress-bar-fill').style.width  = `${(d.idx / d.total) * 100}%`;
+        document.getElementById('progress-label').textContent = `${d.idx} / ${d.total} techniques`;
+        const detPct = (d.avg_detection_rate * 100).toFixed(0);
+        appendLog(`✓ ${d.technique_id} det:${detPct}% | DABS:${dabs}`, 'ok');
+
+        // Update radar live with partial data
+        if (d.partial_components) renderRadar({ components: d.partial_components, tier_color: '#ffd700' }, d.model);
+        break;
+      }
+
+      case 'benchmark_complete':
+        handleComplete(d.result);
+        break;
+
+      case 'error':
+        appendLog(`ERROR: ${d.message}`, 'error');
+        setStatus('error', d.message);
+        break;
+    }
+  }
+
+  function handleComplete(result) {
+    const dabs = result.dabs_score.toFixed(2);
+    appendLog(`BENCHMARK COMPLETE — DABS: ${dabs} [${result.tier}]`, 'complete');
+    document.getElementById('run-score-big').textContent = dabs;
+    setStatus('ok', `Complete — DABS: ${dabs} · ${result.tier}`);
+
+    // Restore score header, reload leaderboard
+    document.getElementById('run-overlay').classList.remove('visible');
+    document.getElementById('score-header').style.display = '';
+    loadDabs().then(() => selectModel(result.model));
+  }
+
+  // ── Log ────────────────────────────────────────────────────────────────
+  function appendLog(msg, cls, color) {
+    const log  = document.getElementById('bench-log');
+    const line = document.createElement('div');
+    line.className = 'log-line' + (cls ? ' ' + cls : '');
+    if (color) line.style.color = color;
+    line.textContent = msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // ── Status bar ─────────────────────────────────────────────────────────
+  function setStatus(state, text) {
+    document.getElementById('status-dot').className = state;
+    document.getElementById('status-text').textContent = text;
+  }
+
+  // ── Utility ────────────────────────────────────────────────────────────
+  function hexAlpha(hex, a) {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!m) return `rgba(255,215,0,${a})`;
+    return `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${a})`;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>

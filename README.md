@@ -17,6 +17,7 @@
 ![GitHub Pages](https://img.shields.io/badge/Benchmark-GitHub%20Pages-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-grey?style=flat-square)
 [![Dataset](https://img.shields.io/badge/🤗_Dataset-duel--adversarial--logs-yellow)](https://huggingface.co/datasets/0xDanielSec/duel-adversarial-logs)
+![DABS](https://img.shields.io/badge/DABS-Benchmark-gold?style=flat-square&logo=star)
 
 ---
 
@@ -604,6 +605,45 @@ duel-framework/
     ├── sentinel_export.json
     └── ...
 ```
+
+---
+
+## DABS — Dual Adversarial Benchmark Score
+
+**DABS** is a standardized 0–100 score measuring Defender model robustness against adversarial attacks across five weighted components:
+
+| Component | Weight | What it measures |
+|---|---|---|
+| Coverage | 30% | Fraction of techniques with ≥1 detection |
+| Resilience | 25% | 1 − average evasion rate across all rounds |
+| Hardening | 20% | Detection improvement from round 1 → last round |
+| Consistency | 15% | Low variance in detection rates across rounds |
+| Meta-Resilience | 10% | Resistance after attacker reasoning injection |
+
+### Tiers
+
+| Score | Tier | Colour |
+|---|---|---|
+| ≥ 80 | Elite Defender | Gold |
+| ≥ 60 | Strong Defender | Green |
+| ≥ 40 | Moderate Defender | Yellow |
+| ≥ 20 | Weak Defender | Orange |
+| < 20 | Vulnerable | Red |
+
+### Run a benchmark
+
+```bash
+# Quick benchmark (10 representative techniques, ~10 min)
+python benchmark.py --model mistral:7b --techniques quick --rounds 3
+
+# Full benchmark (38 techniques, ~40 min)
+python benchmark.py --model mistral:7b --techniques all --rounds 5
+
+# Compare multiple runs
+python benchmark.py --model mistral:7b --compare --logs 10
+```
+
+Results are saved to `output/dabs_*.json` and visible on the **[/benchmark](http://localhost:8000/benchmark)** dashboard with live radar chart and leaderboard.
 
 ---
 
