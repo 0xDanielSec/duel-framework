@@ -16,6 +16,7 @@
 ![MCP](https://img.shields.io/badge/MCP-Server-green?style=flat-square)
 ![GitHub Pages](https://img.shields.io/badge/Benchmark-GitHub%20Pages-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-grey?style=flat-square)
+[![Dataset](https://img.shields.io/badge/🤗_Dataset-duel--adversarial--logs-yellow)](https://huggingface.co/datasets/0xDanielSec/duel-adversarial-logs)
 
 ---
 
@@ -607,6 +608,8 @@ duel-framework/
 ---
 
 ## Dataset
+
+**[https://huggingface.co/datasets/0xDanielSec/duel-adversarial-logs](https://huggingface.co/datasets/0xDanielSec/duel-adversarial-logs)** — 1,038 records across 38 techniques, 60.9% average evasion rate, HuggingFace-compatible JSONL + Parquet with train/validation/test splits.
 
 DUEL can export all battle data as a structured **HuggingFace-compatible adversarial dataset** — synthetic telemetry labelled `evaded` or `detected`, paired with the KQL rule that scored it.
 
