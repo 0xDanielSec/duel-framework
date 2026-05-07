@@ -285,6 +285,38 @@ async def api_memory():
     return JSONResponse(store.get_all())
 
 
+@app.get("/api/dataset")
+async def api_dataset():
+    """Generate the adversarial dataset from all battle logs and return statistics."""
+    from engine.dataset_generator import DatasetGenerator, DATASET_DIR
+    stats = await _in_thread(DatasetGenerator().generate)
+    stats["download_url"] = "/api/dataset/download"
+    stats["dataset_dir"] = str(DATASET_DIR)
+    return JSONResponse(content=stats)
+
+
+@app.get("/api/dataset/download")
+async def api_dataset_download():
+    """Generate the dataset and return it as a downloadable ZIP archive."""
+    import io
+    import zipfile
+    from engine.dataset_generator import DatasetGenerator, DATASET_DIR
+
+    await _in_thread(DatasetGenerator().generate)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for p in sorted(DATASET_DIR.glob("*")):
+            if p.is_file():
+                zf.write(p, arcname=f"duel_dataset/{p.name}")
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="duel_adversarial_dataset.zip"'},
+    )
+
+
 @app.get("/api/technique/{technique_id}/history")
 async def api_technique_history(technique_id: str):
     """Return structured battle history for a technique from its full battle log."""

@@ -177,7 +177,127 @@
     #btn-sigma:hover { background: rgba(0,255,136,0.16); }
     #btn-sigma:disabled { opacity: 0.35; cursor: not-allowed; }
 
+    #btn-dataset {
+      background: rgba(110,231,183,0.08);
+      border: 1px solid rgba(110,231,183,0.4);
+      color: #6ee7b7;
+    }
+
+    #btn-dataset:hover { background: rgba(110,231,183,0.16); }
+    #btn-dataset.open  { background: rgba(110,231,183,0.2); border-color: #6ee7b7; }
+
     .export-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Dataset panel ────────────────────────────────────────────────── */
+    #dataset-panel {
+      position: fixed;
+      top: 0;
+      right: -390px;
+      width: 370px;
+      height: 100%;
+      background: var(--bg2);
+      border-left: 1px solid var(--border);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      transition: right 0.22s cubic-bezier(.4,0,.2,1);
+      overflow-y: auto;
+    }
+
+    #dataset-panel.open { right: 0; }
+
+    #ds-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #ds-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: #6ee7b7;
+    }
+
+    #ds-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 15px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      transition: color 0.1s;
+    }
+
+    #ds-close:hover { color: var(--text); }
+
+    #ds-body { padding: 16px 18px; flex: 1; }
+
+    .ds-stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(26,34,54,0.5);
+      font-size: 12px;
+    }
+
+    .ds-stat-label { color: var(--muted); }
+    .ds-stat-value { color: var(--text); font-weight: bold; }
+
+    .ds-split-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 11px;
+    }
+
+    .ds-split-label { color: var(--muted); }
+    .ds-split-value { color: var(--green); }
+
+    #ds-actions {
+      padding: 14px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ds-action-btn {
+      width: 100%;
+      padding: 8px 14px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background 0.15s;
+      border: 1px solid;
+    }
+
+    #btn-ds-gen {
+      background: rgba(110,231,183,0.1);
+      border-color: rgba(110,231,183,0.4);
+      color: #6ee7b7;
+    }
+
+    #btn-ds-gen:hover { background: rgba(110,231,183,0.2); }
+    #btn-ds-gen:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #btn-ds-dl {
+      background: rgba(60,142,255,0.08);
+      border-color: rgba(60,142,255,0.35);
+      color: var(--blue);
+    }
+
+    #btn-ds-dl:hover:not(:disabled) { background: rgba(60,142,255,0.18); }
+    #btn-ds-dl:disabled { opacity: 0.35; cursor: not-allowed; }
 
     #rule-count {
       margin-left: auto;
@@ -443,7 +563,79 @@
 
   <button class="export-btn" id="btn-dl-report" onclick="downloadReport()" disabled title="Download PDF report for selected technique">⬇ PDF REPORT</button>
 
+  <span style="width:1px;background:var(--border);height:18px;margin:0 4px"></span>
+
+  <button class="export-btn" id="btn-dataset" onclick="toggleDatasetPanel()" title="Generate and download the HuggingFace-compatible adversarial dataset">⬇ DATASET</button>
+
   <span id="rule-count">— rules</span>
+</div>
+
+<!-- ── Dataset slide-in panel ──────────────────────────────────────────── -->
+<div id="dataset-panel">
+  <div id="ds-header">
+    <span id="ds-title">DATASET</span>
+    <button id="ds-close" onclick="toggleDatasetPanel()">✕</button>
+  </div>
+
+  <div id="ds-body">
+    <p style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:14px">
+      Exports all battle logs as a structured HuggingFace-compatible dataset
+      (JSONL + Parquet) with 70/15/15 train/validation/test splits.
+      Each record includes the synthetic log, label (evaded/detected),
+      KQL rule, and attacker/defender reasoning.
+    </p>
+
+    <div id="ds-stats" style="display:none">
+      <div class="ds-stat-row">
+        <span class="ds-stat-label">TOTAL RECORDS</span>
+        <span class="ds-stat-value" id="ds-total">—</span>
+      </div>
+      <div class="ds-stat-row">
+        <span class="ds-stat-label">TECHNIQUES</span>
+        <span class="ds-stat-value" id="ds-techniques">—</span>
+      </div>
+      <div class="ds-stat-row">
+        <span class="ds-stat-label">AVG EVASION RATE</span>
+        <span class="ds-stat-value" id="ds-evasion">—</span>
+      </div>
+      <div class="ds-stat-row" style="border:none;margin-bottom:2px">
+        <span class="ds-stat-label">LABEL DIST</span>
+        <span class="ds-stat-value" id="ds-labels">—</span>
+      </div>
+
+      <div style="margin-top:12px;margin-bottom:4px;font-size:9px;letter-spacing:1px;color:var(--muted)">SPLITS</div>
+      <div class="ds-split-row">
+        <span class="ds-split-label">Train (70%)</span>
+        <span class="ds-split-value" id="ds-train">—</span>
+      </div>
+      <div class="ds-split-row">
+        <span class="ds-split-label">Validation (15%)</span>
+        <span class="ds-split-value" id="ds-val">—</span>
+      </div>
+      <div class="ds-split-row">
+        <span class="ds-split-label">Test (15%)</span>
+        <span class="ds-split-value" id="ds-test">—</span>
+      </div>
+
+      <div style="margin-top:12px;margin-bottom:4px;font-size:9px;letter-spacing:1px;color:var(--muted)">FILES</div>
+      <div style="font-size:10px;color:var(--muted);line-height:1.9">
+        train.jsonl &nbsp;·&nbsp; validation.jsonl &nbsp;·&nbsp; test.jsonl<br>
+        train.parquet &nbsp;·&nbsp; validation.parquet &nbsp;·&nbsp; test.parquet<br>
+        dataset_card.md &nbsp;·&nbsp; README.md
+      </div>
+    </div>
+
+    <div id="ds-empty" style="font-size:11px;color:var(--muted);margin-top:4px">
+      No battle logs found yet.<br>
+      Run a battle first, then generate the dataset.
+    </div>
+  </div>
+
+  <div id="ds-actions">
+    <button class="ds-action-btn" id="btn-ds-gen" onclick="generateDataset()">⚙ GENERATE DATASET</button>
+    <button class="ds-action-btn" id="btn-ds-dl"  onclick="downloadDataset()" disabled>⬇ DOWNLOAD ZIP</button>
+    <div id="ds-status" style="font-size:10px;color:var(--muted);text-align:center;min-height:16px"></div>
+  </div>
 </div>
 
 <!-- ── Table ──────────────────────────────────────────────────────────── -->
@@ -729,6 +921,63 @@
 
   function escAttr(s) {
     return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  }
+
+  // ── Dataset panel ───────────────────────────────────────────────────────
+  let datasetPanelOpen = false;
+
+  function toggleDatasetPanel() {
+    datasetPanelOpen = !datasetPanelOpen;
+    document.getElementById('dataset-panel').classList.toggle('open', datasetPanelOpen);
+    document.getElementById('btn-dataset').classList.toggle('open', datasetPanelOpen);
+  }
+
+  async function generateDataset() {
+    const btn = document.getElementById('btn-ds-gen');
+    const status = document.getElementById('ds-status');
+    btn.disabled = true;
+    btn.textContent = '⚙ GENERATING…';
+    status.textContent = 'Building dataset from battle logs…';
+    document.getElementById('ds-stats').style.display = 'none';
+    document.getElementById('ds-empty').style.display = 'none';
+
+    try {
+      const r = await fetch('/api/dataset');
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+
+      if (d.total === 0) {
+        document.getElementById('ds-empty').style.display = 'block';
+        status.textContent = 'No battle logs found.';
+      } else {
+        document.getElementById('ds-total').textContent      = d.total.toLocaleString();
+        document.getElementById('ds-techniques').textContent = d.techniques.length;
+        document.getElementById('ds-evasion').textContent    = (d.avg_evasion_rate * 100).toFixed(1) + '%';
+        document.getElementById('ds-train').textContent      = d.train.toLocaleString();
+        document.getElementById('ds-val').textContent        = d.validation.toLocaleString();
+        document.getElementById('ds-test').textContent       = d.test.toLocaleString();
+
+        const labelStr = Object.entries(d.label_dist)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join('  ');
+        document.getElementById('ds-labels').textContent = labelStr || '—';
+
+        document.getElementById('ds-stats').style.display = 'block';
+        document.getElementById('btn-ds-dl').disabled = false;
+        status.textContent = `Dataset ready — ${d.total} records across ${d.techniques.length} techniques`;
+      }
+    } catch (err) {
+      status.textContent = `Error: ${err.message}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⚙ REGENERATE';
+    }
+  }
+
+  function downloadDataset() {
+    triggerDownload('/api/dataset/download', 'duel_adversarial_dataset.zip');
+    document.getElementById('ds-status').textContent = 'Generating ZIP archive…';
+    showToast('Preparing dataset ZIP…');
   }
 </script>
 </body>
