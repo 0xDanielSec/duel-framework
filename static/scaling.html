@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DUEL — Scaling Laws</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:     #07090f;
+      --bg2:    #0d1117;
+      --bg3:    #111827;
+      --red:    #ff3c3c;
+      --blue:   #3c8eff;
+      --green:  #00ff88;
+      --yellow: #ffd700;
+      --cyan:   #06b6d4;
+      --purple: #a78bfa;
+      --orange: #f97316;
+      --dim:    #4a5568;
+      --muted:  #718096;
+      --text:   #e2e8f0;
+      --border: #1a2236;
+      --gold:   #ffd700;
+      --mono:   'Courier New', Courier, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    body { display: flex; flex-direction: column; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 2px; }
+
+    /* ── Header ─────────────────────────────────────────────────────────────── */
+    #header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      background: linear-gradient(90deg, var(--yellow) 0%, #f97316 50%, var(--red) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #mode-badge {
+      padding: 2px 10px;
+      border: 1px solid rgba(6,182,212,0.5);
+      background: rgba(6,182,212,0.07);
+      border-radius: 3px;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--cyan);
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+    }
+
+    #nav-links { margin-left: auto; display: flex; gap: 8px; font-size: 11px; letter-spacing: 1px; }
+    #nav-links a { color: var(--muted); text-decoration: none; padding: 3px 9px; border: 1px solid transparent; border-radius: 3px; transition: all .15s; white-space: nowrap; }
+    #nav-links a.nav-warroom:hover    { color: var(--text);   border-color: var(--dim); }
+    #nav-links a.nav-heatmap:hover    { color: var(--yellow); border-color: var(--dim); }
+    #nav-links a.nav-tournament:hover { color: var(--orange); border-color: var(--dim); }
+    #nav-links a.nav-campaign:hover   { color: var(--orange); border-color: var(--dim); }
+    #nav-links a.nav-export:hover     { color: var(--blue);   border-color: var(--dim); }
+    #nav-links a.nav-autonomous:hover { color: var(--purple); border-color: var(--dim); }
+    #nav-links a.nav-mcp:hover        { color: var(--green);  border-color: var(--dim); }
+    #nav-links a.nav-history:hover    { color: var(--cyan);   border-color: var(--dim); }
+    #nav-links a.nav-dna:hover        { color: var(--green);  border-color: var(--dim); }
+    #nav-links a.nav-dabs:hover       { color: var(--yellow); border-color: var(--dim); }
+    #nav-links a.nav-scaling:hover    { color: var(--cyan);   border-color: var(--dim); }
+    #nav-links a.active.nav-warroom    { color: var(--text);   border-color: rgba(226,232,240,.35); }
+    #nav-links a.active.nav-heatmap    { color: var(--yellow); border-color: rgba(255,215,0,.4); }
+    #nav-links a.active.nav-tournament { color: var(--orange); border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-campaign   { color: var(--orange); border-color: rgba(249,115,22,.4); }
+    #nav-links a.active.nav-export     { color: var(--blue);   border-color: rgba(60,142,255,.4); }
+    #nav-links a.active.nav-autonomous { color: var(--purple); border-color: rgba(167,139,250,.4); }
+    #nav-links a.active.nav-mcp        { color: var(--green);  border-color: rgba(0,255,136,.4); }
+    #nav-links a.active.nav-history    { color: var(--cyan);   border-color: rgba(6,182,212,.4); }
+    #nav-links a.active.nav-dna        { color: var(--green);  border-color: rgba(0,255,136,.4); }
+    #nav-links a.active.nav-dabs       { color: var(--yellow); border-color: rgba(255,215,0,.4); }
+    #nav-links a.active.nav-scaling    { color: var(--cyan);   border-color: rgba(6,182,212,.4); }
+
+    /* ── Subtitle bar ──────────────────────────────────────────────────────── */
+    #subtitle-bar {
+      flex-shrink: 0;
+      padding: 8px 20px;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #subtitle {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+
+    #refresh-btn {
+      margin-left: auto;
+      padding: 4px 14px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      background: transparent;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    #refresh-btn:hover { background: rgba(6,182,212,.12); }
+
+    /* ── Main content ────────────────────────────────────────────────────────── */
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Status message ──────────────────────────────────────────────────────── */
+    #status-msg {
+      display: none;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    #status-msg .status-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      color: var(--cyan);
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+    }
+
+    #status-msg code {
+      background: var(--bg3);
+      padding: 2px 8px;
+      border-radius: 3px;
+      color: var(--yellow);
+      font-size: 12px;
+    }
+
+    /* ── Layout: two columns ─────────────────────────────────────────────────── */
+    #main-row {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 16px;
+    }
+
+    /* ── Panel base ──────────────────────────────────────────────────────────── */
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px;
+    }
+
+    .panel-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--cyan);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    /* ── Main chart ──────────────────────────────────────────────────────────── */
+    #chart-wrap {
+      position: relative;
+      height: 320px;
+    }
+
+    /* ── Findings panel ──────────────────────────────────────────────────────── */
+    #findings { display: flex; flex-direction: column; gap: 10px; }
+
+    .finding-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 12px;
+    }
+
+    .finding-label {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .finding-value {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--cyan);
+    }
+
+    .finding-value.green  { color: var(--green); }
+    .finding-value.yellow { color: var(--yellow); }
+    .finding-value.orange { color: var(--orange); }
+
+    .finding-sub {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .equation-box {
+      background: var(--bg3);
+      border: 1px solid rgba(6,182,212,.3);
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: var(--cyan);
+      letter-spacing: 1px;
+      word-break: break-all;
+    }
+
+    /* ── Per-tactic grid ─────────────────────────────────────────────────────── */
+    #tactic-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+
+    .tactic-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .tactic-name {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tactic-chart-wrap {
+      position: relative;
+      height: 110px;
+    }
+
+    .tactic-eq {
+      font-size: 10px;
+      color: var(--cyan);
+      margin-top: 5px;
+      letter-spacing: .5px;
+    }
+
+    /* ── Model table ─────────────────────────────────────────────────────────── */
+    #model-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #model-table th {
+      text-align: left;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--muted);
+      padding: 4px 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #model-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(26,34,54,.6);
+      font-size: 12px;
+    }
+
+    .tier-badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    /* ── Predicted row ───────────────────────────────────────────────────────── */
+    .predicted-row td {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .predicted-tag {
+      font-size: 10px;
+      color: var(--dim);
+      margin-left: 4px;
+    }
+
+    /* ── Loading spinner ─────────────────────────────────────────────────────── */
+    #loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+    #loading-dot { animation: pulse 1.4s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<div id="header">
+  <div id="logo">DUEL</div>
+  <div id="mode-badge">SCALING LAWS</div>
+  <nav id="nav-links">
+    <a href="/"           class="nav-warroom">⚔ WAR ROOM</a>
+    <a href="/heatmap"    class="nav-heatmap">◈ HEATMAP</a>
+    <a href="/tournament" class="nav-tournament">⚡ TOURNAMENT</a>
+    <a href="/campaign"   class="nav-campaign">⛓ CAMPAIGN</a>
+    <a href="/export"     class="nav-export">⬇ EXPORT</a>
+    <a href="/autonomous" class="nav-autonomous">★ AUTONOMOUS</a>
+    <a href="/mcp"        class="nav-mcp">⚡ MCP</a>
+    <a href="/history"    class="nav-history">⏱ HISTORY</a>
+    <a href="/dna"        class="nav-dna">⬡ DNA</a>
+    <a href="/benchmark"  class="nav-dabs">⭐ DABS</a>
+    <a href="/scaling"    class="nav-scaling active">📈 SCALING</a>
+  </nav>
+</div>
+
+<!-- ── Subtitle ─────────────────────────────────────────────────────────────── -->
+<div id="subtitle-bar">
+  <span id="subtitle">ADVERSARIAL ROBUSTNESS vs MODEL SIZE — Does bigger always mean better at defense?</span>
+  <button id="refresh-btn" onclick="load()">↺ REFRESH</button>
+</div>
+
+<!-- ── Content ──────────────────────────────────────────────────────────────── -->
+<div id="content">
+  <div id="loading"><span id="loading-dot">◈</span> Loading scaling data…</div>
+
+  <div id="status-msg">
+    <div class="status-title">INSUFFICIENT DATA</div>
+    <p id="status-text"></p>
+    <br/>
+    <p>Run the scaling benchmark to generate data across model sizes:</p>
+    <br/>
+    <code>python scripts/run_scaling_benchmark.py</code>
+  </div>
+
+  <div id="main-section" style="display:none; flex-direction:column; gap:16px;">
+
+    <!-- Main chart + findings -->
+    <div id="main-row">
+      <div class="panel">
+        <div class="panel-title">📈 Scaling Law Curve — DABS vs Model Size</div>
+        <div id="chart-wrap"><canvas id="main-chart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Key Findings</div>
+        <div id="findings"></div>
+      </div>
+    </div>
+
+    <!-- Model data table -->
+    <div class="panel">
+      <div class="panel-title">Model Benchmark Data</div>
+      <table id="model-table">
+        <thead>
+          <tr>
+            <th>MODEL</th>
+            <th>PARAMS</th>
+            <th>DABS</th>
+            <th>TIER</th>
+            <th>TECHNIQUES</th>
+          </tr>
+        </thead>
+        <tbody id="model-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Per-tactic small multiples -->
+    <div class="panel">
+      <div class="panel-title">Per-Tactic Scaling Trends</div>
+      <div id="tactic-grid"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ── helpers ──────────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+
+const TIER_COLORS = {
+  "Elite Defender":    "#ffd700",
+  "Strong Defender":   "#00ff88",
+  "Moderate Defender": "#e5c043",
+  "Weak Defender":     "#f97316",
+  "Vulnerable":        "#ff3c3c",
+};
+
+let mainChart = null;
+const tacticCharts = {};
+
+function tierColor(tier, hex) {
+  return hex || TIER_COLORS[tier] || "#718096";
+}
+
+/* ── Chart defaults ───────────────────────────────────────────────────────── */
+Chart.defaults.color = "#718096";
+Chart.defaults.font.family = "'Courier New', Courier, monospace";
+Chart.defaults.font.size   = 11;
+
+/* ── Main chart ───────────────────────────────────────────────────────────── */
+function buildMainChart(data) {
+  if (mainChart) { mainChart.destroy(); mainChart = null; }
+
+  const points = (data.data_points || []).map(dp => ({
+    x: dp.params_b,
+    y: dp.dabs_score,
+    label: dp.model,
+    color: tierColor(dp.tier, dp.tier_color),
+  }));
+
+  const curve = (data.curve_points || []).map(cp => ({ x: cp.params_b, y: cp.predicted_dabs }));
+
+  // Predicted 32B / 70B markers
+  const predicted = [];
+  if (data.predictions) {
+    if (data.predictions["32b"] != null)
+      predicted.push({ x: 32, y: data.predictions["32b"], label: "32B (pred)" });
+    if (data.predictions["70b"] != null)
+      predicted.push({ x: 70, y: data.predictions["70b"], label: "70B (pred)" });
+  }
+
+  const ctx = $("main-chart").getContext("2d");
+  mainChart = new Chart(ctx, {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: "Fitted curve",
+          type: "line",
+          data: curve,
+          borderColor: "rgba(6,182,212,0.5)",
+          borderWidth: 2,
+          borderDash: [],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.4,
+          order: 3,
+        },
+        {
+          label: "Benchmarked models",
+          data: points,
+          pointRadius: points.map(() => 7),
+          pointBackgroundColor: points.map(p => p.color),
+          pointBorderColor: points.map(p => p.color),
+          pointHoverRadius: 9,
+          order: 1,
+        },
+        {
+          label: "Predictions",
+          data: predicted,
+          pointRadius: predicted.map(() => 6),
+          pointStyle: "triangle",
+          pointBackgroundColor: "rgba(6,182,212,0.6)",
+          pointBorderColor: "#06b6d4",
+          pointBorderWidth: 2,
+          borderDash: [4, 4],
+          order: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          type: "logarithmic",
+          title: { display: true, text: "Model size (B parameters, log scale)", color: "#718096" },
+          grid:  { color: "rgba(26,34,54,0.8)" },
+          ticks: {
+            callback: v => `${v}B`,
+          },
+        },
+        y: {
+          min: 0, max: 100,
+          title: { display: true, text: "DABS Score", color: "#718096" },
+          grid:  { color: "rgba(26,34,54,0.8)" },
+        },
+      },
+      plugins: {
+        legend: { display: true, labels: { color: "#718096", boxWidth: 12 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = ctx.raw;
+              if (d.label) return `${d.label}: DABS ${d.y.toFixed(1)}`;
+              return `DABS ${d.y.toFixed(1)} @ ${d.x}B`;
+            },
+          },
+        },
+      },
+    },
+    plugins: [{
+      id: "model-labels",
+      afterDatasetsDraw(chart) {
+        const { ctx: c, scales: { x, y } } = chart;
+        const ds = chart.data.datasets[1];
+        if (!ds) return;
+        ds.data.forEach(p => {
+          if (!p.label) return;
+          const px = x.getPixelForValue(p.x);
+          const py = y.getPixelForValue(p.y);
+          c.save();
+          c.font = "10px 'Courier New'";
+          c.fillStyle = p.color || "#718096";
+          c.fillText(p.label, px + 10, py - 6);
+          c.restore();
+        });
+      },
+    }],
+  });
+}
+
+/* ── Findings panel ───────────────────────────────────────────────────────── */
+function buildFindings(data) {
+  const el = $("findings");
+  el.innerHTML = "";
+
+  if (data.power_law) {
+    const pl = data.power_law;
+    el.innerHTML += `
+      <div class="finding-card">
+        <div class="finding-label">Power Law Equation</div>
+        <div class="equation-box">${pl.equation}</div>
+      </div>
+      <div class="finding-card">
+        <div class="finding-label">Goodness of Fit (R²)</div>
+        <div class="finding-value ${pl.r2 >= 0.9 ? 'green' : pl.r2 >= 0.7 ? 'yellow' : 'orange'}">${pl.r2.toFixed(4)}</div>
+        <div class="finding-sub">${pl.r2 >= 0.9 ? 'Excellent fit' : pl.r2 >= 0.7 ? 'Good fit' : 'Moderate fit — more data points needed'}</div>
+      </div>`;
+  }
+
+  if (data.predictions) {
+    const p = data.predictions;
+    if (p["32b"] != null) {
+      el.innerHTML += `
+        <div class="finding-card">
+          <div class="finding-label">Predicted DABS @ 32B</div>
+          <div class="finding-value green">${p["32b"].toFixed(1)}</div>
+          <div class="finding-sub">Extrapolated from power law</div>
+        </div>`;
+    }
+    if (p["70b"] != null) {
+      el.innerHTML += `
+        <div class="finding-card">
+          <div class="finding-label">Predicted DABS @ 70B</div>
+          <div class="finding-value green">${p["70b"].toFixed(1)}</div>
+          <div class="finding-sub">Extrapolated from power law</div>
+        </div>`;
+    }
+  }
+
+  if (data.inflection_point_b != null) {
+    el.innerHTML += `
+      <div class="finding-card">
+        <div class="finding-label">Diminishing Returns After</div>
+        <div class="finding-value cyan" style="color:var(--cyan)">${data.inflection_point_b}B parameters</div>
+        <div class="finding-sub">80% of 70B performance reached here</div>
+      </div>`;
+  }
+
+  el.innerHTML += `
+    <div class="finding-card">
+      <div class="finding-label">Models Analyzed</div>
+      <div class="finding-value yellow">${data.models_analyzed}</div>
+      <div class="finding-sub">Run more models for a tighter fit</div>
+    </div>`;
+}
+
+/* ── Model table ──────────────────────────────────────────────────────────── */
+function buildModelTable(data) {
+  const tbody = $("model-tbody");
+  tbody.innerHTML = "";
+
+  (data.data_points || []).forEach(dp => {
+    const color = tierColor(dp.tier, dp.tier_color);
+    tbody.innerHTML += `
+      <tr>
+        <td>${dp.model}</td>
+        <td>${dp.params_b}B</td>
+        <td style="color:${color};font-weight:bold">${dp.dabs_score.toFixed(1)}</td>
+        <td><span class="tier-badge" style="color:${color};border:1px solid ${color}33;background:${color}11">${dp.tier}</span></td>
+        <td>${dp.techniques_benchmarked}</td>
+      </tr>`;
+  });
+
+  // Predicted rows
+  const preds = data.predictions || {};
+  [["32b", "32B"], ["70b", "70B"]].forEach(([key, label]) => {
+    if (preds[key] == null) return;
+    tbody.innerHTML += `
+      <tr class="predicted-row">
+        <td><em>(predicted)</em><span class="predicted-tag">dashed ▲</span></td>
+        <td>${label}</td>
+        <td style="color:#718096">${preds[key].toFixed(1)}</td>
+        <td><span style="color:#4a5568;font-size:10px">extrapolated</span></td>
+        <td>—</td>
+      </tr>`;
+  });
+}
+
+/* ── Per-tactic charts ────────────────────────────────────────────────────── */
+function buildTacticCharts(data) {
+  const grid = $("tactic-grid");
+  grid.innerHTML = "";
+
+  const tactics = data.per_tactic || {};
+  Object.keys(tacticCharts).forEach(k => { try { tacticCharts[k].destroy(); } catch (_) {} });
+
+  Object.entries(tactics).forEach(([tactic, info], idx) => {
+    const canvasId = `tactic-chart-${idx}`;
+    const card = document.createElement("div");
+    card.className = "tactic-card";
+    card.innerHTML = `
+      <div class="tactic-name" title="${tactic}">${tactic}</div>
+      <div class="tactic-chart-wrap"><canvas id="${canvasId}"></canvas></div>
+      <div class="tactic-eq">${info.equation || ""}</div>`;
+    grid.appendChild(card);
+
+    const pts = (info.data_points || []).map(p => ({ x: p.params_b, y: p.score }));
+    const curveData = [];
+    if (info.a != null && info.b != null) {
+      let x = 1.0;
+      while (x <= 100) {
+        curveData.push({ x: parseFloat(x.toFixed(2)), y: Math.min(100, info.a * Math.pow(x, info.b)) });
+        x *= 1.2;
+      }
+    }
+
+    const datasets = [
+      {
+        label: "Score",
+        data: pts,
+        pointRadius: 5,
+        pointBackgroundColor: "#06b6d4",
+        pointBorderColor: "#06b6d4",
+        showLine: false,
+        order: 1,
+      },
+    ];
+    if (curveData.length > 1) {
+      datasets.unshift({
+        label: "Curve",
+        type: "line",
+        data: curveData,
+        borderColor: "rgba(6,182,212,0.35)",
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0.4,
+        order: 2,
+      });
+    }
+
+    const ctx2 = document.getElementById(canvasId).getContext("2d");
+    tacticCharts[canvasId] = new Chart(ctx2, {
+      type: "scatter",
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            type: "logarithmic",
+            grid: { color: "rgba(26,34,54,0.8)" },
+            ticks: { maxTicksLimit: 4, callback: v => `${v}B` },
+          },
+          y: {
+            min: 0, max: 100,
+            grid: { color: "rgba(26,34,54,0.8)" },
+            ticks: { maxTicksLimit: 4 },
+          },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+  });
+}
+
+/* ── Main load ────────────────────────────────────────────────────────────── */
+async function load() {
+  $("loading").style.display = "block";
+  $("status-msg").style.display = "none";
+  $("main-section").style.display = "none";
+
+  try {
+    const res = await fetch("/api/scaling");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    $("loading").style.display = "none";
+
+    if (data.status !== "ok") {
+      $("status-msg").style.display = "block";
+      $("status-text").textContent = data.message || "Insufficient data.";
+      return;
+    }
+
+    $("main-section").style.display = "flex";
+    buildMainChart(data);
+    buildFindings(data);
+    buildModelTable(data);
+    buildTacticCharts(data);
+
+  } catch (err) {
+    $("loading").style.display = "none";
+    $("status-msg").style.display = "block";
+    $("status-text").textContent = `Error loading data: ${err.message}`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

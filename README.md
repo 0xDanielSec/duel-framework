@@ -199,6 +199,7 @@ Start with `python server.py` → `http://localhost:8000`
 | `/export` | **Export** | Browse all surviving KQL rules, filter by severity, download as a Sentinel ARM template or **Sigma ZIP** (SIEM-agnostic — Splunk, Elastic, QRadar) |
 | `/autonomous` | **Autonomous** | Objective-based autonomous red team — LLM selects and chains techniques toward a goal (persistence, exfiltration, credential-access, full-compromise) |
 | `/mcp` | **MCP** | Tool reference, connect instructions for Claude Desktop/Cursor, live MCP server log viewer |
+| `/scaling` | **Scaling Laws** | Power law curve of DABS vs model size — scatter plot, fitted curve, per-tactic small multiples, predictions for 32B/70B |
 
 ---
 
@@ -644,6 +645,69 @@ python benchmark.py --model mistral:7b --compare --logs 10
 ```
 
 Results are saved to `output/dabs_*.json` and visible on the **[/benchmark](http://localhost:8000/benchmark)** dashboard with live radar chart and leaderboard.
+
+---
+
+## Scaling Laws
+
+DUEL can measure how **adversarial robustness scales with model size** — fitting a power law curve across Defender models of different parameter counts.
+
+### Power Law Model
+
+```
+DABS = a × (params_B)^b
+```
+
+The exponent `b` captures the rate of improvement: `b > 1` means super-linear scaling (bigger is disproportionately better), `0 < b < 1` means diminishing returns (common in LLM scaling).
+
+### Run the Scaling Benchmark
+
+```bash
+# Default: 5 model sizes × 5 techniques × 3 rounds
+python scripts/run_scaling_benchmark.py
+
+# Custom techniques and rounds
+python scripts/run_scaling_benchmark.py --techniques T1078.004,T1110.003,T1528 --rounds 5
+
+# Custom model list
+python scripts/run_scaling_benchmark.py --models mistral:7b,qwen2.5:14b
+```
+
+**Default models benchmarked (fixed for reproducibility):**
+
+| Model | Parameters |
+|---|---|
+| `phi3.5:latest` | 3.8B |
+| `mistral:7b` | 7B |
+| `qwen2.5:7b` | 7B |
+| `llama3.1:8b` | 8B |
+| `qwen2.5:14b` | 14B |
+
+**Extrapolated predictions:** 32B and 70B model performance predicted from the fitted curve.
+
+### Outputs
+
+| File | Description |
+|---|---|
+| `output/dabs_*.json` | Per-model DABS score files (one per model run) |
+| `output/scaling_laws.json` | Full analysis: power law coefficients, R², predictions, per-tactic trends |
+
+### Web Dashboard
+
+The **[/scaling](http://localhost:8000/scaling)** page shows:
+- Scatter plot of DABS vs model size on a log scale with the fitted power law curve overlaid
+- Predicted DABS markers for 32B and 70B models (dashed triangles)
+- Per-tactic small multiples showing how each MITRE tactic scales differently
+- Key findings: equation, R², diminishing returns threshold, extrapolated predictions
+
+The `ScalingLawsAnalyzer` class in `engine/scaling_laws.py` can also be imported directly:
+
+```python
+from engine.scaling_laws import ScalingLawsAnalyzer
+result = ScalingLawsAnalyzer().analyze()
+print(result["power_law"]["equation"])  # DABS = 18.43 × P^0.312
+print(result["predictions"]["70b"])     # 61.7
+```
 
 ---
 

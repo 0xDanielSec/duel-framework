@@ -154,6 +154,19 @@ async def benchmark_page():
     return FileResponse(str(STATIC_DIR / "benchmark.html"))
 
 
+@app.get("/scaling")
+async def scaling_page():
+    return FileResponse(str(STATIC_DIR / "scaling.html"))
+
+
+@app.get("/api/scaling")
+async def api_scaling():
+    """Return scaling law analysis — power law fit across model sizes."""
+    from engine.scaling_laws import ScalingLawsAnalyzer
+    data = await _in_thread(ScalingLawsAnalyzer().analyze)
+    return JSONResponse(content=data)
+
+
 @app.get("/api/dabs")
 async def api_dabs():
     """Return all saved DABS benchmark results grouped by model."""
