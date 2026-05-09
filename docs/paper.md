@@ -152,7 +152,11 @@ Fitting a power law DABS = a × P^b across these five data points yields:
 DABS = 65.36 × P^−0.087     (R² = 0.055)
 ```
 
-The fit is plotted in Figure 1. Extrapolating the curve predicts DABS = 48.39 at 32B parameters and DABS = 45.21 at 70B parameters — both below the score already achieved by mistral:7b at 7B parameters.
+The fit is plotted in Figure 1.
+
+![Figure 1. DABS Score vs. Model Size — Adversarial Detection Robustness Does Not Scale with Parameters](figure1_scaling_law.png)
+
+Extrapolating the curve predicts DABS = 48.39 at 32B parameters and DABS = 45.21 at 70B parameters — both below the score already achieved by mistral:7b at 7B parameters.
 
 The R² value of 0.055 indicates that model parameter count explains less than 6% of the variance in adversarial detection robustness. This is consistent with a null hypothesis of no relationship between scale and robustness. The negative exponent (b = −0.087) is a statistically weak signal that larger models within this range may perform *marginally worse* as defenders, though the confidence interval at this sample size spans zero.
 
