@@ -322,9 +322,10 @@ DUEL, the DABS metric, the 38-technique test suite, and the 1,038-record adversa
   author    = {Gomes, Daniel},
   year      = {2026},
   month     = {May},
-  note      = {Preprint. DUEL framework and dataset available at
-               \url{https://github.com/0xDanielSec/duel-framework}},
-  url       = {https://github.com/0xDanielSec/duel-framework}
+  doi       = {10.5281/zenodo.20098146},
+  url       = {https://zenodo.org/records/20098146},
+  note      = {Preprint. Framework and dataset at
+               https://github.com/0xDanielSec/duel-framework}
 }
 ```
 
