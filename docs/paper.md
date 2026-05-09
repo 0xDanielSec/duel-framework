@@ -42,6 +42,10 @@ The study of adversarial examples originates with Szegedy et al. [1] and Goodfel
 
 These works share a structural pattern with our setting: a defender builds a model on observed data, an attacker learns to evade it, and the defender's rule is only as good as the attacker strategies it was trained to reject. DUEL operationalizes this loop at the KQL rule level rather than the gradient level, but the fundamental tension is identical.
 
+Most closely related to our work, Carlini et al. [14] evaluated the robustness of a production malware detection system to transferable adversarial attacks, demonstrating that gradient-based perturbations crafted against a surrogate model transfer to a black-box production classifier. DUEL extends this line of work in two dimensions: the attacker in DUEL is an LLM agent that reasons about the defender's rule and mutates telemetry accordingly, rather than optimizing a gradient signal; and the adversarial loop is iterative, with the defender observing evasion and regenerating its rule each round. Where Carlini et al. study transferability as a one-shot property, DUEL measures robustness as a dynamic property under repeated adaptive pressure.
+
+In a separate line of work, Carlini [15] demonstrated that GPT-4 could assist a researcher in fully breaking a published adversarial defense (AI-Guardian) without writing any attack code — the model was prompted to implement all attack algorithms from natural language descriptions. DUEL automates this process into a closed loop: the Attacker LLM generates attack telemetry, observes what the Defender detected, and autonomously adapts its strategy without human intervention between rounds. The key difference is that DUEL removes the human from the loop entirely, testing whether LLM-driven adversarial adaptation can operate at scale across 38 techniques without researcher guidance.
+
 ### 2.2 LLM Security and Prompt Injection
 
 The adversarial surface of LLMs extends beyond model inputs to include the reasoning process itself. Perez and Ribeiro [5] demonstrated that LLMs used as agents could be manipulated by injecting adversarial instructions into documents the agent was asked to process. Greshake et al. [6] generalized this to indirect prompt injection, where attacker-controlled content in the environment influences LLM behavior without direct user interaction.
@@ -148,7 +152,7 @@ Fitting a power law DABS = a × P^b across these five data points yields:
 DABS = 65.36 × P^−0.087     (R² = 0.055)
 ```
 
-The fit is plotted in Figure 1 (see `/scaling` dashboard). Extrapolating the curve predicts DABS = 48.39 at 32B parameters and DABS = 45.21 at 70B parameters — both below the score already achieved by mistral:7b at 7B parameters.
+The fit is plotted in Figure 1. Extrapolating the curve predicts DABS = 48.39 at 32B parameters and DABS = 45.21 at 70B parameters — both below the score already achieved by mistral:7b at 7B parameters.
 
 The R² value of 0.055 indicates that model parameter count explains less than 6% of the variance in adversarial detection robustness. This is consistent with a null hypothesis of no relationship between scale and robustness. The negative exponent (b = −0.087) is a statistically weak signal that larger models within this range may perform *marginally worse* as defenders, though the confidence interval at this sample size spans zero.
 
@@ -298,6 +302,10 @@ DUEL, the DABS metric, the 38-technique test suite, and the 1,038-record adversa
 [12] Applebaum, A., Miller, D., Strom, B., Korinek, H., & Banks, C. (2016). Intelligent, automated red team emulation. *Proceedings of the 32nd Annual Conference on Computer Security Applications (ACSAC)*, 363–373.
 
 [13] OWASP Foundation. (2025). OWASP Top 10 for Large Language Model Applications: 2025 Edition. Retrieved from https://owasp.org/www-project-top-10-for-large-language-model-applications/
+
+[14] Carlini, N., Nasr, M., Fratantonio, Y., Invernizzi, L., Farah, L., Petit-Bianco, A., Terzis, A., Thomas, K., & Bursztein, E. (2025). Evaluating the Robustness of a Production Malware Detection System to Transferable Adversarial Attacks. *Proceedings of the 32nd ACM Conference on Computer and Communications Security (CCS)*, 4394–4408.
+
+[15] Carlini, N. (2023). A LLM Assisted Exploitation of AI-Guardian. *arXiv preprint arXiv:2307.15008*.
 
 ---
 
