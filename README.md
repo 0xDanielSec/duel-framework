@@ -414,12 +414,14 @@ Options:
   --defender-model TEXT   Ollama model for Defender         [default: mistral:7b]
   --logs INT              Attack logs per round             [default: 10]
   --seed INT              Random seed for reproducibility   [default: 42]
+  --replay PATH           Replay a previous battle log against a new Defender
   --verbose               Print telemetry and KQL each round
 ```
 
 ```bash
 python main.py --technique T1110.003 --rounds 10 --logs 15 --verbose
 python main.py --technique LLM01 --attacker-model llama3.1:8b
+python main.py --replay output/full_battle_log_T1078.004.json --defender-model qwen2.5:14b
 ```
 
 ### `tournament.py` — multi-model Defender ranking

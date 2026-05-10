@@ -21,6 +21,7 @@ from agents.defender import DefenderAgent
 from engine.detection import DetectionEngine
 from engine.injection_detector import InjectionDetector
 from engine.meta_attacker import MetaAttacker
+from engine.replay_engine import ReplayEngine
 from engine.scoring import BattleScorer
 
 console = Console()
@@ -243,6 +244,25 @@ def run_duel(
     return scorer
 
 
+def run_replay(replay_path: str, defender_model: str, seed: int = 42) -> None:
+    Path("output").mkdir(exist_ok=True)
+    engine = ReplayEngine(replay_path)
+    engine.load_battle()
+    scorer = engine.replay(defender_model=defender_model, seed=seed)
+    log_path    = engine.save_replay_log(scorer, defender_model)
+    report_path = scorer.generate_report()
+
+    winner = scorer._determine_winner()
+    color = "red" if winner == "Attacker" else "blue" if winner == "Defender" else "yellow"
+    console.rule("[bold cyan]REPLAY COMPLETE[/bold cyan]")
+    console.print(f"\n[{color} bold]Winner: {winner}[/{color} bold]")
+    console.print(f"  Attacker: {scorer.attacker_score} pts")
+    console.print(f"  Defender: {scorer.defender_score} pts")
+    console.print(f"  Surviving KQL rules: {len(scorer.surviving_kql)}")
+    console.print(f"\n[dim]Replay log  → {log_path}[/dim]")
+    console.print(f"[dim]Report      → {report_path}[/dim]")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="DUEL — Dual Unified Evasion Loop",
@@ -271,6 +291,8 @@ Examples:
                         help="Battle mode: 'normal' (default) or 'meta' (prompt injection)")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed for reproducibility (default: 42)")
+    parser.add_argument("--replay", metavar="PATH",
+                        help="Path to an existing full_battle_log_*.json to replay")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -280,16 +302,23 @@ Examples:
     except ImportError:
         pass
 
-    run_duel(
-        technique_id=args.technique,
-        rounds=args.rounds,
-        attacker_model=args.attacker_model,
-        defender_model=args.defender_model,
-        logs_per_round=args.logs,
-        verbose=args.verbose,
-        meta_mode=(args.mode == "meta"),
-        seed=args.seed,
-    )
+    if args.replay:
+        run_replay(
+            replay_path=args.replay,
+            defender_model=args.defender_model,
+            seed=args.seed,
+        )
+    else:
+        run_duel(
+            technique_id=args.technique,
+            rounds=args.rounds,
+            attacker_model=args.attacker_model,
+            defender_model=args.defender_model,
+            logs_per_round=args.logs,
+            verbose=args.verbose,
+            meta_mode=(args.mode == "meta"),
+            seed=args.seed,
+        )
 
 
 if __name__ == "__main__":

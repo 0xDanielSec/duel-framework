@@ -23,6 +23,7 @@ from agents.defender import DefenderAgent
 from engine.detection import DetectionEngine
 from engine.injection_detector import InjectionDetector
 from engine.meta_attacker import MetaAttacker
+from engine.replay_engine import ReplayEngine
 from engine.scoring import BattleScorer
 from engine.tournament_scorer import TournamentScorer
 from campaign import CAMPAIGNS, build_campaign_context
@@ -290,6 +291,33 @@ async def api_report(technique_id: str):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.get("/api/battle_logs")
+async def api_battle_logs():
+    """Return metadata for all full_battle_log_*.json files for the replay UI."""
+    logs = []
+    for p in sorted(OUTPUT_DIR.glob("full_battle_log_*.json"),
+                    key=lambda x: x.stat().st_mtime, reverse=True):
+        try:
+            with open(p, encoding="utf-8") as f:
+                d = json.load(f)
+            first_ts = (d.get("rounds") or [{}])[0].get("timestamp", "")
+            logs.append({
+                "filename":       p.name,
+                "technique_id":   d.get("technique_id", "?"),
+                "attacker_model": d.get("attacker_model", "?"),
+                "defender_model": d.get("defender_model", "?"),
+                "total_rounds":   d.get("total_rounds", len(d.get("rounds", []))),
+                "winner":         d.get("winner", "?"),
+                "seed":           d.get("seed", 42),
+                "is_replay":      bool(d.get("replay", False)),
+                "original_log":   d.get("original_log", ""),
+                "date":           first_ts[:10] if first_ts else p.stat().st_mtime,
+            })
+        except Exception:
+            pass
+    return JSONResponse(logs)
 
 
 @app.get("/api/threatintel")
@@ -1538,6 +1566,165 @@ async def ws_benchmark(websocket: WebSocket):
             "type":   "benchmark_complete",
             "result": final_result.to_dict(),
             "file":   saved_path.name,
+        })
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as exc:
+        try:
+            await send({"type": "error", "message": str(exc)})
+        except Exception:
+            pass
+
+
+# ── WebSocket replay loop ────────────────────────────────────────────────────
+
+
+@app.websocket("/ws/replay")
+async def ws_replay(websocket: WebSocket):
+    await websocket.accept()
+
+    async def send(payload: dict):
+        await websocket.send_text(json.dumps(payload, default=str))
+
+    try:
+        cfg            = await websocket.receive_json()
+        log_file:       str = cfg.get("log_file", "")
+        defender_model: str = cfg.get("defender_model", "mistral:7b")
+        seed:           int = int(cfg.get("seed", 42))
+
+        # Security: only allow files that live directly in OUTPUT_DIR
+        log_path = OUTPUT_DIR / Path(log_file).name
+        if not log_path.exists():
+            await send({"type": "error", "message": f"Battle log not found: {log_file}"})
+            return
+
+        with open(log_path, encoding="utf-8") as f:
+            battle_data = json.load(f)
+
+        technique_id: str    = battle_data.get("technique_id", "")
+        rounds_data:  list   = battle_data.get("rounds", [])
+        total_rounds: int    = len(rounds_data)
+        first_ts = rounds_data[0].get("timestamp", "") if rounds_data else ""
+        original_date = first_ts[:10] if first_ts else ""
+
+        try:
+            technique = await _in_thread(_load_technique, technique_id)
+        except FileNotFoundError:
+            technique = {
+                "technique_id": technique_id, "name": technique_id,
+                "description": "", "sentinel_tables": ["SigninLogs"],
+                "detection_kql_hints": [], "evasion_variants": [],
+            }
+
+        is_llm = technique_id.upper().startswith("LLM")
+
+        await send({
+            "type":           "replay_start",
+            "technique_id":   technique_id,
+            "technique_name": technique.get("name", technique_id),
+            "original_date":  original_date,
+            "total_rounds":   total_rounds,
+            "original_log":   log_path.name,
+            "defender_model": defender_model,
+        })
+
+        Path("output").mkdir(exist_ok=True)
+        defender = DefenderAgent(model=defender_model, seed=seed)
+        scorer   = BattleScorer(total_rounds=total_rounds, technique_id=technique_id, seed=seed)
+
+        for i, round_data in enumerate(rounds_data, 1):
+            attack_logs = (
+                round_data.get("detected_logs", [])
+                + round_data.get("evaded_logs", [])
+            )
+
+            await send({
+                "type":             "round_start",
+                "round":            i,
+                "total":            total_rounds,
+                "technique":        technique_id,
+                "replay":           True,
+                "stored_log_count": len(attack_logs),
+            })
+
+            logs_sample = [
+                {k: v for k, v in log.items() if not k.startswith("_duel")}
+                for log in attack_logs[:3]
+            ]
+            await send({
+                "type":        "attacker_done",
+                "strategy":    f"[REPLAY] Round {i} — {len(attack_logs)} stored logs from original battle on {original_date}",
+                "logs_sample": logs_sample,
+                "replay":      True,
+            })
+
+            await send({"type": "defender_thinking"})
+
+            try:
+                kql_rule = await _in_thread(
+                    defender.generate_rule,
+                    technique=technique,
+                    round_num=i,
+                    total_rounds=total_rounds,
+                    attack_logs=attack_logs,
+                    detected_logs=scorer.get_last_detected_logs(),
+                    evaded_logs=scorer.get_last_evaded_logs(),
+                )
+            except Exception as exc:
+                kql_rule = "SigninLogs | where ResultType != 0"
+                await send({"type": "error", "message": f"Defender fallback: {exc}"})
+
+            reasoning = _defender_reasoning(i, scorer.get_last_evaded_logs(), scorer.get_last_detected_logs())
+            await send({"type": "defender_done", "kql": kql_rule, "reasoning": reasoning})
+
+            if is_llm:
+                from engine.llm_detection import LLMDetectionEngine
+                engine_inst = LLMDetectionEngine(attack_logs)
+            else:
+                engine_inst = DetectionEngine(attack_logs)
+            det_result = engine_inst.run(kql_rule)
+
+            total_logs = len(attack_logs)
+            detected_n = len(det_result["detected_ids"])
+            evaded_n   = total_logs - detected_n
+            rate       = detected_n / total_logs if total_logs else 0.0
+
+            await send({"type": "detection_result", "detected": detected_n, "evaded": evaded_n, "rate": rate})
+
+            record = scorer.record_round(
+                round_num=i,
+                attack_logs=attack_logs,
+                kql_rule=kql_rule,
+                detected_ids=det_result["detected_ids"],
+                kql_valid=det_result["kql_valid"],
+            )
+
+            round_result = "detected" if detected_n >= evaded_n else "evaded"
+            await send({
+                "type":           "round_result",
+                "result":         round_result,
+                "attacker_score": scorer.attacker_score,
+                "defender_score": scorer.defender_score,
+            })
+
+        # Persist replay log using ReplayEngine
+        re = ReplayEngine(log_path)
+        re.battle_data   = battle_data
+        re.technique_id  = technique_id
+        re.original_seed = battle_data.get("seed", 42)
+        re.rounds_data   = rounds_data
+        re.total_rounds  = total_rounds
+        re.original_date = original_date
+        saved_path = await _in_thread(re.save_replay_log, scorer, defender_model)
+
+        winner = scorer._determine_winner()
+        await send({
+            "type":           "battle_complete",
+            "winner":         winner,
+            "final_attacker": scorer.attacker_score,
+            "final_defender": scorer.defender_score,
+            "replay_log":     saved_path.name,
         })
 
     except WebSocketDisconnect:

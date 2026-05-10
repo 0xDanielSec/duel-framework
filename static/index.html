@@ -198,6 +198,103 @@
     }
     #start-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+    #replay-btn {
+      padding: 7px 16px;
+      border: 1px solid rgba(0,255,136,0.4);
+      background: rgba(0,255,136,0.07);
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    #replay-btn:hover:not(:disabled) {
+      background: rgba(0,255,136,0.15);
+      border-color: var(--green);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(0,255,136,0.3);
+    }
+    #replay-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Replay modal ──────────────────────────────────────────────────────── */
+    #replay-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      z-index: 9000;
+      align-items: center;
+      justify-content: center;
+    }
+    #replay-modal-overlay.open { display: flex; }
+    #replay-modal {
+      background: var(--bg2);
+      border: 1px solid rgba(0,255,136,0.35);
+      border-radius: 6px;
+      padding: 24px 28px;
+      min-width: 420px;
+      max-width: 540px;
+    }
+    #replay-modal h2 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px;
+      letter-spacing: 3px;
+      color: var(--green);
+      margin-bottom: 16px;
+    }
+    .replay-field { margin-bottom: 14px; }
+    .replay-field label {
+      display: block;
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--dim);
+      margin-bottom: 5px;
+    }
+    .replay-field select,
+    .replay-field input[type="text"] {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid #2a3344;
+      color: var(--text);
+      padding: 6px 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      border-radius: 3px;
+      outline: none;
+    }
+    .replay-field select:focus,
+    .replay-field input[type="text"]:focus { border-color: var(--green); }
+    .replay-modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+    .replay-modal-actions button {
+      padding: 7px 18px;
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #replay-confirm-btn {
+      border: 1px solid rgba(0,255,136,0.5);
+      background: rgba(0,255,136,0.1);
+      color: var(--green);
+    }
+    #replay-confirm-btn:hover {
+      background: rgba(0,255,136,0.2);
+      color: #fff;
+    }
+    #replay-cancel-btn {
+      border: 1px solid var(--dim);
+      background: transparent;
+      color: var(--muted);
+    }
+    #replay-cancel-btn:hover { border-color: var(--text); color: var(--text); }
+
     #nav-links { margin-left: auto; display: flex; gap: 8px; font-size: 11px; letter-spacing: 1px; }
     #nav-links a { color: var(--muted); text-decoration: none; padding: 3px 9px; border: 1px solid transparent; border-radius: 3px; transition: all .15s; white-space: nowrap; }
     #nav-links a.nav-warroom:hover    { color: var(--text);   border-color: var(--dim); }
@@ -984,6 +1081,28 @@
   </div>
 
   <button id="start-btn" onclick="startBattle()">&#9654; START BATTLE</button>
+  <button id="replay-btn" onclick="openReplayModal()">&#8635; REPLAY</button>
+</div>
+
+<!-- ── Replay modal ─────────────────────────────────────────────────────────── -->
+<div id="replay-modal-overlay">
+  <div id="replay-modal">
+    <h2>&#8635; REPLAY MODE</h2>
+    <div class="replay-field">
+      <label>BATTLE LOG</label>
+      <select id="replay-log-sel">
+        <option value="">Loading logs&hellip;</option>
+      </select>
+    </div>
+    <div class="replay-field">
+      <label>DEFENDER MODEL</label>
+      <input type="text" id="replay-defender-inp" value="mistral:7b" placeholder="e.g. qwen2.5:14b" />
+    </div>
+    <div class="replay-modal-actions">
+      <button id="replay-cancel-btn" onclick="closeReplayModal()">CANCEL</button>
+      <button id="replay-confirm-btn" onclick="confirmReplay()">&#9654; START REPLAY</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── Main ────────────────────────────────────────────────────────────────── -->
@@ -1362,6 +1481,19 @@ function resetUI() {
 function handle(data) {
   switch (data.type) {
 
+    case 'replay_start':
+      document.getElementById('technique-badge').textContent =
+        'REPLAY: ' + data.technique_id + (data.original_date ? ' — ' + data.original_date : '');
+      document.getElementById('round-counter').textContent = '0 / ' + data.total_rounds;
+      addFeed(
+        '↻ REPLAY MODE — ' + data.technique_id +
+        ' | original: ' + (data.original_date || '?') +
+        ' | defender: ' + data.defender_model,
+        'sys'
+      );
+      addFeed('Attacker skipped — replaying stored telemetry from ' + data.original_log, 'think');
+      break;
+
     case 'round_start':
       stopIdleAnimations();
       currentTechnique = data.technique;
@@ -1429,6 +1561,7 @@ function handle(data) {
     case 'battle_complete':
       active = false;
       document.getElementById('start-btn').disabled = false;
+      document.getElementById('replay-btn').disabled = false;
       document.getElementById('conn-dot').className = 'on';
       document.getElementById('attacker-panel').classList.remove('thinking');
       document.getElementById('defender-panel').classList.remove('thinking');
@@ -1488,6 +1621,7 @@ function handle(data) {
       addFeed('ERROR: ' + data.message, 'err');
       active = false;
       document.getElementById('start-btn').disabled = false;
+      document.getElementById('replay-btn').disabled = false;
       document.getElementById('conn-dot').className = 'err';
       break;
   }
@@ -1727,6 +1861,81 @@ function showTiModal() {
 
 document.addEventListener('DOMContentLoaded', loadThreatIntel);
 
+/* ── Replay modal ─────────────────────────────────────────────────────────────── */
+async function openReplayModal() {
+  if (active) return;
+  const overlay = document.getElementById('replay-modal-overlay');
+  overlay.classList.add('open');
+  const sel = document.getElementById('replay-log-sel');
+  sel.innerHTML = '<option value="">Loading&hellip;</option>';
+  try {
+    const res = await fetch('/api/battle_logs');
+    const logs = await res.json();
+    if (!logs.length) {
+      sel.innerHTML = '<option value="">No battle logs found</option>';
+      return;
+    }
+    sel.innerHTML = logs.map(l => {
+      const tag = l.is_replay ? ' [REPLAY]' : '';
+      const label = l.filename + tag + ' | ' + l.technique_id + ' | ' + l.total_rounds + 'R | winner: ' + l.winner;
+      return '<option value="' + esc(l.filename) + '">' + esc(label) + '</option>';
+    }).join('');
+  } catch (e) {
+    sel.innerHTML = '<option value="">Error loading logs</option>';
+  }
+}
+
+function closeReplayModal() {
+  document.getElementById('replay-modal-overlay').classList.remove('open');
+}
+
+function confirmReplay() {
+  const logFile = document.getElementById('replay-log-sel').value;
+  const defModel = document.getElementById('replay-defender-inp').value.trim() || 'mistral:7b';
+  if (!logFile) { alert('Please select a battle log.'); return; }
+  closeReplayModal();
+  startReplay(logFile, defModel);
+}
+
+function startReplay(logFile, defenderModel) {
+  if (active) return;
+  resetUI();
+
+  const url = 'ws://' + location.host + '/ws/replay';
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    active = true;
+    document.getElementById('start-btn').disabled = true;
+    document.getElementById('replay-btn').disabled = true;
+    document.getElementById('conn-dot').className = 'on';
+    ws.send(JSON.stringify({ log_file: logFile, defender_model: defenderModel, seed: 42 }));
+  };
+
+  ws.onmessage = e => {
+    try { handle(JSON.parse(e.data)); }
+    catch (err) { console.error('Parse error:', err, e.data); }
+  };
+
+  ws.onerror = () => {
+    addFeed('WebSocket error — is the server running?', 'err');
+    document.getElementById('conn-dot').className = 'err';
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('replay-btn').disabled = false;
+    active = false;
+  };
+
+  ws.onclose = () => {
+    document.getElementById('conn-dot').className = '';
+    if (active) {
+      addFeed('Connection closed unexpectedly.', 'err');
+      document.getElementById('start-btn').disabled = false;
+      document.getElementById('replay-btn').disabled = false;
+      active = false;
+    }
+  };
+}
+
 /* ── Start battle ─────────────────────────────────────────────────────────────── */
 function startBattle() {
   if (active) return;
@@ -1765,6 +1974,7 @@ function startBattle() {
     addFeed('WebSocket error \u2014 is the server running?', 'err');
     document.getElementById('conn-dot').className = 'err';
     document.getElementById('start-btn').disabled = false;
+    document.getElementById('replay-btn').disabled = false;
     active = false;
   };
 
@@ -1773,6 +1983,7 @@ function startBattle() {
     if (active) {
       addFeed('Connection closed unexpectedly.', 'err');
       document.getElementById('start-btn').disabled = false;
+      document.getElementById('replay-btn').disabled = false;
       active = false;
     }
   };
