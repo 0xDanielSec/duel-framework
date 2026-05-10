@@ -12,6 +12,7 @@ Usage:
 import argparse
 import json
 import logging
+import random
 import sys
 from pathlib import Path
 
@@ -81,6 +82,7 @@ def run_stage(
     defender_model: str,
     campaign_context: str | None,
     verbose: bool,
+    seed: int = 42,
 ) -> BattleScorer:
     tid = technique["technique_id"]
     console.rule(
@@ -94,8 +96,8 @@ def run_stage(
             border_style="cyan",
         ))
 
-    defender = DefenderAgent(model=defender_model)
-    scorer   = BattleScorer(total_rounds=rounds, technique_id=tid)
+    defender = DefenderAgent(model=defender_model, seed=seed)
+    scorer   = BattleScorer(total_rounds=rounds, technique_id=tid, seed=seed)
 
     for round_num in range(1, rounds + 1):
         console.rule(f"[yellow]Round {round_num}/{rounds}[/yellow]")
@@ -193,6 +195,7 @@ def run_autonomous(
     logs_per_round: int,
     auto: bool,
     verbose: bool,
+    seed: int = 42,
 ):
     OUTPUT_DIR.mkdir(exist_ok=True)
     print_banner()
@@ -202,7 +205,8 @@ def run_autonomous(
     console.print(f"[bold]Attacker model:[/bold]  {attacker_model}")
     console.print(f"[bold]Defender model:[/bold]  {defender_model}")
     console.print(f"[bold]Logs per round:[/bold]  {logs_per_round}")
-    console.print(f"[bold]Mode:[/bold]            {'FULLY AUTONOMOUS' if auto else 'SUPERVISED'}\n")
+    console.print(f"[bold]Mode:[/bold]            {'FULLY AUTONOMOUS' if auto else 'SUPERVISED'}")
+    console.print(f"[bold]Seed:[/bold]            {seed}\n")
 
     red_team = AutonomousRedTeam(model=attacker_model)
 
@@ -230,7 +234,7 @@ def run_autonomous(
             return
 
     # ── Execute campaign ───────────────────────────────────────────────────
-    attacker     = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
+    attacker     = AttackerAgent(model=attacker_model, num_logs=logs_per_round, seed=seed)
     stage_scorers: list[BattleScorer] = []
     stage_techs:   list[dict]         = []
     campaign_context: str | None      = None
@@ -258,6 +262,7 @@ def run_autonomous(
             defender_model=defender_model,
             campaign_context=campaign_context,
             verbose=verbose,
+            seed=seed,
         )
         stage_scorers.append(scorer)
 
@@ -340,7 +345,16 @@ Examples:
                         help="Attack logs per round (default: 10)")
     parser.add_argument("--verbose", action="store_true",
                         help="Print telemetry and KQL each round")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for reproducibility (default: 42)")
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    try:
+        import numpy as np
+        np.random.seed(args.seed)
+    except ImportError:
+        pass
 
     run_autonomous(
         objective=args.objective,
@@ -350,6 +364,7 @@ Examples:
         logs_per_round=args.logs,
         auto=args.auto,
         verbose=args.verbose,
+        seed=args.seed,
     )
 
 

@@ -12,6 +12,7 @@ Usage:
 import argparse
 import json
 import logging
+import random
 import sys
 from pathlib import Path
 
@@ -64,6 +65,7 @@ def run_tournament(
     attacker_model: str,
     defenders: list[str],
     logs_per_round: int,
+    seed: int = 42,
 ) -> None:
     Path("output").mkdir(exist_ok=True)
     technique = _load_technique(technique_id)
@@ -73,12 +75,13 @@ def run_tournament(
     console.print(f"[bold]Attacker model:[/bold] {attacker_model}")
     console.print(f"[bold]Defenders:[/bold] {', '.join(defenders)}")
     console.print(f"[bold]Rounds:[/bold] {rounds}")
-    console.print(f"[bold]Logs per round:[/bold] {logs_per_round}\n")
+    console.print(f"[bold]Logs per round:[/bold] {logs_per_round}")
+    console.print(f"[bold]Seed:[/bold] {seed}\n")
 
     # ── Phase 1: Pre-generate attack logs once per round ─────────────────────
     # All defenders see the same telemetry — identical conditions.
     console.rule("[bold red]PHASE 1 — Attack Telemetry Generation[/bold red]")
-    attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
+    attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round, seed=seed)
     all_attack_logs: dict[int, list[dict]] = {}
 
     for round_num in range(1, rounds + 1):
@@ -104,8 +107,8 @@ def run_tournament(
 
     for defender_model in defenders:
         console.rule(f"[bold blue]DEFENDER: {defender_model}[/bold blue]")
-        defender = DefenderAgent(model=defender_model)
-        scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id)
+        defender = DefenderAgent(model=defender_model, seed=seed)
+        scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id, seed=seed)
 
         for round_num in range(1, rounds + 1):
             attack_logs = all_attack_logs[round_num]
@@ -217,7 +220,16 @@ Examples:
                         help='Comma-separated Ollama model names, e.g. "mistral:7b,llama3.1:8b"')
     parser.add_argument("--logs",           type=int, default=10,
                         help="Attack logs generated per round (default: 10)")
+    parser.add_argument("--seed",           type=int, default=42,
+                        help="Random seed for reproducibility (default: 42)")
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    try:
+        import numpy as np
+        np.random.seed(args.seed)
+    except ImportError:
+        pass
 
     defenders = [m.strip() for m in args.defenders.split(",") if m.strip()]
     if not defenders:
@@ -230,6 +242,7 @@ Examples:
         attacker_model=args.attacker_model,
         defenders=defenders,
         logs_per_round=args.logs,
+        seed=args.seed,
     )
 
 

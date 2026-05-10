@@ -14,10 +14,11 @@ OUTPUT_DIR = Path(__file__).parent.parent / "output"
 
 
 class BattleScorer:
-    def __init__(self, total_rounds: int, technique_id: str, attacker_model: str = "llama3.1:8b"):
+    def __init__(self, total_rounds: int, technique_id: str, attacker_model: str = "llama3.1:8b", seed: int = 42):
         self.total_rounds = total_rounds
         self.technique_id = technique_id
         self.attacker_model = attacker_model
+        self.seed = seed
         self.rounds: list[dict] = []
         self.attacker_score = 0
         self.defender_score = 0
@@ -130,6 +131,7 @@ class BattleScorer:
         battle = {
             "technique_id":        self.technique_id,
             "attacker_model":      self.attacker_model,
+            "seed":                self.seed,
             "total_rounds":        self.total_rounds,
             "final_attacker_score": self.attacker_score,
             "final_defender_score": self.defender_score,

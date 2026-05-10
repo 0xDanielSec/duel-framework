@@ -112,6 +112,8 @@ DABS addresses a gap in LLM security evaluation. Existing benchmarks measure *st
 
 **Attacker Model:** llama3.1:8b for all experiments (held constant to isolate defender performance).
 
+**Reproducibility:** All experiments use seed=42. Results are reproducible via: `python benchmark.py --model mistral:7b --seed 42`
+
 **Defender Models:** Five open-weight models selected to span the 3.8B–14B parameter range:
 
 | Model | Parameters | Architecture |

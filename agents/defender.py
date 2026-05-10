@@ -224,8 +224,9 @@ Output ONLY the JSON policy object.
 
 
 class DefenderAgent:
-    def __init__(self, model: str = "mistral:7b"):
+    def __init__(self, model: str = "mistral:7b", seed: int = 42):
         self.model = model
+        self.seed = seed
         self.round_history: list[dict] = []
         self.last_kql: str | None = None
         try:
@@ -428,7 +429,7 @@ class DefenderAgent:
                     {"role": "system", "content": DEFENDER_LLM_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                options={"temperature": 0.3, "num_predict": 2048},
+                options={"temperature": 0.3, "num_predict": 2048, "seed": self.seed},
             )
             return response["message"]["content"]
         except Exception as exc:
@@ -469,7 +470,7 @@ class DefenderAgent:
                     {"role": "system", "content": DEFENDER_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                options={"temperature": 0.4, "num_predict": 1024},
+                options={"temperature": 0.4, "num_predict": 1024, "seed": self.seed},
             )
             return response["message"]["content"]
         except Exception as exc:

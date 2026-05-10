@@ -6,6 +6,7 @@ Adversarial LLM framework: Attacker vs Defender over Microsoft Sentinel schemas.
 import argparse
 import json
 import logging
+import random
 import sys
 from pathlib import Path
 
@@ -119,24 +120,26 @@ def run_duel(
     logs_per_round: int,
     verbose: bool,
     meta_mode: bool = False,
+    seed: int = 42,
 ):
     Path("output").mkdir(exist_ok=True)
 
     technique = load_technique(technique_id)
     if meta_mode:
-        attacker: AttackerAgent = MetaAttacker(model=attacker_model, num_logs=logs_per_round)
+        attacker: AttackerAgent = MetaAttacker(model=attacker_model, num_logs=logs_per_round, seed=seed)
         console.print("[bold magenta]META MODE[/bold magenta] — prompt injection payloads embedded in attack logs\n")
     else:
-        attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
-    defender = DefenderAgent(model=defender_model)
-    scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id, attacker_model=attacker_model)
+        attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round, seed=seed)
+    defender = DefenderAgent(model=defender_model, seed=seed)
+    scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id, attacker_model=attacker_model, seed=seed)
 
     print_banner()
     console.print(f"\n[bold]Technique:[/bold] {technique_id} — {technique['name']}")
     console.print(f"[bold]Attacker model:[/bold] {attacker_model}")
     console.print(f"[bold]Defender model:[/bold] {defender_model}")
     console.print(f"[bold]Rounds:[/bold] {rounds}")
-    console.print(f"[bold]Logs per round:[/bold] {logs_per_round}\n")
+    console.print(f"[bold]Logs per round:[/bold] {logs_per_round}")
+    console.print(f"[bold]Seed:[/bold] {seed}\n")
 
     for round_num in range(1, rounds + 1):
         print_round_header(round_num, rounds)
@@ -266,7 +269,16 @@ Examples:
                         help="Print attack telemetry and KQL rules each round")
     parser.add_argument("--mode", choices=["normal", "meta"], default="normal",
                         help="Battle mode: 'normal' (default) or 'meta' (prompt injection)")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for reproducibility (default: 42)")
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    try:
+        import numpy as np
+        np.random.seed(args.seed)
+    except ImportError:
+        pass
 
     run_duel(
         technique_id=args.technique,
@@ -276,6 +288,7 @@ Examples:
         logs_per_round=args.logs,
         verbose=args.verbose,
         meta_mode=(args.mode == "meta"),
+        seed=args.seed,
     )
 
 

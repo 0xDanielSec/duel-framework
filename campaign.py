@@ -11,6 +11,7 @@ Usage:
 import argparse
 import json
 import logging
+import random
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -128,6 +129,7 @@ def run_campaign_stage(
     defender_model: str,
     campaign_context: str | None,
     verbose: bool,
+    seed: int = 42,
 ) -> BattleScorer:
     """Run one technique stage. Returns the completed BattleScorer."""
     technique_id = technique["technique_id"]
@@ -143,8 +145,8 @@ def run_campaign_stage(
             border_style="cyan",
         ))
 
-    defender = DefenderAgent(model=defender_model)
-    scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id)
+    defender = DefenderAgent(model=defender_model, seed=seed)
+    scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id, seed=seed)
 
     for round_num in range(1, rounds + 1):
         console.rule(f"[yellow]Round {round_num}/{rounds}[/yellow]")
@@ -374,6 +376,7 @@ def run_campaign(
     attacker_model: str,
     defender_model: str,
     verbose: bool,
+    seed: int = 42,
 ) -> list[BattleScorer]:
     OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -401,10 +404,11 @@ def run_campaign(
     console.print(f"[bold]Rounds per stage:[/bold] {rounds}")
     console.print(f"[bold]Logs per round:[/bold] {logs_per_round}")
     console.print(f"[bold]Attacker model:[/bold] {attacker_model}")
-    console.print(f"[bold]Defender model:[/bold] {defender_model}\n")
+    console.print(f"[bold]Defender model:[/bold] {defender_model}")
+    console.print(f"[bold]Seed:[/bold] {seed}\n")
 
     # Single attacker carries context across all stages
-    attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
+    attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round, seed=seed)
 
     stage_scorers: list[BattleScorer] = []
     campaign_context: str | None = None
@@ -420,6 +424,7 @@ def run_campaign(
             defender_model=defender_model,
             campaign_context=campaign_context,
             verbose=verbose,
+            seed=seed,
         )
         stage_scorers.append(scorer)
 
@@ -516,7 +521,18 @@ Examples:
         "--verbose", action="store_true",
         help="Print attack telemetry and KQL rules each round",
     )
+    parser.add_argument(
+        "--seed", type=int, default=42,
+        help="Random seed for reproducibility (default: 42)",
+    )
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    try:
+        import numpy as np
+        np.random.seed(args.seed)
+    except ImportError:
+        pass
 
     run_campaign(
         campaign_name=args.campaign,
@@ -525,6 +541,7 @@ Examples:
         attacker_model=args.attacker_model,
         defender_model=args.defender_model,
         verbose=args.verbose,
+        seed=args.seed,
     )
 
 

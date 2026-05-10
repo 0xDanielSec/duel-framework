@@ -51,11 +51,13 @@ class DABSResult:
     techniques_benchmarked: int
     total_techniques:       int
     timestamp:              str
+    seed:                   int = 42
 
     def to_dict(self) -> dict:
         return {
             "model":                  self.model,
             "attacker_model":         self.attacker_model,
+            "seed":                   self.seed,
             "dabs_score":             self.dabs_score,
             "tier":                   self.tier,
             "tier_color":             self.tier_color,
@@ -90,11 +92,13 @@ class DABSScorer:
         technique_results: dict[str, dict],
         attacker_model:    str = "llama3.1:8b",
         total_techniques:  int = 38,
+        seed:              int = 42,
     ):
         self.model             = model
         self.attacker_model    = attacker_model
         self.technique_results = technique_results
         self.total_techniques  = total_techniques
+        self.seed              = seed
 
     # ── Sub-score calculators ─────────────────────────────────────────────────
 
@@ -243,6 +247,7 @@ class DABSScorer:
             techniques_benchmarked=len(self.technique_results),
             total_techniques=self.total_techniques,
             timestamp=datetime.now(timezone.utc).isoformat(),
+            seed=self.seed,
         )
 
     def save(self, result: DABSResult) -> Path:

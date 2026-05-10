@@ -161,9 +161,10 @@ Output JSON array only.
 
 
 class AttackerAgent:
-    def __init__(self, model: str = "llama3.1:8b", num_logs: int = 10):
+    def __init__(self, model: str = "llama3.1:8b", num_logs: int = 10, seed: int = 42):
         self.model = model
         self.num_logs = num_logs
+        self.seed = seed
         self.round_history: list[dict] = []
         self.memory = MemoryStore()
 
@@ -361,7 +362,7 @@ class AttackerAgent:
                     {"role": "system", "content": ATTACKER_LLM_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                options={"temperature": 0.9, "num_predict": 4096},
+                options={"temperature": 0.9, "num_predict": 4096, "seed": self.seed},
             )
             return response["message"]["content"]
         except Exception as exc:
@@ -422,7 +423,7 @@ class AttackerAgent:
                     {"role": "system", "content": ATTACKER_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                options={"temperature": 0.85, "num_predict": 4096},
+                options={"temperature": 0.85, "num_predict": 4096, "seed": self.seed},
             )
             return response["message"]["content"]
         except Exception as exc:

@@ -12,6 +12,7 @@ Usage:
 """
 import argparse
 import json
+import random
 import sys
 from pathlib import Path
 
@@ -78,14 +79,16 @@ def _battle(
     attacker_model: str,
     defender_model: str,
     logs_per_round: int,
+    seed: int = 42,
 ) -> dict:
     technique_id = technique["technique_id"]
-    attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
-    defender = DefenderAgent(model=defender_model)
+    attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round, seed=seed)
+    defender = DefenderAgent(model=defender_model, seed=seed)
     scorer   = BattleScorer(
         total_rounds=rounds,
         technique_id=technique_id,
         attacker_model=attacker_model,
+        seed=seed,
     )
 
     for round_num in range(1, rounds + 1):
@@ -179,7 +182,15 @@ def main() -> None:
     parser.add_argument("--attacker",    default="llama3.1:8b",  help="Attacker model")
     parser.add_argument("--logs",        type=int, default=10,   help="Logs per round")
     parser.add_argument("--compare",     action="store_true",    help="Show leaderboard after benchmark")
+    parser.add_argument("--seed",        type=int, default=42,   help="Random seed for reproducibility (default: 42)")
     args = parser.parse_args()
+
+    random.seed(args.seed)
+    try:
+        import numpy as np
+        np.random.seed(args.seed)
+    except ImportError:
+        pass
 
     if args.techniques.lower() == "all":
         technique_ids = all_techniques
@@ -193,7 +204,8 @@ def main() -> None:
     console.print(f"  [dim]Attacker:[/dim]   [bold white]{args.attacker}[/bold white]")
     console.print(f"  [dim]Techniques:[/dim] {len(technique_ids)}  "
                   f"[dim]Rounds:[/dim] {args.rounds}  "
-                  f"[dim]Logs/round:[/dim] {args.logs}\n")
+                  f"[dim]Logs/round:[/dim] {args.logs}  "
+                  f"[dim]Seed:[/dim] {args.seed}\n")
 
     technique_results: dict[str, dict] = {}
     running_dabs = 0.0
@@ -228,6 +240,7 @@ def main() -> None:
                     attacker_model=args.attacker,
                     defender_model=args.model,
                     logs_per_round=args.logs,
+                    seed=args.seed,
                 )
                 technique_results[tech_id] = result
             except Exception as exc:
@@ -241,6 +254,7 @@ def main() -> None:
                     technique_results=technique_results,
                     attacker_model=args.attacker,
                     total_techniques=len(technique_ids),
+                    seed=args.seed,
                 ).compute().dabs_score
 
             progress.advance(task)
@@ -256,6 +270,7 @@ def main() -> None:
         technique_results=technique_results,
         attacker_model=args.attacker,
         total_techniques=len(all_techniques),
+        seed=args.seed,
     )
     result = scorer.compute()
     path   = scorer.save(result)

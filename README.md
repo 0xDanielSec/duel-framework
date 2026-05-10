@@ -413,6 +413,7 @@ Options:
   --attacker-model TEXT   Ollama model for Attacker         [default: llama3.1:8b]
   --defender-model TEXT   Ollama model for Defender         [default: mistral:7b]
   --logs INT              Attack logs per round             [default: 10]
+  --seed INT              Random seed for reproducibility   [default: 42]
   --verbose               Print telemetry and KQL each round
 ```
 
@@ -432,6 +433,7 @@ Options:
   --attacker-model TEXT   Ollama model for Attacker         [default: llama3.1:8b]
   --defenders TEXT        Comma-separated Defender models   [required]
   --logs INT              Attack logs per round             [default: 10]
+  --seed INT              Random seed for reproducibility   [default: 42]
 ```
 
 ```bash
@@ -450,6 +452,7 @@ Options:
   --logs INT              Attack logs per round             [default: 10]
   --attacker-model TEXT                                     [default: llama3.1:8b]
   --defender-model TEXT                                     [default: mistral:7b]
+  --seed INT              Random seed for reproducibility   [default: 42]
   --verbose
 ```
 
@@ -476,6 +479,7 @@ Options:
   --attacker-model TEXT                                     [default: llama3.1:8b]
   --defender-model TEXT                                     [default: mistral:7b]
   --logs INT                                                [default: 10]
+  --seed INT              Random seed for reproducibility   [default: 42]
   --verbose
 ```
 
@@ -640,9 +644,14 @@ python benchmark.py --model mistral:7b --techniques quick --rounds 3
 # Full benchmark (38 techniques, ~40 min)
 python benchmark.py --model mistral:7b --techniques all --rounds 5
 
+# Reproducible benchmark with explicit seed
+python benchmark.py --model mistral:7b --seed 42
+
 # Compare multiple runs
 python benchmark.py --model mistral:7b --compare --logs 10
 ```
+
+**Options:** `--model TEXT` | `--techniques TEXT` | `--rounds INT` | `--attacker TEXT` | `--logs INT` | `--seed INT [default: 42]` | `--compare`
 
 Results are saved to `output/dabs_*.json` and visible on the **[/benchmark](http://localhost:8000/benchmark)** dashboard with live radar chart and leaderboard.
 
