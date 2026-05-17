@@ -148,7 +148,14 @@ class BattleScorer:
             MemoryStore().update_from_battle(battle)
         except Exception as exc:
             import logging
-            logging.getLogger(__name__).warning("Memory update failed: %s", exc)
+            logging.getLogger(__name__).warning("Attacker memory update failed: %s", exc)
+
+        try:
+            from engine.defender_memory import DefenderMemory
+            DefenderMemory().update_from_battle(battle)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Defender memory update failed: %s", exc)
 
         return path
 

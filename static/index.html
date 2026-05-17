@@ -629,6 +629,81 @@
       min-height: 0;
     }
 
+    /* ── Defender Memory panel ──────────────────────────────────────────── */
+    #def-memory-section {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      height: 200px;
+      min-height: 60px;
+      border-top: 1px solid var(--border);
+      margin-top: 6px;
+    }
+
+    #def-memory-resize {
+      flex-shrink: 0;
+      height: 7px;
+      cursor: ns-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #def-memory-resize::before {
+      content: '';
+      width: 36px;
+      height: 2px;
+      background: var(--dim);
+      border-radius: 1px;
+      transition: background 0.15s;
+    }
+    #def-memory-resize:hover::before { background: var(--blue); }
+
+    #def-memory-header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 5px;
+    }
+
+    #def-memory-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--blue);
+    }
+
+    #def-memory-stats {
+      font-size: 9px;
+      color: var(--dim);
+      letter-spacing: 0.5px;
+    }
+
+    #def-memory-size-btn {
+      margin-left: auto;
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding: 2px 8px;
+      background: transparent;
+      border: 1px solid var(--dim);
+      color: var(--dim);
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    #def-memory-size-btn:hover {
+      background: rgba(60,142,255,0.14);
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    #def-memory-body {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
     .mem-stats-row {
       display: flex;
       gap: 14px;
@@ -1181,6 +1256,21 @@
         <span class="empty-hint">No rule generated yet.</span>
       </div>
     </div>
+
+    <div id="def-memory-section">
+      <div id="def-memory-resize" title="Drag to resize"></div>
+      <div id="def-memory-header">
+        <div class="ph-dot" style="background:var(--blue)"></div>
+        <span id="def-memory-title">DEFENDER MEMORY</span>
+        <span id="def-memory-stats"></span>
+        <button id="def-memory-size-btn" onclick="toggleDefMemorySize()">EXPAND</button>
+      </div>
+      <div id="def-memory-body">
+        <div id="def-memory-content">
+          <span class="mem-empty">Run a battle to populate memory.</span>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -1573,7 +1663,10 @@ function handle(data) {
         ' | Defender: ' + data.final_defender,
         'sys'
       );
-      if (currentTechnique) loadMemory(currentTechnique);
+      if (currentTechnique) {
+        loadMemory(currentTechnique);
+        loadDefenderMemory(currentTechnique);
+      }
 
       {
         const banner = document.getElementById('banner');
@@ -1756,6 +1849,152 @@ async function loadMemory(techniqueId) {
     if (!handle) return;
     handle.addEventListener('mousedown', function (e) {
       const section = document.getElementById('memory-section');
+      dragging  = true;
+      startY    = e.clientY;
+      startH    = section.offsetHeight;
+      section.style.transition = 'none';
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup',   onMouseUp);
+      e.preventDefault();
+    });
+  });
+})();
+
+/* ── Defender memory panel ─────────────────────────────────────────────────────── */
+const DEF_MEM_DEFAULT  = 200;
+const DEF_MEM_EXPANDED = 400;
+let _defMemExpanded = false;
+
+function toggleDefMemorySize() {
+  _defMemExpanded = !_defMemExpanded;
+  const section = document.getElementById('def-memory-section');
+  const btn     = document.getElementById('def-memory-size-btn');
+  section.style.transition = 'height 0.2s ease';
+  section.style.height     = (_defMemExpanded ? DEF_MEM_EXPANDED : DEF_MEM_DEFAULT) + 'px';
+  btn.textContent          = _defMemExpanded ? 'COLLAPSE' : 'EXPAND';
+}
+
+function renderDefenderMemory(memory, techniqueId) {
+  const el   = document.getElementById('def-memory-content');
+  const tech = memory[techniqueId];
+
+  if (!tech || tech.total_rounds === 0) {
+    document.getElementById('def-memory-stats').textContent = '';
+    el.innerHTML = '<span class="mem-empty">No memory for ' + esc(techniqueId) + ' — run more battles to build intel.</span>';
+    return;
+  }
+
+  document.getElementById('def-memory-stats').textContent =
+    tech.total_battles + ' battles · ' + tech.successful_rules_count + ' rules';
+
+  function entryHtml(label, val, cls) {
+    return '<div class="mem-entry"><span class="mem-field">' + esc(label) +
+      '</span><span class="' + cls + '">' + esc(String(val)) + '</span></div>';
+  }
+
+  // Best fields
+  const bestFields = tech.best_fields || [];
+  let bestHtml = '';
+  bestFields.slice(0, 8).forEach(function(pair) {
+    bestHtml += entryHtml(pair[0], '×' + pair[1], 'mem-val-safe');
+  });
+  if (!bestHtml) bestHtml = '<div class="mem-empty">none yet</div>';
+
+  // Worst fields
+  const worstFields = tech.worst_fields || [];
+  let worstHtml = '';
+  worstFields.slice(0, 6).forEach(function(pair) {
+    worstHtml += entryHtml(pair[0], '×' + pair[1], 'mem-val-danger');
+  });
+  if (!worstHtml) worstHtml = '<div class="mem-empty">none identified</div>';
+
+  // Top rules
+  const rules = tech.best_rules || [];
+  let rulesHtml = '';
+  rules.forEach(function(rule) {
+    const pct = Math.round(rule.detection_rate * 100) + '%';
+    const lines = rule.kql_preview.split('\n').slice(0, 2).join(' | ');
+    rulesHtml += '<div class="mem-entry" style="flex-direction:column;align-items:flex-start;gap:2px">' +
+      '<span class="mem-val-safe" style="font-size:9px">[' + pct + '] Round ' + rule.round + '</span>' +
+      '<span style="font-size:8px;color:var(--muted);word-break:break-all">' + esc(lines) + '</span>' +
+      '</div>';
+  });
+  if (!rulesHtml) rulesHtml = '<div class="mem-empty">none yet</div>';
+
+  // Failed patterns
+  const failed = tech.failed_patterns || [];
+  const failedHtml = failed.length
+    ? '<div class="mem-pattern-list"><div class="mem-pattern-title" style="color:var(--blue)">FAILED PATTERNS</div>' +
+      failed.slice(-3).map(function(p) { return '<div class="mem-pattern">&bull; ' + esc(p) + '</div>'; }).join('') +
+      '</div>'
+    : '';
+
+  el.innerHTML =
+    '<div class="mem-stats-row">' +
+      '<div class="mem-stat-item">BATTLES<span>' + tech.total_battles + '</span></div>' +
+      '<div class="mem-stat-item">ROUNDS<span>'  + tech.total_rounds  + '</span></div>' +
+      '<div class="mem-stat-item">RULES<span>'   + tech.successful_rules_count + '</span></div>' +
+    '</div>' +
+    '<div class="mem-cols">' +
+      '<div>' +
+        '<div class="mem-col-title" style="color:var(--blue)">BEST FIELDS</div>' +
+        bestHtml +
+      '</div>' +
+      '<div>' +
+        '<div class="mem-col-title danger">LOW-VALUE</div>' +
+        worstHtml +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-top:6px">' +
+      '<div class="mem-col-title" style="color:var(--blue)">TOP RULES</div>' +
+      rulesHtml +
+    '</div>' +
+    failedHtml;
+}
+
+async function loadDefenderMemory(techniqueId) {
+  try {
+    const resp = await fetch('/api/defender_memory');
+    if (!resp.ok) return;
+    const memory = await resp.json();
+    renderDefenderMemory(memory, techniqueId);
+    const section = document.getElementById('def-memory-section');
+    if (section.offsetHeight < DEF_MEM_DEFAULT) {
+      section.style.transition = 'height 0.2s ease';
+      section.style.height     = DEF_MEM_DEFAULT + 'px';
+    }
+  } catch (e) {
+    console.warn('Defender memory fetch failed:', e);
+  }
+}
+
+// Drag-to-resize for defender memory panel
+(function () {
+  const MIN_H = 60, MAX_H = 600;
+  let dragging = false, startY = 0, startH = 0;
+
+  function onMouseMove(e) {
+    if (!dragging) return;
+    const section = document.getElementById('def-memory-section');
+    const newH = Math.max(MIN_H, Math.min(MAX_H, startH + (startY - e.clientY)));
+    section.style.height = newH + 'px';
+    _defMemExpanded = newH >= DEF_MEM_EXPANDED;
+    document.getElementById('def-memory-size-btn').textContent = _defMemExpanded ? 'COLLAPSE' : 'EXPAND';
+  }
+
+  function onMouseUp() {
+    if (!dragging) return;
+    dragging = false;
+    document.getElementById('def-memory-section').style.transition = 'height 0.2s ease';
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup',   onMouseUp);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const handle = document.getElementById('def-memory-resize');
+    if (!handle) return;
+    handle.addEventListener('mousedown', function (e) {
+      const section = document.getElementById('def-memory-section');
       dragging  = true;
       startY    = e.clientY;
       startH    = section.offsetHeight;

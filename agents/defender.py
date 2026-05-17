@@ -9,6 +9,7 @@ import re
 
 from engine import groq_client as ollama
 
+from engine.defender_memory import DefenderMemory
 from engine.threat_intel import ThreatIntelFeed
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ INITIAL_PROMPT_TEMPLATE = """\
 MITRE Technique: {technique_id} — {technique_name}
 Description: {description}
 
+{defender_memory}
 ROUND {round_num} of {total_rounds} — Write your initial detection rule.
 
 AVAILABLE TABLES — your query MUST start with one of these exactly:
@@ -234,6 +236,11 @@ class DefenderAgent:
         except Exception as exc:
             logger.warning("ThreatIntelFeed init failed: %s — continuing without TI", exc)
             self.threat_intel = None
+        try:
+            self.defender_memory: DefenderMemory | None = DefenderMemory()
+        except Exception as exc:
+            logger.warning("DefenderMemory init failed: %s — continuing without memory", exc)
+            self.defender_memory = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -315,10 +322,19 @@ class DefenderAgent:
         attack_logs: list[dict], ti_block: str = "",
     ) -> str:
         samples = attack_logs[:5]
+        memory_block = ""
+        if self.defender_memory:
+            try:
+                ctx = self.defender_memory.get_context(technique["technique_id"])
+                if ctx:
+                    memory_block = ctx + "\n"
+            except Exception as exc:
+                logger.debug("DefenderMemory.get_context failed: %s", exc)
         return INITIAL_PROMPT_TEMPLATE.format(
             technique_id=technique["technique_id"],
             technique_name=technique["name"],
             description=technique["description"],
+            defender_memory=memory_block,
             round_num=round_num,
             total_rounds=total_rounds,
             available_tables=", ".join(_tables_in_logs(attack_logs)),

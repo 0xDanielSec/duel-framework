@@ -339,6 +339,14 @@ async def api_memory():
     return JSONResponse(store.get_all())
 
 
+@app.get("/api/defender_memory")
+async def api_defender_memory():
+    """Return current defender memory as JSON (per-technique successful rules and field intel)."""
+    from engine.defender_memory import DefenderMemory
+    store = DefenderMemory()
+    return JSONResponse(store.get_all())
+
+
 @app.get("/api/dataset")
 async def api_dataset():
     """Generate the adversarial dataset from all battle logs and return statistics."""

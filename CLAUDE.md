@@ -50,6 +50,28 @@ Tests live in `engine/test_detection.py` (`python -m pytest engine/test_detectio
 
 `union` is not supported (silently skipped). Unknown operators pass the DataFrame through unchanged.
 
+## Symmetric Memory System
+
+Both agents maintain persistent memory across sessions in `output/`.
+
+### Attacker Memory (`engine/attacker_memory.py` → `output/attacker_memory.json`)
+- `MemoryStore` class; updated by `BattleScorer.save_full_battle_log()`
+- Tracks per-technique: `successful_evasions`, `failed_mutations`, `dangerous_fields`, `stable_signatures`, `evasion_patterns`
+- `get_context(technique_id)` injects a memory block into the Attacker's prompt each round
+- API: `GET /api/memory`
+
+### Defender Memory (`engine/defender_memory.py` → `output/defender_memory.json`)
+- `DefenderMemory` class; updated by `BattleScorer.save_full_battle_log()` alongside attacker memory
+- Tracks per-technique: `successful_rules` (KQL rules that caught ≥1 attack, capped at 10), `failed_patterns` (zero-detection conditions), `best_fields` (fields that produced detections), `worst_fields` (fields in zero-detection rules — Attacker rotated away)
+- `get_context(technique_id)` injects a memory block into the Defender's **initial** prompt (round 1 only) — bootstraps detection from prior battle wins
+- API: `GET /api/defender_memory`
+- Web UI: blue panel below the Defender column; drag-to-resize, collapsible
+
+### Invariants
+- Memory never resets — it accumulates forever across all battles
+- Both memory files are gitignored (output/ is excluded); they are researcher artifacts
+- Memory injection must never override the agent's ability to reason from the current round's live telemetry
+
 ## What NOT to do
 - Do not add external API calls
 - Do not hallucinate Sentinel table schemas — use only real documented schemas
