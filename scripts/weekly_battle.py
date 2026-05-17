@@ -4,7 +4,11 @@ Weekly automated DUEL battle runner.
 
 Runs all 8 supported MITRE techniques with 3 rounds each, then:
   - Saves a timestamped JSON summary to output/weekly_<date>.json
-  - Updates the <!-- weekly-badge --> section in README.md
+  - Updates the <!-- weekly-badge-start --> section in README.md
+
+Stats are read from the saved output/full_battle_log_*.json files after
+all battles complete — not from the in-memory scorer — so results are
+accurate even if individual battles error mid-run.
 
 Invoked by .github/workflows/weekly-duel.yml.
 """
@@ -16,7 +20,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Ensure project root is importable when run as a script
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -44,20 +47,23 @@ TECHNIQUES = [
     "T1114.002",
 ]
 
-# Groq model names — groq_client maps Ollama names to these automatically,
-# but we pass them directly so the log output is unambiguous.
 ATTACKER_MODEL = "llama-3.1-70b-versatile"
 DEFENDER_MODEL = "mixtral-8x7b-32768"
 ROUNDS = 3
 LOGS_PER_ROUND = 10
 
 
-def run_all() -> list[dict]:
-    results: list[dict] = []
+def run_all() -> dict[str, str | None]:
+    """
+    Run battles for all techniques.
+    Returns {technique_id: error_message_or_None}.
+    Results are saved to output/full_battle_log_<tid>.json by run_duel().
+    """
+    errors: dict[str, str | None] = {}
     for tid in TECHNIQUES:
         logger.info("── Running %s ──────────────────────────────────", tid)
         try:
-            scorer = run_duel(
+            run_duel(
                 technique_id=tid,
                 rounds=ROUNDS,
                 attacker_model=ATTACKER_MODEL,
@@ -65,30 +71,76 @@ def run_all() -> list[dict]:
                 logs_per_round=LOGS_PER_ROUND,
                 verbose=False,
             )
+            errors[tid] = None
+            logger.info("%s done — log saved to output/", tid)
+        except Exception as exc:
+            logger.error("Battle failed for %s: %s", tid, exc, exc_info=True)
+            errors[tid] = str(exc)
+    return errors
+
+
+def read_battle_results(run_errors: dict[str, str | None]) -> list[dict]:
+    """
+    Read output/full_battle_log_<tid>.json for each technique and return
+    structured results. Techniques that errored during run_all() are marked
+    as errors without attempting to read potentially stale log files.
+    """
+    out = _PROJECT_ROOT / "output"
+    results = []
+    for tid in TECHNIQUES:
+        # Battle errored before saving a log
+        if run_errors.get(tid) is not None:
+            results.append({
+                "technique":       tid,
+                "winner":          "error",
+                "attacker_score":  0,
+                "defender_score":  0,
+                "avg_evasion_pct": 0.0,
+                "rounds_played":   0,
+                "error":           run_errors[tid],
+            })
+            continue
+
+        log_path = out / f"full_battle_log_{tid}.json"
+        if not log_path.exists():
+            logger.warning("No battle log for %s at %s", tid, log_path)
+            results.append({
+                "technique":       tid,
+                "winner":          "error",
+                "attacker_score":  0,
+                "defender_score":  0,
+                "avg_evasion_pct": 0.0,
+                "rounds_played":   0,
+                "error":           "log file not found",
+            })
+            continue
+
+        try:
+            data = json.loads(log_path.read_text(encoding="utf-8"))
+            rounds = data.get("rounds", [])
             avg_evasion = (
-                sum(r["evasion_rate"] for r in scorer.rounds) / len(scorer.rounds)
-                if scorer.rounds else 0.0
-            )
-            winner = (
-                "Attacker" if scorer.attacker_score > scorer.defender_score
-                else "Defender" if scorer.defender_score > scorer.attacker_score
-                else "Draw"
+                sum(r["evasion_rate"] for r in rounds) / len(rounds)
+                if rounds else 0.0
             )
             results.append({
                 "technique":       tid,
-                "winner":          winner,
-                "attacker_score":  scorer.attacker_score,
-                "defender_score":  scorer.defender_score,
+                "winner":          data.get("winner", "Draw"),
+                "attacker_score":  data.get("final_attacker_score", 0),
+                "defender_score":  data.get("final_defender_score", 0),
                 "avg_evasion_pct": round(avg_evasion * 100, 1),
-                "rounds_played":   len(scorer.rounds),
+                "rounds_played":   len(rounds),
                 "error":           None,
             })
             logger.info(
-                "%s done — winner=%s evasion=%.1f%%",
-                tid, winner, avg_evasion * 100,
+                "%s — winner=%s evasion=%.1f%% attacker=%d defender=%d",
+                tid,
+                data.get("winner"),
+                avg_evasion * 100,
+                data.get("final_attacker_score", 0),
+                data.get("final_defender_score", 0),
             )
-        except Exception as exc:
-            logger.error("Battle failed for %s: %s", tid, exc, exc_info=True)
+        except (json.JSONDecodeError, OSError, KeyError) as exc:
+            logger.error("Failed to read log for %s: %s", tid, exc)
             results.append({
                 "technique":       tid,
                 "winner":          "error",
@@ -149,11 +201,13 @@ def update_readme(results: list[dict], date_str: str) -> None:
             flags=re.DOTALL,
         )
     else:
-        # Insert after the first horizontal rule
         text = text.replace("\n---\n", f"\n---\n\n{section}\n", 1)
 
     readme.write_text(text, encoding="utf-8")
-    logger.info("README.md badge updated (avg evasion %.1f%%)", avg_evasion)
+    logger.info(
+        "README.md badge updated — avg evasion %.1f%%, attacker %d – defender %d",
+        avg_evasion, attacker_wins, defender_wins,
+    )
 
 
 if __name__ == "__main__":
@@ -161,7 +215,8 @@ if __name__ == "__main__":
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     logger.info("Weekly DUEL starting — %s — %d techniques", date_str, len(TECHNIQUES))
-    results = run_all()
+    run_errors = run_all()
+    results = read_battle_results(run_errors)
     save_summary(results, date_str)
     update_readme(results, date_str)
 

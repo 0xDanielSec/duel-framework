@@ -571,8 +571,9 @@ duel-framework/
 │
 ├── engine/
 │   ├── detection.py         # KQL executor over pandas DataFrames
-│   ├── scoring.py           # BattleScorer + BattleAnalyst
+│   ├── scoring.py           # BattleScorer + post-battle analyst
 │   ├── attacker_memory.py   # Persistent evasion memory (MemoryStore)
+│   ├── defender_memory.py   # Persistent detection memory (DefenderMemory)
 │   ├── sentinel_export.py   # ARM template builder (SentinelExporter)
 │   ├── report_generator.py  # PDF report generation
 │   ├── llm_detection.py     # OWASP LLM policy-based detection
@@ -580,6 +581,15 @@ duel-framework/
 │   ├── threat_intel.py      # Feodo Tracker integration
 │   ├── tournament_scorer.py # Multi-model ranking
 │   ├── groq_client.py       # Ollama + Groq client wrapper
+│   ├── historical_analysis.py # Cross-battle trend analysis
+│   ├── attacker_dna.py      # Attacker mutation fingerprinting
+│   ├── dabs_scorer.py       # DABS benchmark scoring
+│   ├── scaling_laws.py      # Model size vs robustness analysis
+│   ├── dataset_generator.py # Synthetic dataset export
+│   ├── sigma_export.py      # Sigma rule export
+│   ├── injection_detector.py # Prompt injection detection
+│   ├── meta_attacker.py     # Meta-learning attacker
+│   ├── replay_engine.py     # Battle replay against new Defender
 │   └── test_detection.py    # KQL executor unit tests
 │
 ├── techniques/
@@ -597,7 +607,11 @@ duel-framework/
 │   ├── campaign.html        # Kill chain visualiser
 │   ├── export.html          # Sentinel rule export
 │   ├── autonomous.html      # Autonomous red team feed
-│   └── mcp.html             # MCP integration guide
+│   ├── mcp.html             # MCP integration guide
+│   ├── history.html         # Historical battle analysis
+│   ├── dna.html             # Attacker DNA fingerprinting
+│   ├── benchmark.html       # DABS benchmark leaderboard
+│   └── scaling.html         # Scaling laws dashboard
 │
 ├── scripts/
 │   └── weekly_battle.py     # GitHub Actions battle runner

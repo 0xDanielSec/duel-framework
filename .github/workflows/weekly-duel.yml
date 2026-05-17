@@ -50,6 +50,7 @@ jobs:
         run: python scripts/weekly_battle.py
 
       - name: Generate GitHub Pages data
+        continue-on-error: true
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python scripts/generate_pages_data.py
@@ -58,11 +59,13 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add output/ docs/data.json README.md
+          git add output/ README.md
+          git add --ignore-unmatch docs/data.json
           DATE=$(date -u +%Y-%m-%d)
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
             git commit -m "chore: weekly automated battle ${DATE}"
+            git pull --rebase origin main
             git push
           fi
