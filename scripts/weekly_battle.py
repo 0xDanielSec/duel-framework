@@ -17,6 +17,7 @@ import json
 import logging
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -51,6 +52,7 @@ ATTACKER_MODEL = "llama-3.1-70b-versatile"
 DEFENDER_MODEL = "mixtral-8x7b-32768"
 ROUNDS = 3
 LOGS_PER_ROUND = 10
+TECHNIQUE_TIMEOUT_SECS = 300  # 5 min per technique; 8 × 5 = 40 min worst case
 
 
 def run_all() -> dict[str, str | None]:
@@ -58,21 +60,34 @@ def run_all() -> dict[str, str | None]:
     Run battles for all techniques.
     Returns {technique_id: error_message_or_None}.
     Results are saved to output/full_battle_log_<tid>.json by run_duel().
+
+    Each technique is wrapped in a ThreadPoolExecutor with TECHNIQUE_TIMEOUT_SECS
+    so a single hung API call cannot block the entire workflow. The main thread
+    stops waiting after the timeout; any dangling thread is cleaned up on exit.
     """
     errors: dict[str, str | None] = {}
     for tid in TECHNIQUES:
         logger.info("── Running %s ──────────────────────────────────", tid)
         try:
-            run_duel(
-                technique_id=tid,
-                rounds=ROUNDS,
-                attacker_model=ATTACKER_MODEL,
-                defender_model=DEFENDER_MODEL,
-                logs_per_round=LOGS_PER_ROUND,
-                verbose=False,
-            )
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(
+                    run_duel,
+                    technique_id=tid,
+                    rounds=ROUNDS,
+                    attacker_model=ATTACKER_MODEL,
+                    defender_model=DEFENDER_MODEL,
+                    logs_per_round=LOGS_PER_ROUND,
+                    verbose=False,
+                )
+                future.result(timeout=TECHNIQUE_TIMEOUT_SECS)
             errors[tid] = None
             logger.info("%s done — log saved to output/", tid)
+        except FuturesTimeoutError:
+            logger.error(
+                "Battle timed out after %ds for %s — moving to next technique",
+                TECHNIQUE_TIMEOUT_SECS, tid,
+            )
+            errors[tid] = f"timed out after {TECHNIQUE_TIMEOUT_SECS}s"
         except Exception as exc:
             logger.error("Battle failed for %s: %s", tid, exc, exc_info=True)
             errors[tid] = str(exc)
