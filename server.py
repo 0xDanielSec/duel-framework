@@ -584,6 +584,7 @@ async def ws_battle(websocket: WebSocket):
         attacker_model: str = cfg.get("attacker_model", "llama3.1:8b")
         defender_model: str = cfg.get("defender_model", "mistral:7b")
         meta_mode: bool = cfg.get("mode", "normal") == "meta"
+        constitutional: bool = bool(cfg.get("constitutional", False))
 
         try:
             technique = await _in_thread(_load_technique, technique_id)
@@ -597,7 +598,7 @@ async def ws_battle(websocket: WebSocket):
             await send({"type": "meta_mode_start", "message": "META MODE — prompt injection payloads active"})
         else:
             attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round)
-        defender = DefenderAgent(model=defender_model)
+        defender = DefenderAgent(model=defender_model, constitutional_mode=constitutional)
         scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id, attacker_model=attacker_model)
 
         for round_num in range(1, rounds + 1):
@@ -664,6 +665,27 @@ async def ws_battle(websocket: WebSocket):
                 "reasoning": reasoning,
             })
 
+            # ── Constitutional compliance events ─────────────────────────────
+            compliance_result = None
+            if constitutional:
+                if round_num == 1 and defender.constitution:
+                    await send({
+                        "type": "constitution_generated",
+                        "constitution": defender.constitution,
+                    })
+                if defender.compliance_history:
+                    compliance_result = defender.compliance_history[-1]
+                    await send({
+                        "type": "compliance_result",
+                        "round": round_num,
+                        "compliant": compliance_result["compliant"],
+                        "violations": compliance_result["violations"],
+                        "ignored_principles": compliance_result.get("ignored_principles", []),
+                        "compliance_score": compliance_result["compliance_score"],
+                        "corrected": compliance_result.get("corrected", False),
+                        "constitution_attack": compliance_result.get("constitution_attack"),
+                    })
+
             # ── Meta injection analysis ──────────────────────────────────────
             if meta_mode and isinstance(attacker, MetaAttacker):
                 prev_kql = scorer.rounds[-1]["kql_rule"] if scorer.rounds else None
@@ -708,6 +730,7 @@ async def ws_battle(websocket: WebSocket):
                 kql_rule=kql_rule,
                 detected_ids=det_result["detected_ids"],
                 kql_valid=det_result["kql_valid"],
+                compliance_result=compliance_result,
             )
 
             round_result = "detected" if detected_count >= evaded_count else "evaded"
@@ -719,6 +742,7 @@ async def ws_battle(websocket: WebSocket):
             })
 
         # ── Battle complete ─────────────────────────────────────────────────
+        scorer.constitution = defender.constitution
         scorer.save_full_battle_log()
         scorer.generate_report()
 

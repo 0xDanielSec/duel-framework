@@ -23,6 +23,8 @@ class BattleScorer:
         self.attacker_score = 0
         self.defender_score = 0
         self.surviving_kql: list[dict] = []  # rules that caught ≥1 log at any round
+        self.constitution: dict | None = None
+        self.constitution_attacks = 0
 
     # ------------------------------------------------------------------
     # Record a completed round
@@ -35,6 +37,7 @@ class BattleScorer:
         kql_rule: str,
         detected_ids: set[str],
         kql_valid: bool,
+        compliance_result: dict | None = None,
     ) -> dict:
         total = len(attack_logs)
         detected = len(detected_ids)
@@ -48,6 +51,9 @@ class BattleScorer:
 
         evaded_logs = [l for l in attack_logs if l["_duel_id"] not in detected_ids]
         detected_logs = [l for l in attack_logs if l["_duel_id"] in detected_ids]
+
+        if compliance_result and compliance_result.get("constitution_attack", {}).get("attack_detected"):
+            self.constitution_attacks += 1
 
         record = {
             "round": round_num,
@@ -63,6 +69,7 @@ class BattleScorer:
             "detected_logs": detected_logs,
             "attacker_cumulative_score": self.attacker_score,
             "defender_cumulative_score": self.defender_score,
+            "compliance_result": compliance_result,
         }
 
         self.rounds.append(record)
@@ -138,6 +145,8 @@ class BattleScorer:
             "winner":              self._determine_winner(),
             "rounds":              self.rounds,
             "surviving_kql_rules": self.surviving_kql,
+            "constitution":        self.constitution,
+            "constitution_attacks": self.constitution_attacks if self.constitution else None,
         }
         path = OUTPUT_DIR / f"full_battle_log_{self.technique_id}.json"
         with open(path, "w", encoding="utf-8") as f:

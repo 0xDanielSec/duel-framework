@@ -9,6 +9,7 @@ import re
 
 from engine import groq_client as ollama
 
+from engine.constitution import ConstitutionEngine, format_constitution_block
 from engine.defender_memory import DefenderMemory
 from engine.threat_intel import ThreatIntelFeed
 
@@ -57,6 +58,7 @@ MITRE Technique: {technique_id} — {technique_name}
 Description: {description}
 
 {defender_memory}
+{constitution}
 ROUND {round_num} of {total_rounds} — Write your initial detection rule.
 
 AVAILABLE TABLES — your query MUST start with one of these exactly:
@@ -90,6 +92,7 @@ HARDENING_PROMPT_TEMPLATE = """\
 MITRE Technique: {technique_id} — {technique_name}
 ROUND {round_num} of {total_rounds} — HARDEN your detection rule.
 
+{constitution}
 AVAILABLE TABLES — your query MUST start with one of these exactly:
   {available_tables}
 
@@ -226,11 +229,14 @@ Output ONLY the JSON policy object.
 
 
 class DefenderAgent:
-    def __init__(self, model: str = "mistral:7b", seed: int = 42):
+    def __init__(self, model: str = "mistral:7b", seed: int = 42, constitutional_mode: bool = False):
         self.model = model
         self.seed = seed
+        self.constitutional_mode = constitutional_mode
         self.round_history: list[dict] = []
         self.last_kql: str | None = None
+        self.constitution: dict | None = None
+        self.compliance_history: list[dict] = []
         try:
             self.threat_intel: ThreatIntelFeed | None = ThreatIntelFeed()
         except Exception as exc:
@@ -241,6 +247,17 @@ class DefenderAgent:
         except Exception as exc:
             logger.warning("DefenderMemory init failed: %s — continuing without memory", exc)
             self.defender_memory = None
+        if constitutional_mode:
+            try:
+                self._constitution_engine: ConstitutionEngine | None = ConstitutionEngine(
+                    model=model, seed=seed,
+                )
+            except Exception as exc:
+                logger.warning("ConstitutionEngine init failed: %s — constitutional mode disabled", exc)
+                self._constitution_engine = None
+                self.constitutional_mode = False
+        else:
+            self._constitution_engine = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -268,6 +285,16 @@ class DefenderAgent:
         ioc_match = self.threat_intel.match_logs(attack_logs) if self.threat_intel else {}
         ti_block  = self._build_ti_block(ioc_match)
 
+        # Generate constitution on the first round of constitutional mode
+        if self.constitutional_mode and self._constitution_engine and round_num == 1 and self.constitution is None:
+            try:
+                ti_text = self.threat_intel.get_sentinel_context() if self.threat_intel else ""
+                self.constitution = self._constitution_engine.generate_constitution(
+                    technique["technique_id"], threat_intel=ti_text or "",
+                )
+            except Exception as exc:
+                logger.warning("Constitution generation failed: %s", exc)
+
         if round_num == 1 or self.last_kql is None:
             prompt = self._build_initial_prompt(technique, round_num, total_rounds, attack_logs, ti_block)
         else:
@@ -279,6 +306,45 @@ class DefenderAgent:
         raw = self._call_ollama(prompt)
         kql = self._clean_kql(raw)
 
+        # Constitutional validation and correction
+        compliance_entry: dict | None = None
+        if self.constitutional_mode and self._constitution_engine and self.constitution:
+            try:
+                validation = self._constitution_engine.validate_rule(kql, self.constitution)
+                corrected = False
+                if not validation["compliant"] and validation["violations"]:
+                    logger.info(
+                        "Constitutional violation round %d — correcting rule (%d violation(s))",
+                        round_num, len(validation["violations"]),
+                    )
+                    kql = self._constitution_engine.correct_rule(kql, self.constitution, validation)
+                    kql = self._clean_kql(kql)
+                    corrected = True
+                    # Re-validate after correction
+                    validation = self._constitution_engine.validate_rule(kql, self.constitution)
+
+                attack_result = self._constitution_engine.detect_constitution_attack(
+                    attack_logs, self.constitution,
+                )
+                if attack_result["attack_detected"]:
+                    logger.warning(
+                        "Constitution attack detected in %d log(s): %s",
+                        attack_result["affected_logs"], attack_result["indicators"],
+                    )
+
+                compliance_entry = {
+                    "round": round_num,
+                    "compliant": validation["compliant"],
+                    "violations": validation["violations"],
+                    "ignored_principles": validation.get("ignored_principles", []),
+                    "compliance_score": validation["compliance_score"],
+                    "corrected": corrected,
+                    "constitution_attack": attack_result,
+                }
+                self.compliance_history.append(compliance_entry)
+            except Exception as exc:
+                logger.warning("Constitutional validation failed round %d: %s", round_num, exc)
+
         logger.info("Defender generated KQL (%d chars) for round %d", len(kql), round_num)
         self.last_kql = kql
         self.round_history.append({
@@ -286,6 +352,7 @@ class DefenderAgent:
             "prompt": prompt,
             "raw_response": raw,
             "kql": kql,
+            "compliance": compliance_entry,
         })
         return kql
 
@@ -330,11 +397,15 @@ class DefenderAgent:
                     memory_block = ctx + "\n"
             except Exception as exc:
                 logger.debug("DefenderMemory.get_context failed: %s", exc)
+        constitution_block = ""
+        if self.constitutional_mode and self.constitution:
+            constitution_block = format_constitution_block(self.constitution) + "\n"
         return INITIAL_PROMPT_TEMPLATE.format(
             technique_id=technique["technique_id"],
             technique_name=technique["name"],
             description=technique["description"],
             defender_memory=memory_block,
+            constitution=constitution_block,
             round_num=round_num,
             total_rounds=total_rounds,
             available_tables=", ".join(_tables_in_logs(attack_logs)),
@@ -358,11 +429,15 @@ class DefenderAgent:
         evaded: list[dict],
         ti_block: str = "",
     ) -> str:
+        constitution_block = ""
+        if self.constitutional_mode and self.constitution:
+            constitution_block = format_constitution_block(self.constitution) + "\n"
         return HARDENING_PROMPT_TEMPLATE.format(
             technique_id=technique["technique_id"],
             technique_name=technique["name"],
             round_num=round_num,
             total_rounds=total_rounds,
+            constitution=constitution_block,
             available_tables=", ".join(_tables_in_logs(attack_logs)),
             last_kql=self.last_kql or "(none)",
             detected_count=len(detected),

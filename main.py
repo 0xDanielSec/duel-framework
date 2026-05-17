@@ -122,6 +122,7 @@ def run_duel(
     verbose: bool,
     meta_mode: bool = False,
     seed: int = 42,
+    constitutional_mode: bool = False,
 ):
     Path("output").mkdir(exist_ok=True)
 
@@ -131,7 +132,7 @@ def run_duel(
         console.print("[bold magenta]META MODE[/bold magenta] — prompt injection payloads embedded in attack logs\n")
     else:
         attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round, seed=seed)
-    defender = DefenderAgent(model=defender_model, seed=seed)
+    defender = DefenderAgent(model=defender_model, seed=seed, constitutional_mode=constitutional_mode)
     scorer = BattleScorer(total_rounds=rounds, technique_id=technique_id, attacker_model=attacker_model, seed=seed)
 
     print_banner()
@@ -140,7 +141,11 @@ def run_duel(
     console.print(f"[bold]Defender model:[/bold] {defender_model}")
     console.print(f"[bold]Rounds:[/bold] {rounds}")
     console.print(f"[bold]Logs per round:[/bold] {logs_per_round}")
-    console.print(f"[bold]Seed:[/bold] {seed}\n")
+    console.print(f"[bold]Seed:[/bold] {seed}")
+    if constitutional_mode:
+        console.print("[bold cyan]Constitutional Defense Mode:[/bold cyan] ON\n")
+    else:
+        console.print("")
 
     for round_num in range(1, rounds + 1):
         print_round_header(round_num, rounds)
@@ -183,6 +188,26 @@ def run_duel(
         if verbose:
             print_kql(kql_rule)
 
+        # ── Constitutional compliance ─────────────────────────────────────
+        compliance_result = None
+        if constitutional_mode and defender.compliance_history:
+            compliance_result = defender.compliance_history[-1]
+            score_pct = f"{compliance_result['compliance_score']:.0%}"
+            if compliance_result["compliant"]:
+                console.print(f"  [cyan bold]Constitution:[/cyan bold] [green]COMPLIANT[/green] ({score_pct})")
+            else:
+                n = len(compliance_result["violations"])
+                console.print(
+                    f"  [cyan bold]Constitution:[/cyan bold] [red]{n} VIOLATION(S)[/red] "
+                    f"({score_pct}) — rule corrected: {compliance_result.get('corrected', False)}"
+                )
+            ca = compliance_result.get("constitution_attack", {})
+            if ca and ca.get("attack_detected"):
+                console.print(
+                    f"  [bold magenta]CONSTITUTION ATTACK in {ca['affected_logs']} log(s): "
+                    f"{', '.join(ca['indicators'])}[/bold magenta]"
+                )
+
         # ── Detection engine executes KQL ────────────────────────────────
         console.print("[green bold]🔍 Running detection engine...[/green bold]")
         engine = DetectionEngine(attack_logs)
@@ -195,6 +220,7 @@ def run_duel(
             kql_rule=kql_rule,
             detected_ids=det_result["detected_ids"],
             kql_valid=det_result["kql_valid"],
+            compliance_result=compliance_result,
         )
 
         print_round_result(record)
@@ -219,6 +245,7 @@ def run_duel(
     console.print(f"  Defender: {scorer.defender_score} pts")
     console.print(f"  Surviving KQL rules: {len(scorer.surviving_kql)}")
 
+    scorer.constitution = defender.constitution
     log_path      = scorer.save_full_battle_log()
     report_path   = scorer.generate_report()
     analysis_path = scorer.generate_analysis()
@@ -291,6 +318,8 @@ Examples:
                         help="Battle mode: 'normal' (default) or 'meta' (prompt injection)")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed for reproducibility (default: 42)")
+    parser.add_argument("--constitutional", action="store_true",
+                        help="Enable Constitutional Defense Mode — Defender upholds named principles")
     parser.add_argument("--replay", metavar="PATH",
                         help="Path to an existing full_battle_log_*.json to replay")
     args = parser.parse_args()
@@ -318,6 +347,7 @@ Examples:
             verbose=args.verbose,
             meta_mode=(args.mode == "meta"),
             seed=args.seed,
+            constitutional_mode=args.constitutional,
         )
 
 

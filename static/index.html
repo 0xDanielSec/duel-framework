@@ -21,6 +21,7 @@
       --text:    #e2e8f0;
       --border:  #1a2236;
       --mono:    'Courier New', Courier, monospace;
+      --teal:    #00bcd4;
     }
 
     /* ── Reset ─────────────────────────────────────────────────────────── */
@@ -704,6 +705,124 @@
       min-height: 0;
     }
 
+    /* ── Constitution panel ─────────────────────────────────────────────── */
+    #constitution-section {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      height: 180px;
+      min-height: 60px;
+      border-top: 1px solid var(--border);
+      margin-top: 6px;
+    }
+
+    #constitution-resize {
+      flex-shrink: 0;
+      height: 7px;
+      cursor: ns-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #constitution-resize::before {
+      content: '';
+      width: 36px;
+      height: 2px;
+      background: var(--dim);
+      border-radius: 1px;
+      transition: background 0.15s;
+    }
+    #constitution-resize:hover::before { background: var(--teal); }
+
+    #constitution-header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 5px;
+    }
+
+    #constitution-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--teal);
+    }
+
+    #constitution-stats {
+      font-size: 9px;
+      color: var(--dim);
+      letter-spacing: 0.5px;
+    }
+
+    #constitution-size-btn {
+      margin-left: auto;
+      font-size: 9px;
+      letter-spacing: 1px;
+      padding: 2px 8px;
+      background: transparent;
+      border: 1px solid var(--dim);
+      color: var(--dim);
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    #constitution-size-btn:hover {
+      background: rgba(0,188,212,0.14);
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    #constitution-body {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .constitution-principle {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+    }
+    .constitution-icon { flex-shrink: 0; margin-top: 1px; font-size: 10px; }
+    .constitution-compliant .constitution-icon { color: var(--green); }
+    .constitution-violated  .constitution-icon { color: var(--red); }
+    .constitution-ignored   .constitution-icon { color: var(--dim); }
+    .constitution-pending   .constitution-icon { color: var(--muted); }
+    .constitution-text { color: var(--text); flex: 1; }
+    .constitution-anchor { font-size: 10px; color: var(--dim); font-family: var(--mono); }
+    .constitution-violation-reason { font-size: 10px; color: var(--red); margin-top: 2px; }
+
+    .compliance-bar-bg {
+      width: 100%;
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 2px;
+      margin: 5px 0 8px;
+    }
+    .compliance-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--green);
+      transition: width 0.4s ease, background 0.4s ease;
+    }
+    .compliance-bar-fill.low  { background: var(--red); }
+    .compliance-bar-fill.mid  { background: var(--yellow); }
+
+    .constitution-score-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--dim);
+      margin-bottom: 4px;
+    }
+    .constitution-score-val { color: var(--teal); font-size: 11px; font-weight: bold; }
+
     .mem-stats-row {
       display: flex;
       gap: 14px;
@@ -1155,6 +1274,13 @@
     </label>
   </div>
 
+  <div class="ctrl-group" style="align-items:center;gap:6px">
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);font-size:10px;letter-spacing:1px">
+      <input type="checkbox" id="chk-constitutional" style="accent-color:#00bcd4;cursor:pointer" />
+      <span style="color:#00bcd4">CONSTITUTIONAL</span>
+    </label>
+  </div>
+
   <button id="start-btn" onclick="startBattle()">&#9654; START BATTLE</button>
   <button id="replay-btn" onclick="openReplayModal()">&#8635; REPLAY</button>
 </div>
@@ -1268,6 +1394,21 @@
       <div id="def-memory-body">
         <div id="def-memory-content">
           <span class="mem-empty">Run a battle to populate memory.</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="constitution-section" style="display:none">
+      <div id="constitution-resize" title="Drag to resize"></div>
+      <div id="constitution-header">
+        <div class="ph-dot" style="background:var(--teal)"></div>
+        <span id="constitution-title">CONSTITUTION</span>
+        <span id="constitution-stats"></span>
+        <button id="constitution-size-btn" onclick="toggleConstitutionSize()">EXPAND</button>
+      </div>
+      <div id="constitution-body">
+        <div id="constitution-content">
+          <span class="mem-empty">Enable Constitutional Mode to generate a security constitution.</span>
         </div>
       </div>
     </div>
@@ -1564,6 +1705,12 @@ function resetUI() {
   document.getElementById('conn-dot').className = '';
   document.getElementById('attacker-panel').classList.remove('thinking');
   document.getElementById('defender-panel').classList.remove('thinking');
+  // Constitution panel
+  _currentConstitution = null;
+  document.getElementById('constitution-section').style.display = 'none';
+  document.getElementById('constitution-content').innerHTML =
+    '<span class="mem-empty">Enable Constitutional Mode to generate a security constitution.</span>';
+  document.getElementById('constitution-stats').textContent = '';
   startIdleAnimations();
 }
 
@@ -1681,6 +1828,28 @@ function handle(data) {
         setTimeout(() => { banner.style.display = 'none'; }, 10000);
       }
       break;
+
+    case 'constitution_generated':
+      renderConstitution(data.constitution, []);
+      document.getElementById('constitution-section').style.display = 'flex';
+      {
+        const n = (data.constitution.principles || []).length;
+        addFeed('Constitution generated — ' + n + ' principle(s) for ' + (data.constitution.technique_id || ''), 'sys');
+      }
+      break;
+
+    case 'compliance_result': {
+      const score = Math.round((data.compliance_score || 0) * 100);
+      const tag = data.compliant ? 'COMPLIANT' : data.violations.length + ' VIOLATION(S)';
+      const feedCls = data.compliant ? 'detect' : 'evade';
+      let msg = 'Constitution ' + tag + ' — score: ' + score + '%';
+      if (data.corrected) msg += ' (rule auto-corrected)';
+      if (data.constitution_attack && data.constitution_attack.attack_detected)
+        msg += ' ⚡ CONSTITUTION ATTACK: ' + data.constitution_attack.indicators.join(', ');
+      addFeed(msg, feedCls);
+      updateConstitutionCompliance(data);
+      break;
+    }
 
     case 'meta_mode_start':
       addFeed('⚡ META MODE ACTIVE — prompt injection payloads embedded in attack logs', 'meta');
@@ -2006,6 +2175,143 @@ async function loadDefenderMemory(techniqueId) {
   });
 })();
 
+/* ── Constitution panel ──────────────────────────────────────────────────────── */
+const CONST_DEFAULT  = 180;
+const CONST_EXPANDED = 380;
+let _constExpanded = false;
+let _currentConstitution = null;
+
+function toggleConstitutionSize() {
+  _constExpanded = !_constExpanded;
+  const section = document.getElementById('constitution-section');
+  const btn     = document.getElementById('constitution-size-btn');
+  section.style.transition = 'height 0.2s ease';
+  section.style.height     = (_constExpanded ? CONST_EXPANDED : CONST_DEFAULT) + 'px';
+  btn.textContent          = _constExpanded ? 'COLLAPSE' : 'EXPAND';
+}
+
+function renderConstitution(constitution, complianceHistory) {
+  if (!constitution) return;
+  _currentConstitution = constitution;
+  const principles = constitution.principles || [];
+  const el = document.getElementById('constitution-content');
+
+  document.getElementById('constitution-stats').textContent =
+    principles.length + ' principles | v' + (constitution.version || 1);
+
+  let html = '';
+
+  // Score bar (empty initially)
+  html += '<div class="constitution-score-row">' +
+    '<span>COMPLIANCE</span><span class="constitution-score-val" id="const-score-val">—</span>' +
+    '</div>' +
+    '<div class="compliance-bar-bg"><div class="compliance-bar-fill" id="const-bar" style="width:0%"></div></div>';
+
+  // Principles list
+  principles.forEach(function(p) {
+    html +=
+      '<div class="constitution-principle constitution-pending" id="const-p-' + esc(p.id) + '">' +
+        '<span class="constitution-icon">&#9632;</span>' +
+        '<div>' +
+          '<div class="constitution-text">[' + esc(p.id) + '] ' + esc(p.text) + '</div>' +
+          (p.kql_anchor
+            ? '<div class="constitution-anchor">Anchors: ' + esc(p.kql_anchor) + '</div>'
+            : '') +
+          '<div class="constitution-violation-reason" id="const-reason-' + esc(p.id) + '" style="display:none"></div>' +
+        '</div>' +
+      '</div>';
+  });
+
+  el.innerHTML = html;
+}
+
+function updateConstitutionCompliance(data) {
+  if (!_currentConstitution) return;
+
+  const score = data.compliance_score || 0;
+  const scorePct = Math.round(score * 100);
+  const bar = document.getElementById('const-bar');
+  const scoreVal = document.getElementById('const-score-val');
+
+  if (bar) {
+    bar.style.width = scorePct + '%';
+    bar.className = 'compliance-bar-fill' + (scorePct < 50 ? ' low' : scorePct < 80 ? ' mid' : '');
+  }
+  if (scoreVal) {
+    scoreVal.textContent = scorePct + '%';
+    scoreVal.style.color = scorePct >= 80 ? 'var(--green)' : scorePct >= 50 ? 'var(--yellow)' : 'var(--red)';
+  }
+
+  const violations = data.violations || [];
+  const ignored    = data.ignored_principles || [];
+  const violatedIds = new Set(violations.map(function(v) { return v.principle_id; }));
+
+  (_currentConstitution.principles || []).forEach(function(p) {
+    const row    = document.getElementById('const-p-' + p.id);
+    const reason = document.getElementById('const-reason-' + p.id);
+    if (!row) return;
+
+    row.className = 'constitution-principle ';
+    const icon = row.querySelector('.constitution-icon');
+
+    if (violatedIds.has(p.id)) {
+      row.className += 'constitution-violated';
+      if (icon) icon.innerHTML = '&#9888;';
+      const v = violations.find(function(vv) { return vv.principle_id === p.id; });
+      if (reason && v) {
+        reason.textContent = v.reason;
+        reason.style.display = 'block';
+      }
+    } else if (ignored.includes(p.id)) {
+      row.className += 'constitution-ignored';
+      if (icon) icon.innerHTML = '&#8208;';
+      if (reason) reason.style.display = 'none';
+    } else {
+      row.className += 'constitution-compliant';
+      if (icon) icon.innerHTML = '&#10003;';
+      if (reason) reason.style.display = 'none';
+    }
+  });
+}
+
+// Drag-to-resize for constitution panel
+(function () {
+  const MIN_H = 60, MAX_H = 600;
+  let dragging = false, startY = 0, startH = 0;
+
+  function onMouseMove(e) {
+    if (!dragging) return;
+    const section = document.getElementById('constitution-section');
+    const newH = Math.max(MIN_H, Math.min(MAX_H, startH + (startY - e.clientY)));
+    section.style.height = newH + 'px';
+    _constExpanded = newH >= CONST_EXPANDED;
+    document.getElementById('constitution-size-btn').textContent = _constExpanded ? 'COLLAPSE' : 'EXPAND';
+  }
+
+  function onMouseUp() {
+    if (!dragging) return;
+    dragging = false;
+    document.getElementById('constitution-section').style.transition = 'height 0.2s ease';
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup',   onMouseUp);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const handle = document.getElementById('constitution-resize');
+    if (!handle) return;
+    handle.addEventListener('mousedown', function (e) {
+      const section = document.getElementById('constitution-section');
+      dragging  = true;
+      startY    = e.clientY;
+      startH    = section.offsetHeight;
+      section.style.transition = 'none';
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup',   onMouseUp);
+      e.preventDefault();
+    });
+  });
+})();
+
 /* ── Threat intelligence ──────────────────────────────────────────────────────── */
 let _tiData = null;
 
@@ -2180,10 +2486,11 @@ function startBattle() {
   if (active) return;
   resetUI();
 
-  const technique = document.getElementById('sel-technique').value;
-  const rounds    = parseInt(document.getElementById('inp-rounds').value, 10) || 3;
-  const logs      = parseInt(document.getElementById('inp-logs').value, 10) || 10;
-  const metaMode  = document.getElementById('chk-meta').checked;
+  const technique        = document.getElementById('sel-technique').value;
+  const rounds           = parseInt(document.getElementById('inp-rounds').value, 10) || 3;
+  const logs             = parseInt(document.getElementById('inp-logs').value, 10) || 10;
+  const metaMode         = document.getElementById('chk-meta').checked;
+  const constitutionalMode = document.getElementById('chk-constitutional').checked;
 
   const url = 'ws://' + location.host + '/ws';
   ws = new WebSocket(url);
@@ -2192,7 +2499,7 @@ function startBattle() {
     active = true;
     document.getElementById('start-btn').disabled = true;
     document.getElementById('conn-dot').className = 'on';
-    const modeLabel = metaMode ? ' \u2014 META INJECTION MODE' : '';
+    const modeLabel = metaMode ? ' \u2014 META INJECTION MODE' : (constitutionalMode ? ' \u2014 CONSTITUTIONAL MODE' : '');
     addFeed('Connected to DUEL engine \u2014 ' + technique + ' \u2014 ' + rounds + ' round(s)' + modeLabel, 'sys');
     ws.send(JSON.stringify({
       technique,
@@ -2201,6 +2508,7 @@ function startBattle() {
       attacker_model: 'llama3.1:8b',
       defender_model: 'mistral:7b',
       mode: metaMode ? 'meta' : 'normal',
+      constitutional: constitutionalMode,
     }));
   };
 

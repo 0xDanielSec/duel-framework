@@ -60,6 +60,7 @@ DUEL ships with a full-featured **web UI** (6 dashboards), a **MCP Server** that
 | ⚡ **MCP Server** | 8 tools exposing DUEL to Claude Desktop, Cursor, and any MCP-compatible agent |
 | 🔍 **KQL Engine** | Pandas-backed KQL executor: `where`, `project`, `summarize`, `join`, `let`, `make-series`, `mv-expand`, `parse`, `arg_max` |
 | 🧠 **Attacker Memory** | Persistent evasion patterns across all battles — attacker starts each run already knowing what worked |
+| 🛡 **Constitutional Mode** | Defender generates named detection principles pre-battle and upholds them under adversarial pressure; auto-corrects rule violations |
 | 🌐 **Threat Intel** | Feodo Tracker integration — Defender optionally enriches rules with live C2 IP data |
 | 📄 **PDF Reports** | Auto-generated per-battle PDF with mutation analysis, field stability charts, and surviving KQL |
 | 🤖 **GitHub Actions** | Weekly automated battle run against all 38 techniques — results pushed back to the repo |
@@ -415,6 +416,7 @@ Options:
   --logs INT              Attack logs per round             [default: 10]
   --seed INT              Random seed for reproducibility   [default: 42]
   --replay PATH           Replay a previous battle log against a new Defender
+  --constitutional        Enable Constitutional Defense Mode
   --verbose               Print telemetry and KQL each round
 ```
 
@@ -422,6 +424,7 @@ Options:
 python main.py --technique T1110.003 --rounds 10 --logs 15 --verbose
 python main.py --technique LLM01 --attacker-model llama3.1:8b
 python main.py --replay output/full_battle_log_T1078.004.json --defender-model qwen2.5:14b
+python main.py --constitutional --rounds 5 --verbose
 ```
 
 ### `tournament.py` — multi-model Defender ranking
@@ -525,6 +528,38 @@ python mcp_server.py    # stdio transport — connect via Claude Desktop or Curs
 
 ---
 
+## Constitutional Defense Mode
+
+Constitutional Defense Mode adds a meta-level layer to the adversarial loop: the Defender generates a **security constitution** on round 1 — a set of 3–5 named detection principles specific to the current technique — and must uphold it in every KQL rule throughout the battle.
+
+```bash
+python main.py --constitutional --technique T1078.004 --rounds 5
+```
+
+In the Web UI, enable the **CONSTITUTIONAL** checkbox in the control bar before starting a battle. A teal constitution panel appears in the Defender column showing each principle and its real-time compliance status.
+
+### How It Works
+
+| Step | What happens |
+|---|---|
+| Round 1 — constitution generation | Defender LLM writes a JSON constitution: `{"principles": [{"id": "P1", "text": "...", "kql_anchor": "ResultType"}]}` |
+| Every round — validation | Pure-Python structural check: each principle's `kql_anchor` field is searched in the generated KQL |
+| Violation → correction | If any principle is violated, the LLM is asked to fix the rule before detection runs |
+| Constitution attack detection | Log field values are scanned for manipulation language (`ignore`, `bypass`, `override`, etc.) |
+
+### Research Questions
+
+Constitutional Defense Mode is designed to answer:
+- Can an LLM Defender formulate consistent detection principles and maintain them under adversarial pressure?
+- Does committing to principles before seeing attack logs improve or harm detection rates?
+- Can the Attacker craft telemetry that causes the Defender to violate its own principles?
+
+### Output
+
+Battle logs include `constitution` and `constitution_attacks` fields. Each round record gains `compliance_result` with `compliant`, `violations`, `ignored_principles`, `compliance_score`, and `constitution_attack` sub-fields.
+
+---
+
 ## Output Artifacts
 
 Every battle writes to the `output/` directory:
@@ -574,6 +609,7 @@ duel-framework/
 │   ├── scoring.py           # BattleScorer + post-battle analyst
 │   ├── attacker_memory.py   # Persistent evasion memory (MemoryStore)
 │   ├── defender_memory.py   # Persistent detection memory (DefenderMemory)
+│   ├── constitution.py      # Constitutional Defense Mode (ConstitutionEngine)
 │   ├── sentinel_export.py   # ARM template builder (SentinelExporter)
 │   ├── report_generator.py  # PDF report generation
 │   ├── llm_detection.py     # OWASP LLM policy-based detection
