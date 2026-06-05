@@ -60,6 +60,7 @@ DUEL ships with a full-featured **web UI** (6 dashboards), a **MCP Server** that
 | ⚡ **MCP Server** | 8 tools exposing DUEL to Claude Desktop, Cursor, and any MCP-compatible agent |
 | 🔍 **KQL Engine** | Pandas-backed KQL executor: `where`, `project`, `summarize`, `join`, `let`, `make-series`, `mv-expand`, `parse`, `arg_max` |
 | 🧠 **Attacker Memory** | Persistent evasion patterns across all battles — attacker starts each run already knowing what worked |
+| ⚔ **Multi-Attacker Swarm** | Up to 5 parallel attackers with distinct strategies (aggressive / stealth / adaptive / random / memory-guided) — pooled logs, swarm consensus analysis, 6th DABS component |
 | 🛡 **Constitutional Mode** | Defender generates named detection principles pre-battle and upholds them under adversarial pressure; auto-corrects rule violations |
 | 🌐 **Threat Intel** | Feodo Tracker integration — Defender optionally enriches rules with live C2 IP data |
 | 📄 **PDF Reports** | Auto-generated per-battle PDF with mutation analysis, field stability charts, and surviving KQL |
@@ -417,6 +418,7 @@ Options:
   --seed INT              Random seed for reproducibility   [default: 42]
   --replay PATH           Replay a previous battle log against a new Defender
   --constitutional        Enable Constitutional Defense Mode
+  --swarm INT             Multi-Attacker Swarm mode: N parallel attackers (1–5)
   --verbose               Print telemetry and KQL each round
 ```
 
@@ -425,6 +427,8 @@ python main.py --technique T1110.003 --rounds 10 --logs 15 --verbose
 python main.py --technique LLM01 --attacker-model llama3.1:8b
 python main.py --replay output/full_battle_log_T1078.004.json --defender-model qwen2.5:14b
 python main.py --constitutional --rounds 5 --verbose
+python main.py --swarm 3 --technique T1078.004 --rounds 5
+python main.py --swarm 5 --technique T1110.003 --rounds 3 --verbose
 ```
 
 ### `tournament.py` — multi-model Defender ranking
@@ -525,6 +529,55 @@ python server.py        # http://localhost:8000
 ```bash
 python mcp_server.py    # stdio transport — connect via Claude Desktop or Cursor
 ```
+
+---
+
+## Multi-Attacker Swarm Mode
+
+Instead of a single Attacker, swarm mode spawns **N parallel Attacker agents** (up to 5), each with a distinct strategy. Their logs are pooled into a combined dataset, the Defender writes one KQL rule against the full pool, and detection results are split back to each Attacker for independent mutation. After every round a collective **SwarmMemory** aggregates which field-value patterns worked across strategies and which caused disagreement.
+
+### Strategies
+
+| Strategy | Behaviour |
+|---|---|
+| `aggressive` | High risk — known-bad IPs, scripted User-Agents, atypical sign-in times |
+| `stealth` | Mimics legitimate traffic — common browsers, home-country locations, ResultType=0 |
+| `adaptive` | Studies the last KQL rule and rotates the exact fields it targeted |
+| `random` | Completely random field rotation every round to stress-test any pattern |
+| `memory-guided` | Uses only proven evasion patterns from `output/attacker_memory.json` |
+
+### Swarm Memory (`output/swarm_memory.json`)
+
+After each round the `SwarmMemory` engine computes:
+
+- **Consensus patterns** — field values present in the evaded logs of **all** active strategies. If every attacker evaded by using `ConditionalAccessStatus=notApplied`, that is a definitive blind spot.
+- **Divergent patterns** — fields where some strategies evaded but others didn't, revealing which mutations are technique-specific vs. universally effective.
+- **Best strategy** — which strategy had the highest cumulative evasion rate overall.
+
+### DABS Swarm Resilience
+
+When swarm data is available, the DABS benchmark gains an optional 6th component — **Swarm Resilience** — measuring how well the Defender resists a coordinated multi-strategy attack. It is computed as `1 − best_strategy_evasion_rate` averaged across all benchmarked techniques. The weight system auto-renormalises so the score remains 0–100 regardless of which optional components are present.
+
+### CLI
+
+```bash
+# 3-attacker swarm (aggressive + stealth + adaptive) — default
+python main.py --swarm 3 --technique T1078.004 --rounds 5
+
+# Full 5-attacker swarm
+python main.py --swarm 5 --technique T1110.003 --rounds 3 --verbose
+
+# Swarm + Constitutional Defence combined
+python main.py --swarm 3 --constitutional --technique T1078.004 --rounds 5
+```
+
+### Web UI
+
+Enable **SWARM MODE** in the War Room controls (`/`) and set the attacker count (1–5). During the battle the Attacker panel shows:
+
+- Individual attacker cards for `aggressive`, `stealth`, `adaptive` (and optionally `random` / `memory-guided`) — each with a live evasion bar that updates every round.
+- A **CONSENSUS** badge showing what fraction of strategies evaded the Defender.
+- The feed shows per-strategy breakdown after each detection result.
 
 ---
 

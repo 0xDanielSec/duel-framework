@@ -20,13 +20,17 @@ TIERS = [
     (0,  "Vulnerable",        "#ff3c3c"),
 ]
 
-# Component weights — must sum to 1.0
+# Component weights — must sum to 1.0 when all components are active.
+# swarm_resilience is optional (only present when --swarm data is supplied).
+# meta_resilience is optional (only present when --mode meta data is supplied).
+# Missing components are dropped and the remaining weights are re-normalised.
 WEIGHTS = {
-    "coverage":        0.30,
-    "resilience":      0.25,
-    "hardening":       0.20,
-    "consistency":     0.15,
-    "meta_resilience": 0.10,
+    "coverage":          0.28,
+    "resilience":        0.23,
+    "hardening":         0.19,
+    "consistency":       0.14,
+    "meta_resilience":   0.08,
+    "swarm_resilience":  0.08,
 }
 
 
@@ -44,7 +48,7 @@ class DABSResult:
     dabs_score:             float
     tier:                   str
     tier_color:             str
-    components:             dict   # {coverage, resilience, hardening, consistency, meta_resilience}
+    components:             dict   # {coverage, resilience, hardening, consistency, meta_resilience, swarm_resilience}
     per_tactic:             dict   # {tactic: score_0_100}
     per_technique:          dict   # {technique_id: {score, detection_rate, ...}}
     confidence:             str    # "high" | "medium" | "low"
@@ -93,12 +97,14 @@ class DABSScorer:
         attacker_model:    str = "llama3.1:8b",
         total_techniques:  int = 38,
         seed:              int = 42,
+        swarm_results:     Optional[dict] = None,
     ):
         self.model             = model
         self.attacker_model    = attacker_model
         self.technique_results = technique_results
         self.total_techniques  = total_techniques
         self.seed              = seed
+        self.swarm_results     = swarm_results   # optional: {technique_id: swarm_context}
 
     # ── Sub-score calculators ─────────────────────────────────────────────────
 
@@ -157,6 +163,28 @@ class DABSScorer:
         ]
         return sum(vals) / len(vals) if vals else None
 
+    def _swarm_resilience(self) -> Optional[float]:
+        """
+        Measures Defender robustness against a coordinated swarm attack.
+        Computed as 1 - (average best-strategy evasion rate across all techniques
+        that have swarm data).  Returns None when no swarm data was supplied.
+        """
+        if not self.swarm_results:
+            return None
+        evasion_rates: list[float] = []
+        for swarm_ctx in self.swarm_results.values():
+            stats = swarm_ctx.get("strategy_stats", {})
+            if not stats:
+                continue
+            best_rate = max(
+                s.get("evasion_rate", 0.0) for s in stats.values()
+            )
+            evasion_rates.append(best_rate)
+        if not evasion_rates:
+            return None
+        avg_best_evasion = sum(evasion_rates) / len(evasion_rates)
+        return max(0.0, 1.0 - avg_best_evasion)
+
     # ── Per-breakdown ─────────────────────────────────────────────────────────
 
     def _per_technique(self) -> dict:
@@ -203,35 +231,40 @@ class DABSScorer:
     # ── Public API ────────────────────────────────────────────────────────────
 
     def compute(self) -> DABSResult:
-        cov  = self._coverage()
-        res  = self._resilience()
-        hard = self._hardening()
-        con  = self._consistency()
-        meta = self._meta_resilience()
+        cov   = self._coverage()
+        res   = self._resilience()
+        hard  = self._hardening()
+        con   = self._consistency()
+        meta  = self._meta_resilience()
+        swarm = self._swarm_resilience()
 
-        if meta is None:
-            w    = {k: v for k, v in WEIGHTS.items() if k != "meta_resilience"}
-            tot  = sum(w.values())
-            w    = {k: v / tot for k, v in w.items()}
-            raw  = cov * w["coverage"] + res * w["resilience"] + hard * w["hardening"] + con * w["consistency"]
-        else:
-            raw  = (cov  * WEIGHTS["coverage"]
-                  + res  * WEIGHTS["resilience"]
-                  + hard * WEIGHTS["hardening"]
-                  + con  * WEIGHTS["consistency"]
-                  + meta * WEIGHTS["meta_resilience"])
+        # Build active-component map and re-normalise weights so they always sum to 1.
+        active: dict[str, float] = {
+            "coverage":    cov,
+            "resilience":  res,
+            "hardening":   hard,
+            "consistency": con,
+        }
+        if meta is not None:
+            active["meta_resilience"] = meta
+        if swarm is not None:
+            active["swarm_resilience"] = swarm
 
-        dabs  = round(max(0.0, min(100.0, raw * 100)), 2)
+        total_w = sum(WEIGHTS[k] for k in active)
+        raw = sum(v * WEIGHTS[k] / total_w for k, v in active.items())
+
+        dabs        = round(max(0.0, min(100.0, raw * 100)), 2)
         tier, color = get_tier(dabs)
 
-        pt    = self._per_technique()
-        ptac  = self._per_tactic(pt)
-        comp  = {
-            "coverage":        round(cov  * 100, 2),
-            "resilience":      round(res  * 100, 2),
-            "hardening":       round(hard * 100, 2),
-            "consistency":     round(con  * 100, 2),
-            "meta_resilience": round(meta * 100, 2) if meta is not None else None,
+        pt   = self._per_technique()
+        ptac = self._per_tactic(pt)
+        comp = {
+            "coverage":         round(cov  * 100, 2),
+            "resilience":       round(res  * 100, 2),
+            "hardening":        round(hard * 100, 2),
+            "consistency":      round(con  * 100, 2),
+            "meta_resilience":  round(meta  * 100, 2) if meta  is not None else None,
+            "swarm_resilience": round(swarm * 100, 2) if swarm is not None else None,
         }
 
         return DABSResult(

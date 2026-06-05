@@ -1281,6 +1281,16 @@
     </label>
   </div>
 
+  <div class="ctrl-group" style="align-items:center;gap:6px">
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);font-size:10px;letter-spacing:1px">
+      <input type="checkbox" id="chk-swarm" style="accent-color:#00ff88;cursor:pointer" />
+      <span style="color:#00ff88">SWARM</span>
+    </label>
+    <input type="number" id="inp-swarm-count" value="3" min="1" max="5"
+      style="width:34px;background:var(--bg3);color:var(--green);border:1px solid var(--dim);padding:2px 4px;font-family:var(--mono);font-size:11px;text-align:center"
+      title="Parallel attacker count (1&ndash;5)" />
+  </div>
+
   <button id="start-btn" onclick="startBattle()">&#9654; START BATTLE</button>
   <button id="replay-btn" onclick="openReplayModal()">&#8635; REPLAY</button>
 </div>
@@ -1324,6 +1334,18 @@
     <div class="panel-section">
       <div class="sec-label">STRATEGY</div>
       <div class="panel-text" id="att-strategy">Awaiting battle start&hellip;</div>
+    </div>
+
+    <!-- ── Swarm attacker cards (visible only in swarm mode) ──────────────── -->
+    <div id="swarm-section" style="display:none;flex-direction:column;gap:6px;padding:8px 12px 4px;border-top:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+        <div class="sec-label" style="margin-bottom:0">SWARM ATTACKERS</div>
+        <div id="swarm-consensus-badge" style="display:none;align-items:center;gap:6px;background:#071a07;border:1px solid var(--green);border-radius:4px;padding:2px 8px">
+          <span style="color:var(--muted);font-size:9px;letter-spacing:1px">CONSENSUS</span>
+          <span id="swarm-consensus-score" style="color:var(--green);font-size:13px;font-weight:700">—</span>
+        </div>
+      </div>
+      <div id="swarm-cards-grid" style="display:flex;flex-direction:column;gap:3px"></div>
     </div>
 
     <div class="code-wrap">
@@ -1705,6 +1727,12 @@ function resetUI() {
   document.getElementById('conn-dot').className = '';
   document.getElementById('attacker-panel').classList.remove('thinking');
   document.getElementById('defender-panel').classList.remove('thinking');
+  // Swarm panel
+  document.getElementById('swarm-section').style.display = 'none';
+  document.getElementById('swarm-consensus-badge').style.display = 'none';
+  document.getElementById('swarm-cards-grid').innerHTML = '';
+  document.getElementById('swarm-consensus-score').textContent = '—';
+  document.getElementById('att-panel-title').textContent = 'ATTACKER';
   // Constitution panel
   _currentConstitution = null;
   document.getElementById('constitution-section').style.display = 'none';
@@ -1848,6 +1876,74 @@ function handle(data) {
         msg += ' ⚡ CONSTITUTION ATTACK: ' + data.constitution_attack.indicators.join(', ');
       addFeed(msg, feedCls);
       updateConstitutionCompliance(data);
+      break;
+    }
+
+    case 'swarm_start': {
+      const strategies = (data.strategies || []).join(', ');
+      addFeed(
+        '⚔ SWARM MODE ×' + data.num_attackers + ' — strategies: ' + esc(strategies),
+        'sys'
+      );
+      document.getElementById('att-panel-title').textContent = 'ATTACKER SWARM ×' + data.num_attackers;
+      // Build attacker cards placeholders
+      const grid = document.getElementById('swarm-cards-grid');
+      grid.innerHTML = '';
+      (data.strategies || []).forEach(strategy => {
+        const card = document.createElement('div');
+        card.id = 'swarm-card-' + strategy;
+        card.style.cssText =
+          'display:flex;justify-content:space-between;align-items:center;' +
+          'background:var(--bg3);border:1px solid var(--border);border-radius:4px;' +
+          'padding:4px 8px;gap:8px';
+        card.innerHTML =
+          '<span style="color:var(--red);font-size:10px;letter-spacing:1px;text-transform:uppercase;min-width:90px">' +
+          esc(strategy) + '</span>' +
+          '<div style="flex:1;height:4px;background:var(--dim);border-radius:2px">' +
+          '<div id="swarm-bar-' + esc(strategy) + '" style="height:100%;background:var(--dim);border-radius:2px;width:0%"></div>' +
+          '</div>' +
+          '<span id="swarm-pct-' + esc(strategy) + '" style="color:var(--muted);font-size:11px;min-width:36px;text-align:right">—</span>';
+        grid.appendChild(card);
+      });
+      document.getElementById('swarm-section').style.display = 'flex';
+      document.getElementById('swarm-consensus-badge').style.display = 'flex';
+      break;
+    }
+
+    case 'swarm_round_result': {
+      const consensus = Math.round((data.consensus_score || 0) * 100);
+      const cColor = data.consensus_score >= 0.5 ? 'var(--red)' : 'var(--blue)';
+      document.getElementById('swarm-consensus-score').textContent = consensus + '%';
+      document.getElementById('swarm-consensus-score').style.color = cColor;
+      // Update per-attacker bars
+      (data.per_attacker || []).forEach(att => {
+        const pct   = Math.round(att.evasion_rate * 100);
+        const color = att.evasion_rate >= 0.5 ? 'var(--red)' : 'var(--blue)';
+        const bar   = document.getElementById('swarm-bar-' + att.strategy);
+        const lbl   = document.getElementById('swarm-pct-' + att.strategy);
+        if (bar) { bar.style.width = pct + '%'; bar.style.background = color; }
+        if (lbl) { lbl.textContent = pct + '%'; lbl.style.color = color; }
+      });
+      addFeed(
+        'SWARM round ' + data.round + ' — consensus: ' + consensus + '% | ' +
+        (data.per_attacker || []).map(a =>
+          a.strategy + ': ' + Math.round(a.evasion_rate * 100) + '%'
+        ).join(' │ '),
+        data.consensus_score >= 0.5 ? 'evade' : 'detect'
+      );
+      break;
+    }
+
+    case 'swarm_complete': {
+      const ctx = data.swarm_context || {};
+      if (ctx.best_strategy) {
+        addFeed('SWARM ANALYSIS — best strategy: ' + esc(ctx.best_strategy), 'sys');
+      }
+      const consensus = ctx.consensus_patterns || {};
+      const cFields = Object.keys(consensus);
+      if (cFields.length) {
+        addFeed('Consensus evasion fields: ' + cFields.slice(0, 5).join(', '), 'sys');
+      }
       break;
     }
 
@@ -2486,22 +2582,28 @@ function startBattle() {
   if (active) return;
   resetUI();
 
-  const technique        = document.getElementById('sel-technique').value;
-  const rounds           = parseInt(document.getElementById('inp-rounds').value, 10) || 3;
-  const logs             = parseInt(document.getElementById('inp-logs').value, 10) || 10;
-  const metaMode         = document.getElementById('chk-meta').checked;
+  const technique          = document.getElementById('sel-technique').value;
+  const rounds             = parseInt(document.getElementById('inp-rounds').value, 10) || 3;
+  const logs               = parseInt(document.getElementById('inp-logs').value, 10) || 10;
+  const metaMode           = document.getElementById('chk-meta').checked;
   const constitutionalMode = document.getElementById('chk-constitutional').checked;
+  const swarmMode          = document.getElementById('chk-swarm').checked;
+  const swarmCount         = Math.min(5, Math.max(1, parseInt(document.getElementById('inp-swarm-count').value, 10) || 3));
 
-  const url = 'ws://' + location.host + '/ws';
+  const endpoint = swarmMode ? '/ws/swarm' : '/ws';
+  const url = 'ws://' + location.host + endpoint;
   ws = new WebSocket(url);
 
   ws.onopen = () => {
     active = true;
     document.getElementById('start-btn').disabled = true;
     document.getElementById('conn-dot').className = 'on';
-    const modeLabel = metaMode ? ' \u2014 META INJECTION MODE' : (constitutionalMode ? ' \u2014 CONSTITUTIONAL MODE' : '');
+    const modeLabel = swarmMode          ? ' \u2014 SWARM MODE \xd7' + swarmCount
+                    : metaMode           ? ' \u2014 META INJECTION MODE'
+                    : constitutionalMode ? ' \u2014 CONSTITUTIONAL MODE'
+                    : '';
     addFeed('Connected to DUEL engine \u2014 ' + technique + ' \u2014 ' + rounds + ' round(s)' + modeLabel, 'sys');
-    ws.send(JSON.stringify({
+    const payload = {
       technique,
       rounds,
       logs_per_round: logs,
@@ -2509,7 +2611,9 @@ function startBattle() {
       defender_model: 'mistral:7b',
       mode: metaMode ? 'meta' : 'normal',
       constitutional: constitutionalMode,
-    }));
+    };
+    if (swarmMode) payload.swarm = swarmCount;
+    ws.send(JSON.stringify(payload));
   };
 
   ws.onmessage = e => {

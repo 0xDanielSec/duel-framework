@@ -339,6 +339,14 @@ async def api_memory():
     return JSONResponse(store.get_all())
 
 
+@app.get("/api/swarm_memory")
+async def api_swarm_memory():
+    """Return current swarm memory as JSON (per-technique, per-strategy intel)."""
+    from engine.swarm_memory import SwarmMemory
+    store = SwarmMemory()
+    return JSONResponse(store.get_all())
+
+
 @app.get("/api/defender_memory")
 async def api_defender_memory():
     """Return current defender memory as JSON (per-technique successful rules and field intel)."""
@@ -764,6 +772,233 @@ async def ws_battle(websocket: WebSocket):
             "winner": winner,
             "final_attacker": scorer.attacker_score,
             "final_defender": scorer.defender_score,
+        })
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as exc:
+        try:
+            await send({"type": "error", "message": str(exc)})
+        except Exception:
+            pass
+
+
+# ── WebSocket swarm battle loop ─────────────────────────────────────────────
+
+
+@app.websocket("/ws/swarm")
+async def ws_swarm(websocket: WebSocket):
+    await websocket.accept()
+
+    async def send(payload: dict):
+        await websocket.send_text(json.dumps(payload, default=str))
+
+    try:
+        cfg = await websocket.receive_json()
+        technique_id: str   = cfg.get("technique",      "T1078.004")
+        rounds: int         = max(1, int(cfg.get("rounds",         3)))
+        logs_per_round: int = max(5, int(cfg.get("logs_per_round", 10)))
+        attacker_model: str = cfg.get("attacker_model", "llama3.1:8b")
+        defender_model: str = cfg.get("defender_model", "mistral:7b")
+        num_attackers: int  = min(max(1, int(cfg.get("swarm", 3))), 5)
+        constitutional: bool = bool(cfg.get("constitutional", False))
+
+        try:
+            technique = await _in_thread(_load_technique, technique_id)
+        except FileNotFoundError:
+            await send({"type": "error", "message": f"Technique {technique_id} not found."})
+            return
+
+        Path("output").mkdir(exist_ok=True)
+
+        from engine.multi_attacker import MultiAttackerSwarm
+        swarm    = MultiAttackerSwarm(
+            num_attackers=num_attackers,
+            model=attacker_model,
+            num_logs=logs_per_round,
+        )
+        defender = DefenderAgent(model=defender_model, constitutional_mode=constitutional)
+        scorer   = BattleScorer(
+            total_rounds=rounds,
+            technique_id=technique_id,
+            attacker_model=attacker_model,
+        )
+
+        await send({
+            "type":          "swarm_start",
+            "num_attackers": num_attackers,
+            "strategies":    swarm.strategies,
+            "technique":     technique_id,
+            "rounds":        rounds,
+        })
+
+        for round_num in range(1, rounds + 1):
+            await send({
+                "type":      "round_start",
+                "round":     round_num,
+                "total":     rounds,
+                "technique": technique_id,
+            })
+
+            last_kql = scorer.rounds[-1]["kql_rule"] if scorer.rounds else None
+
+            # ── Parallel attacker phase ───────────────────────────────────
+            await send({"type": "attacker_thinking"})
+
+            try:
+                pooled_logs, per_attacker_logs = await _in_thread(
+                    swarm.generate_round,
+                    technique, round_num, rounds, last_kql,
+                )
+            except Exception as exc:
+                await send({"type": "error", "message": f"Swarm error: {exc}"})
+                return
+
+            logs_sample = [
+                {k: v for k, v in log.items() if not k.startswith("_duel")}
+                for log in pooled_logs[:3]
+            ]
+            await send({
+                "type":       "attacker_done",
+                "strategy":   f"SWARM ×{num_attackers} — {', '.join(swarm.strategies)}",
+                "logs_sample": logs_sample,
+            })
+
+            # ── Defender phase ────────────────────────────────────────────
+            await send({"type": "defender_thinking"})
+
+            try:
+                kql_rule = await _in_thread(
+                    defender.generate_rule,
+                    technique=technique,
+                    round_num=round_num,
+                    total_rounds=rounds,
+                    attack_logs=pooled_logs,
+                    detected_logs=scorer.get_last_detected_logs(),
+                    evaded_logs=scorer.get_last_evaded_logs(),
+                )
+            except Exception as exc:
+                kql_rule = "SigninLogs | where ResultType != 0"
+                await send({"type": "error", "message": f"Defender fallback: {exc}"})
+
+            reasoning = _defender_reasoning(
+                round_num,
+                scorer.get_last_evaded_logs(),
+                scorer.get_last_detected_logs(),
+            )
+            await send({"type": "defender_done", "kql": kql_rule, "reasoning": reasoning})
+
+            # ── Constitutional events ─────────────────────────────────────
+            compliance_result = None
+            if constitutional:
+                if round_num == 1 and defender.constitution:
+                    await send({
+                        "type":         "constitution_generated",
+                        "constitution": defender.constitution,
+                    })
+                if defender.compliance_history:
+                    compliance_result = defender.compliance_history[-1]
+                    await send({
+                        "type":               "compliance_result",
+                        "round":              round_num,
+                        "compliant":          compliance_result["compliant"],
+                        "violations":         compliance_result["violations"],
+                        "ignored_principles": compliance_result.get("ignored_principles", []),
+                        "compliance_score":   compliance_result["compliance_score"],
+                        "corrected":          compliance_result.get("corrected", False),
+                        "constitution_attack": compliance_result.get("constitution_attack"),
+                    })
+
+            # ── Detection phase ───────────────────────────────────────────
+            if technique_id.upper().startswith("LLM"):
+                from engine.llm_detection import LLMDetectionEngine
+                engine_det = LLMDetectionEngine(pooled_logs)
+            else:
+                engine_det = DetectionEngine(pooled_logs)
+            det_result = engine_det.run(kql_rule)
+
+            total_logs     = len(pooled_logs)
+            detected_count = len(det_result["detected_ids"])
+            evaded_count   = total_logs - detected_count
+            rate           = detected_count / total_logs if total_logs else 0.0
+
+            await send({
+                "type":     "detection_result",
+                "detected": detected_count,
+                "evaded":   evaded_count,
+                "rate":     rate,
+            })
+
+            # ── Per-attacker result distribution ─────────────────────────
+            per_attacker_stats = await _in_thread(
+                swarm.record_round_results,
+                technique_id, round_num, per_attacker_logs, det_result["detected_ids"],
+            )
+            consensus_score = swarm.swarm_consensus_score(per_attacker_stats)
+
+            await send({
+                "type":            "swarm_round_result",
+                "round":           round_num,
+                "per_attacker":    [
+                    {
+                        "strategy":     s["strategy"],
+                        "evasion_rate": s["evasion_rate"],
+                        "evaded_count": s["evaded_count"],
+                        "total_logs":   s["total_logs"],
+                    }
+                    for s in per_attacker_stats
+                ],
+                "consensus_score": consensus_score,
+                "total_logs":      total_logs,
+                "detected":        detected_count,
+                "evaded":          evaded_count,
+                "rate":            rate,
+            })
+
+            # ── Scoring phase ─────────────────────────────────────────────
+            record = scorer.record_round(
+                round_num=round_num,
+                attack_logs=pooled_logs,
+                kql_rule=kql_rule,
+                detected_ids=det_result["detected_ids"],
+                kql_valid=det_result["kql_valid"],
+                compliance_result=compliance_result,
+            )
+            round_result = "detected" if detected_count >= evaded_count else "evaded"
+            await send({
+                "type":           "round_result",
+                "result":         round_result,
+                "attacker_score": scorer.attacker_score,
+                "defender_score": scorer.defender_score,
+            })
+
+        # ── Battle complete ───────────────────────────────────────────────
+        scorer.constitution = defender.constitution
+        scorer.save_full_battle_log()
+        scorer.generate_report()
+
+        try:
+            from engine.attacker_dna import DNAAnalyzer
+            await _in_thread(DNAAnalyzer().save)
+        except Exception:
+            pass
+
+        winner = ("Attacker" if scorer.attacker_score > scorer.defender_score
+                  else "Defender" if scorer.defender_score > scorer.attacker_score
+                  else "Draw")
+
+        await send({
+            "type":           "battle_complete",
+            "winner":         winner,
+            "final_attacker": scorer.attacker_score,
+            "final_defender": scorer.defender_score,
+        })
+
+        swarm_context = await _in_thread(swarm.get_swarm_context, technique_id)
+        await send({
+            "type":          "swarm_complete",
+            "winner":        winner,
+            "swarm_context": swarm_context,
         })
 
     except WebSocketDisconnect:

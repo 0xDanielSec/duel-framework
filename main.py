@@ -21,6 +21,7 @@ from agents.defender import DefenderAgent
 from engine.detection import DetectionEngine
 from engine.injection_detector import InjectionDetector
 from engine.meta_attacker import MetaAttacker
+from engine.multi_attacker import MultiAttackerSwarm
 from engine.replay_engine import ReplayEngine
 from engine.scoring import BattleScorer
 
@@ -271,6 +272,192 @@ def run_duel(
     return scorer
 
 
+def print_swarm_round_table(round_num: int, per_attacker_stats: list[dict], consensus: float):
+    t = Table(
+        title=f"[bold yellow]SWARM — Round {round_num}[/bold yellow]",
+        box=box.SIMPLE,
+        show_header=True,
+        header_style="bold",
+    )
+    t.add_column("Strategy",       style="cyan",   min_width=14)
+    t.add_column("Logs",           justify="right")
+    t.add_column("Evaded",         justify="right")
+    t.add_column("Detected",       justify="right")
+    t.add_column("Evasion Rate",   justify="right")
+
+    for s in per_attacker_stats:
+        color_ev = "green" if s["evasion_rate"] >= 0.5 else "red"
+        t.add_row(
+            s["strategy"],
+            str(s["total_logs"]),
+            f"[{color_ev}]{s['evaded_count']}[/{color_ev}]",
+            str(s["detected_count"]),
+            f"[{color_ev}]{s['evasion_rate']:.0%}[/{color_ev}]",
+        )
+
+    consensus_color = "red" if consensus >= 0.5 else "blue"
+    t.add_row(
+        "[bold]CONSENSUS[/bold]",
+        "",
+        "",
+        "",
+        f"[{consensus_color} bold]{consensus:.0%} swarm evaded[/{consensus_color} bold]",
+    )
+    console.print(t)
+
+
+def run_swarm_duel(
+    technique_id: str,
+    rounds: int,
+    attacker_model: str,
+    defender_model: str,
+    logs_per_round: int,
+    num_attackers: int,
+    verbose: bool,
+    seed: int = 42,
+    constitutional_mode: bool = False,
+):
+    Path("output").mkdir(exist_ok=True)
+
+    technique = load_technique(technique_id)
+    swarm     = MultiAttackerSwarm(
+        num_attackers=num_attackers,
+        model=attacker_model,
+        num_logs=logs_per_round,
+        seed=seed,
+    )
+    defender  = DefenderAgent(model=defender_model, seed=seed, constitutional_mode=constitutional_mode)
+    scorer    = BattleScorer(
+        total_rounds=rounds,
+        technique_id=technique_id,
+        attacker_model=attacker_model,
+        seed=seed,
+    )
+
+    print_banner()
+    console.print(f"\n[bold]Technique:[/bold] {technique_id} — {technique['name']}")
+    console.print(f"[bold]Attacker model:[/bold] {attacker_model}")
+    console.print(f"[bold]Defender model:[/bold] {defender_model}")
+    console.print(f"[bold]Rounds:[/bold] {rounds}")
+    console.print(f"[bold]Logs per round:[/bold] {logs_per_round}")
+    console.print(f"[bold]Swarm size:[/bold] {num_attackers} agents — {', '.join(swarm.strategies)}")
+    console.print(f"[bold]Seed:[/bold] {seed}\n")
+
+    for round_num in range(1, rounds + 1):
+        print_round_header(round_num, rounds)
+
+        last_kql  = scorer.rounds[-1]["kql_rule"] if scorer.rounds else None
+
+        # ── Parallel attacker phase ──────────────────────────────────────
+        console.print("[red bold]⚔  Swarm generating telemetry in parallel...[/red bold]")
+        try:
+            pooled_logs, per_attacker_logs = swarm.generate_round(
+                technique=technique,
+                round_num=round_num,
+                total_rounds=rounds,
+                last_kql=last_kql,
+            )
+        except Exception as exc:
+            console.print(f"[red]Swarm failed: {exc}[/red]")
+            logger.error("Swarm error round %d: %s", round_num, exc, exc_info=True)
+            continue
+
+        console.print(f"  [dim]Pooled {len(pooled_logs)} unique logs from {num_attackers} attackers[/dim]")
+        if verbose:
+            print_attack_sample(pooled_logs)
+
+        # ── Defender generates KQL rule against the full pool ────────────
+        console.print("[blue bold]🛡  Defender generating KQL rule...[/blue bold]")
+        try:
+            kql_rule = defender.generate_rule(
+                technique=technique,
+                round_num=round_num,
+                total_rounds=rounds,
+                attack_logs=pooled_logs,
+                detected_logs=scorer.get_last_detected_logs(),
+                evaded_logs=scorer.get_last_evaded_logs(),
+            )
+        except Exception as exc:
+            console.print(f"[red]Defender failed: {exc}[/red]")
+            logger.error("Defender error round %d: %s", round_num, exc, exc_info=True)
+            kql_rule = "SigninLogs | where ResultType != 0"
+
+        if verbose:
+            print_kql(kql_rule)
+
+        # ── Constitutional compliance ─────────────────────────────────────
+        compliance_result = None
+        if constitutional_mode and defender.compliance_history:
+            compliance_result = defender.compliance_history[-1]
+
+        # ── Detection engine ─────────────────────────────────────────────
+        console.print("[green bold]🔍 Running detection engine...[/green bold]")
+        engine = DetectionEngine(pooled_logs)
+        det_result = engine.run(kql_rule)
+
+        # ── Distribute results back to individual attackers ───────────────
+        per_attacker_stats = swarm.record_round_results(
+            technique_id=technique_id,
+            round_num=round_num,
+            per_attacker_logs=per_attacker_logs,
+            detected_ids=det_result["detected_ids"],
+        )
+
+        consensus = swarm.swarm_consensus_score(per_attacker_stats)
+        print_swarm_round_table(round_num, per_attacker_stats, consensus)
+
+        # ── Global scoring ────────────────────────────────────────────────
+        record = scorer.record_round(
+            round_num=round_num,
+            attack_logs=pooled_logs,
+            kql_rule=kql_rule,
+            detected_ids=det_result["detected_ids"],
+            kql_valid=det_result["kql_valid"],
+            compliance_result=compliance_result,
+        )
+        print_round_result(record)
+
+        if not det_result["kql_valid"]:
+            console.print("[yellow]  KQL parse/execution error — Defender scored 0 this round[/yellow]")
+
+    # ── Final results ────────────────────────────────────────────────────
+    console.rule("[bold green]SWARM BATTLE COMPLETE[/bold green]")
+
+    winner = ("Attacker" if scorer.attacker_score > scorer.defender_score else
+              "Defender" if scorer.defender_score > scorer.attacker_score else "Draw")
+    color  = "red" if winner == "Attacker" else "blue" if winner == "Defender" else "yellow"
+    console.print(f"\n[{color} bold]Winner: {winner}[/{color} bold]")
+    console.print(f"  Attacker swarm: {scorer.attacker_score} pts")
+    console.print(f"  Defender:       {scorer.defender_score} pts")
+    console.print(f"  Surviving KQL rules: {len(scorer.surviving_kql)}")
+
+    # Swarm analysis
+    swarm_ctx = swarm.get_swarm_context(technique_id)
+    best      = swarm_ctx.get("best_strategy")
+    if best:
+        console.print(f"\n[bold cyan]Best strategy:[/bold cyan] {best}")
+    if swarm_ctx.get("consensus_patterns"):
+        console.print("[bold cyan]Consensus evasion fields:[/bold cyan] "
+                      + ", ".join(swarm_ctx["consensus_patterns"].keys()))
+
+    scorer.constitution = defender.constitution
+    log_path      = scorer.save_full_battle_log()
+    report_path   = scorer.generate_report()
+    analysis_path = scorer.generate_analysis()
+
+    try:
+        from engine.attacker_dna import DNAAnalyzer
+        DNAAnalyzer().save()
+    except Exception as exc:
+        logger.warning("DNA update skipped: %s", exc)
+
+    console.print(f"\n[dim]Battle log     → {log_path}[/dim]")
+    console.print(f"[dim]Final report   → {report_path}[/dim]")
+    console.print(f"[dim]Battle analysis → {analysis_path}[/dim]")
+
+    return scorer
+
+
 def run_replay(replay_path: str, defender_model: str, seed: int = 42) -> None:
     Path("output").mkdir(exist_ok=True)
     engine = ReplayEngine(replay_path)
@@ -320,6 +507,8 @@ Examples:
                         help="Random seed for reproducibility (default: 42)")
     parser.add_argument("--constitutional", action="store_true",
                         help="Enable Constitutional Defense Mode — Defender upholds named principles")
+    parser.add_argument("--swarm", type=int, metavar="N", default=0,
+                        help="Enable Multi-Attacker Swarm with N parallel attackers (1-5, default 3)")
     parser.add_argument("--replay", metavar="PATH",
                         help="Path to an existing full_battle_log_*.json to replay")
     args = parser.parse_args()
@@ -336,6 +525,18 @@ Examples:
             replay_path=args.replay,
             defender_model=args.defender_model,
             seed=args.seed,
+        )
+    elif args.swarm:
+        run_swarm_duel(
+            technique_id=args.technique,
+            rounds=args.rounds,
+            attacker_model=args.attacker_model,
+            defender_model=args.defender_model,
+            logs_per_round=args.logs,
+            num_attackers=min(max(1, args.swarm), 5),
+            verbose=args.verbose,
+            seed=args.seed,
+            constitutional_mode=args.constitutional,
         )
     else:
         run_duel(
