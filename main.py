@@ -43,6 +43,10 @@ def load_technique(technique_id: str) -> dict:
     if not path.exists():
         console.print(f"[red]Technique file not found: {technique_id}[/red]")
         sys.exit(1)
+    # Guard against path traversal (e.g. --technique ../output/attacker_memory)
+    if not path.resolve().is_relative_to(TECHNIQUES_DIR.resolve()):
+        console.print(f"[red]Invalid technique ID: {technique_id}[/red]")
+        sys.exit(1)
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 

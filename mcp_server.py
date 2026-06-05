@@ -61,6 +61,9 @@ def _load_technique(technique_id: str) -> dict:
         path = TECHNIQUES_DIR / "llm" / f"{tid}.json"
     else:
         path = TECHNIQUES_DIR / f"{technique_id}.json"
+    # Guard against path traversal (e.g. "../output/attacker_memory")
+    if not path.resolve().is_relative_to(TECHNIQUES_DIR.resolve()):
+        raise ValueError(f"Invalid technique ID: {technique_id}")
     if not path.exists():
         raise ValueError(f"Technique not found: {technique_id}")
     with open(path, encoding="utf-8") as f:

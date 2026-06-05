@@ -22,6 +22,8 @@ output/*.json
 output/*.md
 output/*.log
 output/*.pdf
+output/sigma/
+output/exports/
 
 # Keep the output directory itself
 !output/.gitkeep
