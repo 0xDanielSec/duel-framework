@@ -694,6 +694,11 @@ def list_techniques() -> dict:
 # Entry point
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point for the `duel-mcp` console script."""
     _log.info("DUEL MCP Server starting — stdio transport")
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

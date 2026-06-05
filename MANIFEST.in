@@ -1,0 +1,24 @@
+# Source distribution manifest — ensures data files ship in the sdist.
+# Install with `pip install -e .` for full web-UI + MCP functionality.
+
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+include requirements.txt
+
+# Technique definitions (required by all battle modes)
+recursive-include techniques *.json
+
+# Web UI static assets (required by duel-server)
+recursive-include static *.html *.css *.js *.png *.gif *.svg *.ico
+
+# GitHub workflows (informational, not required at runtime)
+recursive-include .github *.yml
+
+# Exclude generated output and caches
+prune output
+prune __pycache__
+global-exclude *.py[cod]
+global-exclude *.pyo
+global-exclude .DS_Store

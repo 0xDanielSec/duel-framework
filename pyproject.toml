@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "duel-framework"
+version = "1.0.0"
+description = "Adversarial LLM security framework — two AI agents battle across 38 MITRE ATT&CK and OWASP LLM techniques"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Daniel Gomes", email = "dani.gomesvr@gmail.com" },
+]
+maintainers = [
+    { name = "Daniel Gomes", email = "dani.gomesvr@gmail.com" },
+]
+keywords = [
+    "security",
+    "llm",
+    "mitre-attack",
+    "kql",
+    "detection-engineering",
+    "adversarial-ml",
+    "red-team",
+    "microsoft-sentinel",
+    "owasp",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+]
+requires-python = ">=3.11"
+dependencies = [
+    "ollama>=0.3.0",
+    "pandas>=2.1.0",
+    "numpy>=1.26.0",
+    "rich>=13.7.0",
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",
+    "requests>=2.31.0",
+    "reportlab>=4.0.0",
+    "mcp>=1.0.0",
+    "huggingface-hub>=0.20.0",
+    "pyarrow>=14.0.0",
+]
+
+[project.urls]
+Homepage       = "https://github.com/0xDanielSec/duel-framework"
+Repository     = "https://github.com/0xDanielSec/duel-framework"
+Documentation  = "https://0xDanielSec.github.io/duel-framework/"
+"Bug Tracker"  = "https://github.com/0xDanielSec/duel-framework/issues"
+Changelog      = "https://github.com/0xDanielSec/duel-framework/blob/main/CHANGELOG.md"
+
+[project.scripts]
+duel            = "main:main"
+duel-server     = "server:main"
+duel-tournament = "tournament:main"
+duel-campaign   = "campaign:main"
+duel-autonomous = "autonomous:main"
+duel-benchmark  = "benchmark:main"
+duel-mcp        = "mcp_server:main"
+
+# ---------------------------------------------------------------------------
+# Setuptools configuration
+# ---------------------------------------------------------------------------
+
+[tool.setuptools]
+include-package-data = true
+# Root-level entry point modules installed as top-level importable modules.
+# techniques/ and static/ data directories are bundled in the sdist via
+# MANIFEST.in and resolved at runtime via Path(__file__).parent, so editable
+# install (pip install -e .) gives full functionality including the web UI.
+py-modules = [
+    "main",
+    "server",
+    "tournament",
+    "campaign",
+    "autonomous",
+    "benchmark",
+    "mcp_server",
+    "run_all",
+]
+
+[tool.setuptools.packages.find]
+include = ["agents*", "engine*", "scripts*"]
+
+[tool.setuptools.package-data]
+"agents"  = ["py.typed"]
+"engine"  = ["py.typed"]
+"scripts" = ["py.typed"]

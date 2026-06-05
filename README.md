@@ -9,6 +9,7 @@
 
 **Dual Unified Evasion Loop** — an adversarial LLM security research framework where an Attacker and a Defender battle across 38 MITRE ATT&CK and OWASP LLM techniques, generating real Microsoft Sentinel telemetry and KQL detection rules.
 
+[![PyPI](https://img.shields.io/pypi/v/duel-framework?style=flat-square&color=blue)](https://pypi.org/project/duel-framework/)
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square)
 ![Ollama](https://img.shields.io/badge/LLM-Ollama-black?style=flat-square)
 ![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red?style=flat-square)
@@ -166,24 +167,36 @@ flowchart TD
 **Prerequisites:** [Ollama](https://ollama.ai) installed and running locally.
 
 ```bash
-# 1. Pull the models
+# Pull the LLM models first
 ollama pull llama3.1:8b
 ollama pull mistral:7b
+```
 
-# 2. Clone and install
+### Option A — pip install (CLI tools)
+
+```bash
+pip install duel-framework
+
+duel --technique T1078.004 --rounds 5 --verbose
+duel-server          # → http://localhost:8000
+duel-tournament --help
+duel-benchmark --help
+```
+
+> **Note:** `pip install duel-framework` installs all CLI entry points. The web UI
+> (`duel-server`) and MCP server (`duel-mcp`) require the `techniques/` and `static/`
+> data directories to be present. Use Option B for the full installation.
+
+### Option B — install from source (recommended for web UI + MCP)
+
+```bash
 git clone https://github.com/0xDanielSec/duel-framework.git
 cd duel-framework
-pip install -r requirements.txt
+pip install -e .
 
-# 3. Run your first battle (CLI)
-python main.py --technique T1078.004 --rounds 5 --verbose
-
-# 4. Or open the full web UI
-python server.py
-# → http://localhost:8000
-
-# 5. Or connect via MCP (Claude Desktop / Cursor)
-python mcp_server.py
+duel --technique T1078.004 --rounds 5 --verbose
+duel-server          # → http://localhost:8000
+duel-mcp             # MCP server for Claude Desktop / Cursor
 ```
 
 ---
