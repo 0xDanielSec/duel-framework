@@ -23,7 +23,7 @@
 ---
 
 <!-- weekly-badge-start -->
-**Last Weekly Battle:** 2026-06-01 &nbsp;|&nbsp; Techniques: 8 &nbsp;|&nbsp; Avg Evasion: 0.0% &nbsp;|&nbsp; Attacker 0 – Defender 0
+**Last Weekly Battle:** 2026-06-08 &nbsp;|&nbsp; Techniques: 8 &nbsp;|&nbsp; Avg Evasion: 0.0% &nbsp;|&nbsp; Attacker 0 – Defender 0
 <!-- weekly-badge-end -->
 
 ![DUEL in action](demo.gif)
