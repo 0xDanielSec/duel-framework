@@ -3,8 +3,12 @@
 Weekly automated DUEL battle runner.
 
 Runs all 8 supported MITRE techniques with 3 rounds each, then:
-  - Saves a timestamped JSON summary to output/weekly_<date>.json
-  - Updates the <!-- weekly-badge-start --> section in README.md
+  - Saves a timestamped JSON summary to output/weekly_<date>.json and, since
+    that path is gitignored, a versioned copy to output/benchmarks/weekly/
+    (tracked in git) that includes platform/attacker_model/defender_model
+  - Updates the <!-- weekly-badge-start --> section in README.md — but ONLY
+    if is_run_healthy() passes; otherwise the script exits non-zero, the
+    badge is left untouched, and the workflow's commit step never runs
 
 Stats are read from the saved output/full_battle_log_*.json files after
 all battles complete — not from the in-memory scorer — so results are
@@ -50,9 +54,29 @@ TECHNIQUES = [
 
 ATTACKER_MODEL = "llama-3.1-70b-versatile"
 DEFENDER_MODEL = "mixtral-8x7b-32768"
+PLATFORM = "groq"
 ROUNDS = 3
 LOGS_PER_ROUND = 10
 TECHNIQUE_TIMEOUT_SECS = 300  # 5 min per technique; 8 × 5 = 40 min worst case
+
+# Model IDs Groq has decommissioned. Every run from 2026-04-25 through 2026-08-31
+# used DEFENDER_MODEL="mixtral-8x7b-32768" from this set — every Defender call
+# failed, every technique recorded zero rounds, and the workflow still committed
+# a "0.0% / 0-0" badge every week because no exception ever reached run_all().
+# Fail fast instead: if either configured model is on this list, refuse to run
+# rather than silently producing another all-zero week.
+_KNOWN_DECOMMISSIONED_GROQ_MODELS = {
+    "mixtral-8x7b-32768",
+}
+
+if ATTACKER_MODEL in _KNOWN_DECOMMISSIONED_GROQ_MODELS or DEFENDER_MODEL in _KNOWN_DECOMMISSIONED_GROQ_MODELS:
+    raise SystemExit(
+        f"weekly_battle.py: ATTACKER_MODEL={ATTACKER_MODEL!r} / "
+        f"DEFENDER_MODEL={DEFENDER_MODEL!r} — one of these is a known-decommissioned "
+        "Groq model ID. Pull the current model list from "
+        "https://api.groq.com/openai/v1/models and update these constants before "
+        "running. See CHANGELOG.md 'Weekly battle badge paused'."
+    )
 
 
 def run_all() -> dict[str, str | None]:
@@ -169,17 +193,60 @@ def read_battle_results(run_errors: dict[str, str | None]) -> list[dict]:
 
 
 def save_summary(results: list[dict], date_str: str) -> Path:
+    payload = {
+        "date":           date_str,
+        "platform":       PLATFORM,
+        "attacker_model": ATTACKER_MODEL,
+        "defender_model": DEFENDER_MODEL,
+        "techniques":     len(results),
+        "results":        results,
+    }
+
     out = _PROJECT_ROOT / "output"
     out.mkdir(exist_ok=True)
     path = out / f"weekly_{date_str}.json"
-    payload = {
-        "date":       date_str,
-        "techniques": len(results),
-        "results":    results,
-    }
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     logger.info("Weekly summary → %s", path)
+
+    # Versioned copy — output/benchmarks/ is NOT gitignored, so this is the
+    # raw artifact that actually gets committed by the CI workflow.
+    versioned_dir = _PROJECT_ROOT / "output" / "benchmarks" / "weekly"
+    versioned_dir.mkdir(parents=True, exist_ok=True)
+    versioned_path = versioned_dir / f"weekly_{date_str}.json"
+    versioned_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    logger.info("Versioned weekly summary → %s", versioned_path)
+
     return path
+
+
+def is_run_healthy(results: list[dict]) -> tuple[bool, str]:
+    """
+    Guard against committing a badge that doesn't reflect a real result.
+
+    Returns (healthy, reason). A run is unhealthy if any technique errored
+    (API failure, timeout, missing log) or if every technique that "succeeded"
+    still recorded zero rounds/score/evasion — the exact failure signature that
+    let 21 weeks of decommissioned-model runs commit a fake 0.0%/0-0 badge.
+    """
+    errored = [r for r in results if r["error"] is not None]
+    if errored:
+        return False, f"{len(errored)}/{len(results)} technique(s) errored: " + \
+            ", ".join(f"{r['technique']}={r['error']}" for r in errored)
+
+    if not results:
+        return False, "no results at all"
+
+    all_zero = all(
+        r["rounds_played"] == 0
+        and r["avg_evasion_pct"] == 0.0
+        and r["attacker_score"] == 0
+        and r["defender_score"] == 0
+        for r in results
+    )
+    if all_zero:
+        return False, "every technique recorded zero rounds — battles ran but produced no data"
+
+    return True, "ok"
 
 
 def update_readme(results: list[dict], date_str: str) -> None:
@@ -197,6 +264,8 @@ def update_readme(results: list[dict], date_str: str) -> None:
 
     badge_body = (
         f"**Last Weekly Battle:** {date_str} &nbsp;|&nbsp; "
+        f"Attacker: `{ATTACKER_MODEL}` ({PLATFORM}) &nbsp;|&nbsp; "
+        f"Defender: `{DEFENDER_MODEL}` ({PLATFORM}) &nbsp;|&nbsp; "
         f"Techniques: {len(results)} &nbsp;|&nbsp; "
         f"Avg Evasion: {avg_evasion:.1f}% &nbsp;|&nbsp; "
         f"Attacker {attacker_wins} – Defender {defender_wins}"
@@ -229,10 +298,17 @@ if __name__ == "__main__":
     (_PROJECT_ROOT / "output").mkdir(exist_ok=True)
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    logger.info("Weekly DUEL starting — %s — %d techniques", date_str, len(TECHNIQUES))
+    logger.info("Weekly DUEL starting — %s — %d techniques — platform=%s", date_str, len(TECHNIQUES), PLATFORM)
     run_errors = run_all()
     results = read_battle_results(run_errors)
     save_summary(results, date_str)
+
+    healthy, reason = is_run_healthy(results)
+    if not healthy:
+        logger.error("Run NOT healthy — refusing to update README badge: %s", reason)
+        logger.error("Raw results saved to output/ and output/benchmarks/weekly/ for inspection.")
+        sys.exit(1)
+
     update_readme(results, date_str)
 
     ok_count = sum(1 for r in results if r["error"] is None)
@@ -240,4 +316,4 @@ if __name__ == "__main__":
         "Weekly DUEL complete — %d/%d techniques succeeded",
         ok_count, len(TECHNIQUES),
     )
-    sys.exit(0 if ok_count > 0 else 1)
+    sys.exit(0)

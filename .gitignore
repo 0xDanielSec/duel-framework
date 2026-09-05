@@ -9,7 +9,7 @@ __pycache__/
 venv/
 .venv/
 env/
-.env
+.env*
 
 # Distribution / packaging
 dist/
@@ -27,6 +27,13 @@ output/exports/
 
 # Keep the output directory itself
 !output/.gitkeep
+
+# Versioned benchmark results (scaling-law raw data — kept in git on purpose)
+!output/benchmarks/
+!output/benchmarks/**
+
+# Scratch space — never committed, never leaves the repo either
+.tmp/
 
 # Claude Code local config
 .claude/
