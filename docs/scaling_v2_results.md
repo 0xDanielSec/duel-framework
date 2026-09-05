@@ -84,11 +84,16 @@ drift are never conflated.
 >
 > **Process note, stated plainly, again:** the same failure as `phi3.5:latest` earlier in this
 > session — a completed model was reported without being checked against the stop rule it was
-> completing *for*. Twice now. The check needs to run automatically the moment each model's
-> JSON is saved, not be reconstructed from memory after the fact — noted as a concrete
-> to-do, not just an apology: `scripts/run_scaling_benchmark.py` (or a small wrapper) should
-> print the ratio and flag against the band immediately in `_run_model()`'s own output,
-> so this cannot be missed a third time.
+> completing *for*. Twice now. The check needed to run automatically the moment each model's
+> JSON is saved, not be reconstructed from memory after the fact.
+>
+> **Implemented, not just noted:** `scripts/run_scaling_benchmark.py::_check_stop_rule()` now
+> runs inside `_save_both_profiles()`, right after every model's dabs_v1 is computed — before
+> this conversation moves on to anything else. It prints `paper | reproduced_v1 | ratio |
+> status`, with a highlighted `[PARE]` line when the ratio falls outside `STOP_RULE_BAND`
+> (0.7-0.9), and embeds the same report dict in the saved JSON (`"stop_rule"` key) so it
+> travels with the artifact, not only the console log. `PAPER_DABS_V1` holds the five
+> published reference values so no model can finish without the check running against it.
 >
 > **What the mixed-direction pattern actually means.** Two models lower, two higher is *not*
 > consistent with a single systematic multiplicative bias (which would push every model the
@@ -252,6 +257,45 @@ Revisiting it is a matter of hardware (more RAM, a machine with a GPU that has e
 avoid system-RAM contention entirely, or the pagefile increase actually taking effect after a
 reboot), not of code or methodology — nothing here suggests the model itself is unreproducible
 in principle.
+
+### 2c. Per-technique checkpointing + `--resume`
+
+Implemented so qwen2.5:14b (and any future model) needs only its missing techniques re-run,
+not the whole 5-technique set from scratch. `scripts/run_scaling_benchmark.py` now writes
+`output/benchmarks/scaling_v2/_checkpoints/<model>.json` after every technique completes
+(`partial: true`, the list of completed technique IDs, and their full results). `--resume`
+loads it, skips the already-completed techniques, and runs only what's missing.
+
+**Why resuming is legitimate here, not just convenient:** the seed is applied per round inside
+`_battle()` (no cross-technique RNG state to break), `DefenderMemory`/`AttackerMemory` are
+inert in every benchmark run (§2a — no accumulated file in this environment, and the
+benchmark script never calls `save_full_battle_log()` which is the only thing that would write
+to them), and each technique gets a fresh `AttackerAgent`/`DefenderAgent` instance with no
+state carried from the previous technique. There is nothing a resumed technique could inherit
+from the techniques run in an earlier process.
+
+**A real bug was caught and fixed while building this**, worth recording as a concrete
+argument for the automated stop-rule check (§2/next section) generalized to code review too:
+the first implementation finalized and saved a result — and deleted the checkpoint — as soon
+as `technique_results` was non-empty, regardless of whether *all* requested techniques had
+completed. A technique that errored (not just one still pending a `--resume`) would silently
+produce a "complete" DABS score computed from whatever subset happened to succeed, with the
+checkpoint destroyed and no way to tell afterward that a technique was ever missing. Caught by
+a mocked test (simulate one technique raising, assert the checkpoint survives and the run
+reports `incomplete` instead of finalizing) before this ever ran for real. Fixed: finalization
+now requires `technique_results` to cover every requested technique (minus any that
+permanently don't exist on disk, e.g. an LLM-only ID requested without the LLM technique
+files present) before saving a final score or clearing the checkpoint.
+
+**Ollama restart between techniques**, `--resume` only: `_restart_ollama()` kills and
+relaunches the local Ollama app before each remaining technique. This mitigates the qwen2.5:14b
+OOM symptom without a confirmed root cause — the per-20s memory samples taken around the
+actual failure (§2b) fluctuated between ~9-11 GB free without a sustained downward trend, which
+does not clearly support a slow leak/KV-cache-growth theory; a transient allocation spike at a
+model reload (forced on every call by `keep_alive=0`, §2b item 1) is at least as consistent
+with the evidence. Restarting the daemon is cheap insurance against either explanation, not a
+diagnosis of which one is correct. Windows-only, best-effort — a failure to restart is logged
+and does not abort the run.
 
 ---
 

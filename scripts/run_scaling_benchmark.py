@@ -58,6 +58,25 @@ DEFAULT_MODELS     = [
     "qwen2.5:14b",
 ]
 
+# docs/paper.md Table 1 — dabs_v1 values (paper's own weight profile), for the
+# stop-rule check. Not a live/derived value: these are the five published
+# numbers, typed once here as the fixed reference for every reproduction run.
+PAPER_DABS_V1: dict[str, float] = {
+    "phi3.5:latest": 59.63,
+    "mistral:7b":    66.27,
+    "qwen2.5:7b":    54.81,
+    "llama3.1:8b":   41.53,
+    "qwen2.5:14b":   55.97,
+}
+# "Expected" band established from phi3.5/mistral (2026-09-05 reproduction) —
+# see docs/scaling_v2_results.md §2. A ratio outside this band, in EITHER
+# direction, or exactly on the discovered failure pattern (qwen2.5:7b,
+# llama3.1:8b both landed outside it, inverted), is a stop-rule trigger.
+# This band is an empirical observation from n=2, not a law — see the same
+# section's "missed twice" note for why automating this check, rather than
+# remembering to apply it, is the point of this function existing at all.
+STOP_RULE_BAND = (0.7, 0.9)
+
 console = Console()
 
 TIER_STYLES = {
@@ -230,6 +249,8 @@ def _save_both_profiles(
         platform=platform, weight_profile="dabs_v2", pipeline_version=pv, seed=seed,
     ).compute()
 
+    stop_rule = _check_stop_rule(model, v1.dabs_score)
+
     SCALING_V2_DIR.mkdir(parents=True, exist_ok=True)
     safe = model.replace(":", "_").replace("/", "_")
     ts   = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -244,11 +265,133 @@ def _save_both_profiles(
         "seed":               v1.seed,
         "run_index":          run_index,
         "timestamp":          v2.timestamp,
+        "stop_rule":          stop_rule,
         "dabs_v1":            v1.to_dict(),
         "dabs_v2":            v2.to_dict(),
     }, indent=2), encoding="utf-8")
 
     return v1, v2, path
+
+
+def _check_stop_rule(model: str, dabs_v1_score: float) -> dict:
+    """
+    Compare a reproduced dabs_v1 score against docs/paper.md Table 1 and print
+    a status line — this is the automated check that replaces a human
+    remembering to do it (see docs/scaling_v2_results.md: this exact check
+    was missed twice in one day before it was written).
+
+    Returns the report dict that also gets embedded in the saved JSON, so the
+    stop-rule status travels with the artifact, not only the console log.
+    """
+    paper_score = PAPER_DABS_V1.get(model)
+    if paper_score is None:
+        report = {
+            "model": model, "paper": None, "reproduced_v1": round(dabs_v1_score, 2),
+            "ratio": None, "status": "no_reference",
+        }
+        console.print(
+            f"  [dim]{model:20s} paper=n/a  reproduced_v1={dabs_v1_score:6.2f}  "
+            f"(no PAPER_DABS_V1 reference — not a stop-rule check)[/dim]"
+        )
+        return report
+
+    ratio = dabs_v1_score / paper_score if paper_score else float("inf")
+    lo, hi = STOP_RULE_BAND
+    triggered = not (lo <= ratio <= hi)
+    status = "STOP_RULE_TRIGGER" if triggered else "ok"
+    report = {
+        "model": model, "paper": paper_score, "reproduced_v1": round(dabs_v1_score, 2),
+        "ratio": round(ratio, 4), "status": status,
+    }
+
+    line = (
+        f"{model:20s} paper={paper_score:6.2f}  reproduced_v1={dabs_v1_score:6.2f}  "
+        f"ratio={ratio:.4f}"
+    )
+    if triggered:
+        console.print(f"  [bold red][PARE][/bold red] {line}  [bold red]OUTSIDE {STOP_RULE_BAND} BAND[/bold red]")
+    else:
+        console.print(f"  [green]{line}  within {STOP_RULE_BAND} band[/green]")
+    return report
+
+
+CHECKPOINT_DIR = SCALING_V2_DIR / "_checkpoints"
+
+
+def _checkpoint_path(model: str) -> Path:
+    safe = model.replace(":", "_").replace("/", "_")
+    return CHECKPOINT_DIR / f"{safe}.json"
+
+
+def _load_checkpoint(model: str) -> dict | None:
+    p = _checkpoint_path(model)
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _save_checkpoint(model: str, technique_results: dict[str, dict], seed: int | None, threat_intel_mode: str) -> None:
+    """
+    Written after each technique completes, so a crash (OOM, timeout, etc.)
+    loses at most one technique's work, not the whole model. Legitimate to
+    resume from because there is no state carried between techniques: seed is
+    applied per round inside _battle(), DefenderMemory is off in every
+    benchmark run, and each technique gets fresh AttackerAgent/DefenderAgent
+    instances — see docs/scaling_v2_results.md §2c.
+    """
+    CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+    _checkpoint_path(model).write_text(json.dumps({
+        "model": model,
+        "seed": seed,
+        "threat_intel_mode": threat_intel_mode,
+        "completed_techniques": list(technique_results.keys()),
+        "technique_results": technique_results,
+        "partial": True,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }, indent=2), encoding="utf-8")
+
+
+def _clear_checkpoint(model: str) -> None:
+    p = _checkpoint_path(model)
+    if p.exists():
+        p.unlink()
+
+
+def _restart_ollama() -> None:
+    """
+    Kill and relaunch the Ollama app so each --resume technique starts
+    against a clean daemon. Mitigates (does not diagnose) an OOM observed on
+    a 16GB machine partway through a run despite 9-11 GB free throughout --
+    the per-20s memory samples around the failure did not show a sustained
+    decline, so a slow leak/KV-cache-growth theory is not well supported by
+    the evidence in hand; a transient allocation spike right at a model
+    reload (keep_alive=0 forces one on every call) is at least as plausible.
+    Restarting between techniques is a symptom-level mitigation either way --
+    see docs/scaling_v2_results.md §2b/§2c. Windows-only, best-effort: any
+    failure here is logged and swallowed rather than aborting the run.
+    """
+    import subprocess
+    import time
+
+    if sys.platform != "win32":
+        console.print("  [dim]_restart_ollama: not Windows, skipping[/dim]")
+        return
+    try:
+        subprocess.run(["taskkill", "/F", "/IM", "ollama app.exe"], capture_output=True)
+        subprocess.run(["taskkill", "/F", "/IM", "ollama.exe"], capture_output=True)
+        time.sleep(1)
+        app_path = Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama app.exe"
+        if app_path.exists():
+            subprocess.Popen([str(app_path)], creationflags=subprocess.DETACHED_PROCESS)
+            time.sleep(3)  # let the daemon come up before the next technique's first call
+            console.print("  [dim]Ollama restarted[/dim]")
+        else:
+            console.print(f"  [yellow]_restart_ollama: {app_path} not found, skipped relaunch[/yellow]")
+    except Exception as exc:
+        console.print(f"  [yellow]_restart_ollama failed (non-fatal): {exc}[/yellow]")
 
 
 def _run_model(
@@ -263,6 +406,7 @@ def _run_model(
     threat_intel_snapshot_path: str | None = None,
     seed: int | None = 42,
     run_index: int | None = None,
+    resume: bool = False,
 ) -> dict:
     if seed is None:
         console.print("  [yellow]UNSEEDED run — no seed sent to Ollama[/yellow]")
@@ -271,6 +415,16 @@ def _run_model(
     console.print(f"\n[bold cyan]══ Defender: {model} ══[/bold cyan]")
 
     technique_results: dict[str, dict] = {}
+    if resume:
+        ckpt = _load_checkpoint(model)
+        if ckpt is not None:
+            resumed = {k: v for k, v in ckpt.get("technique_results", {}).items() if k in technique_ids}
+            technique_results.update(resumed)
+            if resumed:
+                console.print(
+                    f"  [cyan]--resume: {len(resumed)}/{len(technique_ids)} technique(s) "
+                    f"already complete ({', '.join(resumed)}) — running the rest[/cyan]"
+                )
 
     with Progress(
         SpinnerColumn(),
@@ -281,15 +435,26 @@ def _run_model(
         console=console,
     ) as progress:
         task = progress.add_task(f"[cyan]{model}[/cyan]", total=len(technique_ids), dabs=0.0)
+        if technique_results:
+            progress.advance(task, len(technique_results))
+
+        skipped_not_found: set[str] = set()
 
         for tech_id in technique_ids:
+            if tech_id in technique_results:
+                continue  # resumed from checkpoint, already have this one
+
             progress.update(task, description=f"[cyan]{tech_id}[/cyan]")
             try:
                 technique = _load_technique(tech_id)
             except FileNotFoundError:
                 progress.console.print(f"  [yellow]skip {tech_id} — not found[/yellow]")
+                skipped_not_found.add(tech_id)
                 progress.advance(task)
                 continue
+
+            if resume:
+                _restart_ollama()
 
             try:
                 result = _battle(
@@ -300,6 +465,7 @@ def _run_model(
                     seed=seed,
                 )
                 technique_results[tech_id] = result
+                _save_checkpoint(model, technique_results, seed, threat_intel_mode)
             except Exception as exc:
                 progress.console.print(f"  [red]error {tech_id}: {exc}[/red]")
                 progress.advance(task)
@@ -322,6 +488,17 @@ def _run_model(
         console.print(f"[red]No results for {model} — is Ollama running?[/red]")
         return {"dabs_v1": 0.0, "dabs_v2": 0.0}
 
+    required = set(technique_ids) - skipped_not_found
+    if set(technique_results) < required:
+        missing = sorted(required - set(technique_results))
+        console.print(
+            f"  [yellow]{model}: incomplete this pass — {len(technique_results)}/{len(required)} "
+            f"technique(s) done, missing {missing}. Checkpoint saved "
+            f"({_checkpoint_path(model).name}) — rerun with --resume to finish "
+            f"instead of a fresh 5-technique run.[/yellow]"
+        )
+        return {"dabs_v1": None, "dabs_v2": None, "incomplete": True, "missing": missing}
+
     v1, v2, path = _save_both_profiles(
         model=model,
         technique_results=technique_results,
@@ -332,6 +509,7 @@ def _run_model(
         seed=seed,
         run_index=run_index,
     )
+    _clear_checkpoint(model)  # final result saved — the partial marker is no longer needed
 
     ts = TIER_STYLES.get(v2.tier, "white")
     console.print(
@@ -431,6 +609,15 @@ def main() -> None:
         help="Run each model this many independent times; with >1, prints "
              "mean/stdev across repeats and the mean feeds the scaling-law fit",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume each model from its per-technique checkpoint "
+             "(output/benchmarks/scaling_v2/_checkpoints/<model>.json) if one "
+             "exists, running only the techniques not yet completed. Also "
+             "restarts the local Ollama app before each technique as a "
+             "memory-pressure mitigation — see docs/scaling_v2_results.md.",
+    )
     args = parser.parse_args()
 
     seed = None if args.seed.strip().lower() == "none" else int(args.seed)
@@ -470,9 +657,19 @@ def main() -> None:
                 threat_intel_snapshot_path=args.threat_intel_snapshot,
                 seed=seed,
                 run_index=run_i if args.repeat > 1 else None,
+                resume=args.resume,
             )
+            if dabs.get("incomplete"):
+                console.print(
+                    f"  [yellow]{model}: skipping stats/fit for this run — "
+                    f"incomplete (missing {dabs.get('missing')}). See --resume above.[/yellow]"
+                )
+                continue
             repeats_v1.append(dabs["dabs_v1"])
             repeats_v2.append(dabs["dabs_v2"])
+
+        if not repeats_v1:
+            continue  # every attempt for this model was incomplete — nothing to score
 
         if args.repeat > 1:
             mean_v1, mean_v2 = statistics.mean(repeats_v1), statistics.mean(repeats_v2)
