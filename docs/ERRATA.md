@@ -95,4 +95,22 @@ original 5-model runs and is not seed-controlled; the paper's reproducibility cl
 therefore did not hold. Benchmarks now run with `--threat-intel off` by default; the mode is
 recorded in every output JSON.
 
+---
+
+## 5. The paper's seed=42 claim was false — seeding did not exist yet when Table 1 was produced
+
+The paper states (§3.3) that all runs used a fixed seed of 42. Seeding was added to the agents
+on 2026-05-10 (commit `e30fdb0`), two days after the paper draft (`eada793`, 2026-05-08) and
+after the Zenodo DOI was minted (`d6af684`, 2026-05-09). Verified directly: at the commit that
+introduced the scaling-law feature and produced Table 1 (`226aed4`, 2026-05-08), neither
+`AttackerAgent` nor `DefenderAgent` had a `seed` parameter, and no `ollama.chat()` call passed
+a `"seed"` key in its `options`. The Table 1 results were generated without any seed; the
+reproducibility claim was false for the published data.
+
+This is the leading candidate explanation for why this audit's reproduction (same 5 models,
+`--seed 42`, `--threat-intel off`) does not land on the original Table 1 values: the original
+run was never deterministic in the first place. A dedicated isolation test (mistral:7b,
+unseeded, 3 independent runs, see `docs/scaling_v2_results.md`) is queued to check whether
+removing the seed alone accounts for the gap.
+
 Dated 2026-09-05.

@@ -4,7 +4,7 @@ All notable changes to DUEL are documented in this file.
 
 ## [1.0.1] — Errata (2026-09-05)
 
-A research-integrity audit of the published paper's scaling-law experiment found four issues,
+A research-integrity audit of the published paper's scaling-law experiment found five issues,
 now documented in `docs/ERRATA.md` (attached as `docs/ERRATA.pdf`). The paper's PDF itself
 (v1) is unchanged — this release adds the errata as a companion document.
 
@@ -22,6 +22,12 @@ now documented in `docs/ERRATA.md` (attached as `docs/ERRATA.pdf`). The paper's 
 4. **Live threat-intelligence enrichment was active in the original runs and is not
    seed-controlled**, so the paper's seed=42 reproducibility claim did not hold as stated.
    Benchmarks now default to `--threat-intel off` and record the mode used in every result.
+5. **Seeding did not exist in the codebase when Table 1 was produced.** The paper's seed=42
+   claim (§3.3) was false for the published data — seed support was added on 2026-05-10,
+   two days after the paper draft and after the Zenodo DOI was minted. The original run was
+   never deterministic. This is the leading candidate cause of a ~0.795 systematic ratio
+   found between this audit's reproduction and the published Table 1 values (phi3.5:latest
+   and mistral:7b so far — see `docs/scaling_v2_results.md`); an isolation test is queued.
 
 Also: a pre-existing binary-corruption bug was found and fixed — `docs/paper.pdf` was being
 silently mangled by Windows line-ending normalization on checkout (broken PDF `xref` table).

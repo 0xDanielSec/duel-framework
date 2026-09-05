@@ -15,6 +15,9 @@ each round.
 - Never simplify the KQL rules to make detection easier — realism matters
 - Attacker must always reason about previous round detections before mutating
 - Defender must always reference evaded samples before hardening rules
+- Toda afirmação metodológica em docs/ (seed, determinismo, componentes, plataforma) deve
+  corresponder a código existente no commit citado. Antes de escrever um claim desses,
+  verificar com git.
 
 ## Stack
 - Python 3.11+
