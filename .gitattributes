@@ -1,0 +1,16 @@
+# Binary files must never go through line-ending normalization.
+# core.autocrlf=true (common on Windows) will otherwise convert LF -> CRLF on
+# checkout for any file git doesn't detect as binary, silently corrupting
+# byte-offset-sensitive formats like PDF (broken xref tables) and Parquet.
+# Discovered 2026-09-05: docs/paper.pdf was corrupted this way on disk.
+*.pdf     binary
+*.parquet binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.ttf     binary
+*.woff    binary
+*.woff2   binary
+*.zip     binary
