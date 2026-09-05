@@ -18,6 +18,7 @@ def _entry(
     platform: str = "ollama",
     params_active_b: float | None = None,
     arch: str = "dense",
+    arch_confidence: str = "confirmed",
 ) -> dict:
     """
     params_active_b defaults to params_total_b for dense models — for a dense
@@ -38,6 +39,13 @@ def _entry(
         "params_total_b":  params_total_b,
         "params_active_b": params_active_b if params_active_b is not None else params_total_b,
         "arch":            arch,
+        # "confirmed": the model card states this architecture outright.
+        # "inferred": no explicit statement either way — arch was guessed
+        # from indirect signals (e.g. no active-params figure, no MoE naming
+        # convention). Must be surfaced in docs/scaling_v2_results.md
+        # Limitations wherever "inferred" appears — never silently treated
+        # as equal-confidence to a confirmed entry.
+        "arch_confidence": arch_confidence,
         "source_url":      source_url,
         "platform":        platform,
     }
@@ -86,7 +94,7 @@ MODEL_REGISTRY: dict[str, dict] = {
     # variants) — treated as dense. Flagged as inferred, not confirmed, since
     # the card doesn't say "dense" outright.
     "qwen/qwen3.8-27b":    _entry(27.0, "https://huggingface.co/Qwen/Qwen3.8-27B",
-                                  platform="groq"),
+                                  platform="groq", arch_confidence="inferred"),
 
     # ── Verified but excluded from the current grid (see docs/scaling_v2_results.md) ──
     # allam-2-7b: bilingual Arabic-English specialist; exact "-2-" HF card

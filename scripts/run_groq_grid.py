@@ -80,6 +80,7 @@ from scripts.run_scaling_benchmark import (  # noqa: E402
 )
 from engine.dabs_scorer import DABSScorer  # noqa: E402
 from engine.scaling_laws import MODEL_REGISTRY  # noqa: E402
+from engine.groq_client import DEFAULT_REASONING_EFFORT, is_reasoning_model  # noqa: E402
 
 ATTACKER_MODEL = "llama3.1:8b"
 ATTACKER_PLATFORM = "ollama"  # fixed — see module docstring
@@ -129,9 +130,10 @@ def print_grid(entries: list[dict]) -> None:
     tbl.add_column("arch")
     tbl.add_column("source_url", overflow="fold")
     for e in sorted(entries, key=lambda x: x["params_total_b"]):
+        arch_label = e["arch"] if e["arch_confidence"] == "confirmed" else f"{e['arch']} (inferred)"
         tbl.add_row(
             e["model_id"], e["platform"], e["role"],
-            f"{e['params_total_b']:.2f}", f"{e['params_active_b']:.2f}", e["arch"],
+            f"{e['params_total_b']:.2f}", f"{e['params_active_b']:.2f}", arch_label,
             e["source_url"],
         )
     console.print(tbl)
@@ -179,6 +181,7 @@ def run_defender(
         "platform":          defender_platform,       # Defender's platform (Attacker is always ollama)
         "attacker_platform": ATTACKER_PLATFORM,
         "threat_intel_mode": threat_intel_mode,
+        "reasoning_effort":  DEFAULT_REASONING_EFFORT if is_reasoning_model(defender_model) else None,
         "seed":              v1.seed,
         "timestamp":         v2.timestamp,
         "dabs_v1":           v1.to_dict(),

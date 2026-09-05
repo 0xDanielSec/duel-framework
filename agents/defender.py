@@ -553,6 +553,7 @@ class DefenderAgent:
                 ],
                 options={"temperature": 0.3, "num_predict": 2048, "seed": self.seed},
                 platform=self.platform,
+                reasoning_effort=ollama.DEFAULT_REASONING_EFFORT if ollama.is_reasoning_model(self.model) else None,
             )
             return response["message"]["content"]
         except Exception as exc:
@@ -595,6 +596,7 @@ class DefenderAgent:
                 ],
                 options={"temperature": 0.4, "num_predict": 1024, "seed": self.seed},
                 platform=self.platform,
+                reasoning_effort=ollama.DEFAULT_REASONING_EFFORT if ollama.is_reasoning_model(self.model) else None,
             )
             return response["message"]["content"]
         except Exception as exc:
