@@ -14,6 +14,7 @@ Usage:
 """
 import argparse
 import json
+import statistics
 import sys
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
@@ -133,6 +134,7 @@ def _battle(
     threat_intel_snapshot_path: str | None = None,
     attacker_platform: str | None = None,
     defender_platform: str | None = None,
+    seed: int | None = 42,
 ) -> dict:
     """
     attacker_platform/defender_platform: None keeps the original auto-detect-
@@ -143,16 +145,18 @@ def _battle(
     Groq-side grid entries.
     """
     technique_id = technique["technique_id"]
-    attacker = AttackerAgent(model=attacker_model, num_logs=10, platform=attacker_platform)
+    attacker = AttackerAgent(model=attacker_model, num_logs=10, platform=attacker_platform, seed=seed)
     defender = DefenderAgent(
         model=defender_model,
         threat_intel_mode=threat_intel_mode,
         threat_intel_snapshot_path=threat_intel_snapshot_path,
         platform=defender_platform,
+        seed=seed,
     )
     scorer = BattleScorer(
         total_rounds=rounds,
         technique_id=technique_id,
+        seed=seed,  # None -> "seed": null in the saved battle log, honestly marking it unseeded
         attacker_model=attacker_model,
     )
 
@@ -205,6 +209,8 @@ def _save_both_profiles(
     total_techs: int,
     platform: str,
     threat_intel_mode: str,
+    seed: int | None = 42,
+    run_index: int | None = None,
 ) -> tuple[DABSResult, DABSResult, Path]:
     """
     Score the same technique_results under both dabs_v1 (paper weights) and
@@ -216,18 +222,19 @@ def _save_both_profiles(
     v1 = DABSScorer(
         model=model, technique_results=technique_results, attacker_model=attacker_model,
         total_techniques=total_techs, exclude_components=["swarm_resilience"],
-        platform=platform, weight_profile="dabs_v1", pipeline_version=pv,
+        platform=platform, weight_profile="dabs_v1", pipeline_version=pv, seed=seed,
     ).compute()
     v2 = DABSScorer(
         model=model, technique_results=technique_results, attacker_model=attacker_model,
         total_techniques=total_techs, exclude_components=["swarm_resilience"],
-        platform=platform, weight_profile="dabs_v2", pipeline_version=pv,
+        platform=platform, weight_profile="dabs_v2", pipeline_version=pv, seed=seed,
     ).compute()
 
     SCALING_V2_DIR.mkdir(parents=True, exist_ok=True)
     safe = model.replace(":", "_").replace("/", "_")
     ts   = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    path = SCALING_V2_DIR / f"dabs_{safe}_{ts}.json"
+    suffix = f"_run{run_index}" if run_index is not None else ""
+    path = SCALING_V2_DIR / f"dabs_{safe}{suffix}_{ts}.json"
     path.write_text(json.dumps({
         "model":              model,
         "attacker_model":     attacker_model,
@@ -235,6 +242,7 @@ def _save_both_profiles(
         "threat_intel_mode":  threat_intel_mode,
         "pipeline_version":   pv,
         "seed":               v1.seed,
+        "run_index":          run_index,
         "timestamp":          v2.timestamp,
         "dabs_v1":            v1.to_dict(),
         "dabs_v2":            v2.to_dict(),
@@ -253,7 +261,13 @@ def _run_model(
     round_timeout: int = DEFAULT_ROUND_TIMEOUT,
     threat_intel_mode: str = "off",
     threat_intel_snapshot_path: str | None = None,
+    seed: int | None = 42,
+    run_index: int | None = None,
 ) -> dict:
+    if seed is None:
+        console.print("  [yellow]UNSEEDED run — no seed sent to Ollama[/yellow]")
+    if run_index is not None:
+        console.print(f"  [dim]repeat run {run_index}[/dim]")
     console.print(f"\n[bold cyan]══ Defender: {model} ══[/bold cyan]")
 
     technique_results: dict[str, dict] = {}
@@ -283,6 +297,7 @@ def _run_model(
                     round_timeout=round_timeout,
                     threat_intel_mode=threat_intel_mode,
                     threat_intel_snapshot_path=threat_intel_snapshot_path,
+                    seed=seed,
                 )
                 technique_results[tech_id] = result
             except Exception as exc:
@@ -297,6 +312,7 @@ def _run_model(
                     attacker_model=attacker_model,
                     total_techniques=len(technique_ids),
                     exclude_components=["swarm_resilience"],
+                    seed=seed,
                 ).compute().dabs_score
                 progress.update(task, dabs=running)
 
@@ -313,6 +329,8 @@ def _run_model(
         total_techs=total_techs,
         platform=platform,
         threat_intel_mode=threat_intel_mode,
+        seed=seed,
+        run_index=run_index,
     )
 
     ts = TIER_STYLES.get(v2.tier, "white")
@@ -400,7 +418,22 @@ def main() -> None:
         help="Path to a versioned threat-intel snapshot JSON — required if "
              "--threat-intel=snapshot (e.g. output/benchmarks/threat_intel_snapshot_2026-09-05.json)",
     )
+    parser.add_argument(
+        "--seed",
+        default="42",
+        help="Integer seed, or 'none' to omit the seed entirely (reproduces "
+             "pre-2026-05-10 unseeded behaviour -- see docs/ERRATA.md item 5)",
+    )
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        help="Run each model this many independent times; with >1, prints "
+             "mean/stdev across repeats and the mean feeds the scaling-law fit",
+    )
     args = parser.parse_args()
+
+    seed = None if args.seed.strip().lower() == "none" else int(args.seed)
 
     if args.threat_intel == "snapshot" and not args.threat_intel_snapshot:
         parser.error("--threat-intel=snapshot requires --threat-intel-snapshot PATH")
@@ -415,24 +448,47 @@ def main() -> None:
     console.print(f"  [dim]Techniques:[/dim]      {', '.join(technique_ids)}")
     console.print(f"  [dim]Rounds / tech:[/dim]   {args.rounds}")
     console.print(f"  [dim]Round timeout:[/dim]   {args.round_timeout}s")
-    console.print(f"  [dim]Threat intel:[/dim]    {args.threat_intel}\n")
+    console.print(f"  [dim]Threat intel:[/dim]    {args.threat_intel}")
+    console.print(f"  [dim]Seed:[/dim]            {seed if seed is not None else 'NONE (unseeded)'}")
+    console.print(f"  [dim]Repeat:[/dim]          {args.repeat}\n")
 
     model_scores_v1: list[tuple[str, float]] = []
     model_scores_v2: list[tuple[str, float]] = []
     for model in models:
-        dabs = _run_model(
-            model=model,
-            technique_ids=technique_ids,
-            rounds=args.rounds,
-            attacker_model=args.attacker,
-            total_techs=total_techs,
-            platform=args.platform,
-            round_timeout=args.round_timeout,
-            threat_intel_mode=args.threat_intel,
-            threat_intel_snapshot_path=args.threat_intel_snapshot,
-        )
-        model_scores_v1.append((model, dabs["dabs_v1"]))
-        model_scores_v2.append((model, dabs["dabs_v2"]))
+        repeats_v1: list[float] = []
+        repeats_v2: list[float] = []
+        for run_i in range(1, args.repeat + 1):
+            dabs = _run_model(
+                model=model,
+                technique_ids=technique_ids,
+                rounds=args.rounds,
+                attacker_model=args.attacker,
+                total_techs=total_techs,
+                platform=args.platform,
+                round_timeout=args.round_timeout,
+                threat_intel_mode=args.threat_intel,
+                threat_intel_snapshot_path=args.threat_intel_snapshot,
+                seed=seed,
+                run_index=run_i if args.repeat > 1 else None,
+            )
+            repeats_v1.append(dabs["dabs_v1"])
+            repeats_v2.append(dabs["dabs_v2"])
+
+        if args.repeat > 1:
+            mean_v1, mean_v2 = statistics.mean(repeats_v1), statistics.mean(repeats_v2)
+            stdev_v1 = statistics.stdev(repeats_v1) if len(repeats_v1) > 1 else 0.0
+            stdev_v2 = statistics.stdev(repeats_v2) if len(repeats_v2) > 1 else 0.0
+            console.print(
+                f"  [bold]{model}[/bold] over {args.repeat} runs -- "
+                f"v1: mean={mean_v1:.2f} stdev={stdev_v1:.2f}  "
+                f"v2: mean={mean_v2:.2f} stdev={stdev_v2:.2f}  "
+                f"raw={[round(x, 2) for x in repeats_v1]}"
+            )
+            model_scores_v1.append((model, mean_v1))
+            model_scores_v2.append((model, mean_v2))
+        else:
+            model_scores_v1.append((model, repeats_v1[0]))
+            model_scores_v2.append((model, repeats_v2[0]))
 
     def _params_for(model: str) -> float | None:
         entry = MODEL_REGISTRY.get(model)
