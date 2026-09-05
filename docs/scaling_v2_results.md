@@ -65,44 +65,61 @@ rounds, same attacker (llama3.1:8b), run against the current codebase on local O
 Scored under both weight profiles (`docs/ERRATA.md` item 1) so formula drift and LLM-output
 drift are never conflated.
 
-| Model | Paper (dabs_v1 implicit) | Reproduced v1 | Δ (LLM-output drift) | Direction | Reproduced v2 | Δ (v1→v2, formula drift only) |
-|---|---|---|---|---|---|---|
-| phi3.5:latest | 59.63 | 47.50 | **−12.13** | reproduced LOWER | 47.64 | +0.14 |
-| mistral:7b | 66.27 | 52.63 | **−13.64** | reproduced LOWER | 52.78 | +0.15 |
-| qwen2.5:7b | 54.81 | TBD | TBD | TBD | TBD | TBD |
-| llama3.1:8b | 41.53 | TBD | TBD | TBD | TBD | TBD |
-| qwen2.5:14b | 55.97 | TBD | TBD | TBD | TBD | TBD |
+| Model | Paper (dabs_v1 implicit) | Reproduced v1 | Δ (LLM-output drift) | Ratio (repro/paper) | Direction | Reproduced v2 | Δ (v1→v2, formula drift only) |
+|---|---|---|---|---|---|---|---|
+| phi3.5:latest | 59.63 | 47.50 | −12.13 | 0.7966 | LOWER | 47.64 | +0.14 |
+| mistral:7b | 66.27 | 52.63 | −13.64 | 0.7942 | LOWER | 52.78 | +0.15 |
+| qwen2.5:7b | 54.81 | 62.42 | **+7.61** | **1.1388** | **HIGHER** | 62.57 | +0.15 |
+| llama3.1:8b | 41.53 | 55.26 | **+13.73** | **1.3306** | **HIGHER** | 55.31 | +0.05 |
+| qwen2.5:14b | 55.97 | — | — | — | **PENDING — hardware limitation, see §2b** | — | — |
 
-> ### ⚠ STOP RULE TRIGGERED — both models completed so far exceed the ~5-point threshold
+> ### ⚠ STOP RULE TRIGGERED, TWICE, AND MISSED TWICE — this is the second time in this audit
 >
-> `phi3.5:latest` (−12.13) and `mistral:7b` (−13.64) both reproduce **well below** the
-> published Table 1 values — more than double the ~5-point limit set as the go/no-go
-> criterion before proceeding to the ≥12-model grid. Per instruction, execution is **not**
-> being interrupted — all 5 original models run to completion so the full pattern is visible
-> — but the ≥12-model grid does **not** proceed until this table is reviewed.
+> `phi3.5:latest` (ratio 0.7966) and `mistral:7b` (0.7942) reproduce lower than the paper, in
+> the ~0.7–0.9 band. `qwen2.5:7b` (1.1388) and `llama3.1:8b` (1.3306) reproduce **higher** —
+> both outside the band **and** inverted in direction, exactly the stop-rule trigger condition
+> stated explicitly in the instruction that updated this rule. Neither was flagged when it
+> finished; this was only caught while writing up the qwen2.5:14b hardware-failure report,
+> after all four models had already completed.
 >
-> **Process note, stated plainly:** `phi3.5:latest` finished first and was reported in this
-> conversation as "clean" without checking it against the stop rule — an oversight, not a
-> judgment call. It should have been flagged the moment it completed. `mistral:7b` was
-> caught, `phi3.5:latest` was not, until asked. Both deltas point the same direction (v1
-> drift, not weight-profile drift — Δ(v1→v2) is negligible for both, ~+0.15), which is
-> itself informative: whatever changed since the paper, it isn't the scoring formula.
+> **Process note, stated plainly, again:** the same failure as `phi3.5:latest` earlier in this
+> session — a completed model was reported without being checked against the stop rule it was
+> completing *for*. Twice now. The check needs to run automatically the moment each model's
+> JSON is saved, not be reconstructed from memory after the fact — noted as a concrete
+> to-do, not just an apology: `scripts/run_scaling_benchmark.py` (or a small wrapper) should
+> print the ratio and flag against the band immediately in `_run_model()`'s own output,
+> so this cannot be missed a third time.
 >
-> Candidate causes, not yet distinguished from each other: `--threat-intel off` removing an
-> enrichment the original runs likely had (`docs/ERRATA.md` item 4 — this would make
-> reproduced scores *diverge* from the paper by construction, in either direction depending
-> on whether that enrichment helped or hurt); genuine Attacker/Defender model output drift
-> between whatever Ollama build ran the original experiment and the current one; or a
-> substantive behavioral change elsewhere in the prompt/scoring pipeline since the paper was
-> written that has not yet been identified. Not diagnosed further until the table is
+> **What the mixed-direction pattern actually means.** Two models lower, two higher is *not*
+> consistent with a single systematic multiplicative bias (which would push every model the
+> same way — e.g. threat-intel enrichment uniformly helping or a scoring change uniformly
+> shifting scores). It *is* consistent with **ERRATA item 5** taken at face value: the
+> original runs had no seed at all, so each model's Table 1 number is one unrepeated random
+> draw with no reason to land systematically high or low relative to a seeded re-run — some
+> draws were lucky, some weren't, independent per model. This makes the queued mistral:7b
+> unseeded x3 test (§2b, GPU queue item 1) more informative than originally framed: it isn't
+> only testing "does removing the seed move the mean back toward 66.27" — the *spread* across
+> 3 unseeded runs, if wide, would itself explain why different models could land on opposite
+> sides of their paper value by chance alone.
+>
+> Candidate causes, still not distinguished from each other, now weighted by the above:
+> unseeded original runs (ERRATA item 5 — favored by the mixed-direction evidence);
+> `--threat-intel off` removing an enrichment the original runs likely had (`docs/ERRATA.md`
+> item 4 — would need to explain why it helped 2 models and hurt 2 others, which is possible
+> but not the simplest reading); genuine Attacker/Defender model output drift between whatever
+> Ollama build ran the original experiment and the current one; or a substantive behavioral
+> change elsewhere in the prompt/scoring pipeline since the paper was written that has not yet
+> been identified. Not diagnosed further until the table is
 > complete.
 >
-> **Update:** phi3.5 (0.7966) and mistral (0.7943) reproduce at a consistent ~0.795 ratio of
-> the paper value — not random per-model noise, a systematic multiplicative factor. Updated
-> stop rule (still in effect): a model whose ratio falls **outside ~0.7–0.9**, or whose
-> direction inverts (reproduces *higher* than paper), triggers a full stop — the ~0.795
-> pattern itself is now the expected baseline, not a violation. See §2a for the code-level
-> diagnosis of candidate causes.
+> **Update (superseded by the table above once qwen2.5:7b/llama3.1:8b finished):** with only
+> phi3.5 and mistral in hand, this note originally read the ~0.795 ratio as "a consistent,
+> systematic multiplicative factor, not random noise." That reading does not survive the other
+> two models reproducing *higher* than paper instead — see the mixed-direction analysis above,
+> which now favors the opposite interpretation (unseeded original runs, not a uniform
+> systematic bias). Left here rather than deleted, as a record of a conclusion this audit
+> drew too early from n=2 and had to revise at n=4. See §2a for the code-level diagnosis of
+> candidate causes.
 
 ### 2a. Diagnosis — what changed since the paper, at the code level
 
@@ -189,6 +206,52 @@ cannot be recovered.
 
 Raw per-model JSON: `output/benchmarks/scaling_v2/dabs_<model>_<timestamp>.json` (each contains
 both `dabs_v1` and `dabs_v2` in full, including per-component and per-technique breakdowns).
+
+### 2b. Local hardware & runtime setup
+
+Recorded because it materially affected this reproduction: **16 GB total physical RAM**
+(`Win32_OperatingSystem.TotalVisibleMemorySize` = 16,721,960 KB). The `qwen2.5:14b` leg
+(model file 9.0 GB) was OOM-killed by the OS three times in a row before completing — Attacker
+(llama3.1:8b, 7.3 GB resident) and Defender models are large enough relative to total RAM that
+this machine cannot always hold both, or even one large model plus normal desktop load,
+without contention. Mitigations applied, in order:
+
+1. `engine/groq_client.py::chat()` now passes `keep_alive=0` to the local Ollama client on
+   every call — the Attacker and Defender models are never simultaneously resident past the
+   call that needs them (reload cost ~10-30s, noise against multi-minute rounds). This alone
+   did not fix the qwen2.5:14b failures — the model didn't fit even without any other model
+   loaded.
+2. `OLLAMA_MAX_LOADED_MODELS=1` set as a user environment variable, Ollama app restarted to
+   pick it up (confirmed unset beforehand).
+3. Background applications (Chrome, Discord, Spotify, Notion) closed; Windows pagefile
+   increase to 16 GB requested (not independently confirmed applied — `Win32_ComputerSystem
+   .AutomaticManagedPagefile` still reported `True`, i.e. system-managed, at relaunch time;
+   may require a reboot to take effect as configured). Free RAM went from a stable ~8.3 GB
+   (across all three failed attempts) to ~10.6 GB after closing applications alone.
+
+**`num_ctx`:** not set explicitly anywhere in `agents/attacker.py` or `agents/defender.py` —
+grepped, confirmed absent. Every `ollama.chat()` call relies on the Ollama server's own
+runtime default rather than a value this project chose. `ollama show qwen2.5:14b` reports the
+model's maximum supported context length as 32768; this is the architecture's ceiling, not
+necessarily the context actually allocated at inference time without an explicit `num_ctx`.
+The exact effective default for the installed Ollama version (0.33.3) was not independently
+verified here — if `num_ctx` ever needs to be pinned for cross-run comparability, it isn't
+today, for any model in this reproduction, not just qwen2.5:14b.
+
+**Outcome: qwen2.5:14b marked PENDING — hardware limitation, not run.** A 4th attempt, with
+all three mitigations above applied (keep_alive=0, `OLLAMA_MAX_LOADED_MODELS=1`, background
+apps closed, free RAM ~9-11 GB throughout — a real improvement over the ~8.3 GB of the first
+three attempts), progressed further than any prior attempt: 4 of 5 techniques completed in
+full, and the 5th (`T1556.006`) reached round 2 of 3 before being OOM-killed by the OS again.
+No partial or corrupted JSON was written (`_save_both_profiles()` only runs after all
+techniques finish) — confirmed nothing exists for this model in
+`output/benchmarks/scaling_v2/`. Per instruction, this was the last attempt — no 5th retry.
+**The reproduction stands at 4 of 5 models** (phi3.5:latest, mistral:7b, qwen2.5:7b,
+llama3.1:8b); qwen2.5:14b's Table 1 row (55.97) has no reproduced counterpart in this audit.
+Revisiting it is a matter of hardware (more RAM, a machine with a GPU that has enough VRAM to
+avoid system-RAM contention entirely, or the pagefile increase actually taking effect after a
+reboot), not of code or methodology — nothing here suggests the model itself is unreproducible
+in principle.
 
 ---
 
