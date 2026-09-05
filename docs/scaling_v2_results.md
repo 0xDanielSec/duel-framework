@@ -310,6 +310,44 @@ and does not abort the run.
 
 ---
 
+## 3a. Variance experiment (now the central result of v2, per instruction)
+
+Queue: (a) mistral:7b seed=42 x2 — determinism check. (b) mistral:7b unseeded x3. (c)
+llama3.1:8b unseeded x3 — the model that diverged in the opposite direction from mistral/phi3.5.
+All three use `--threat-intel off`, both weight profiles, otherwise identical to §2.
+
+| Model | Seed | n | Raw dabs_v1 values | Mean | SD | Range |
+|---|---|---|---|---|---|---|
+| mistral:7b | 42 (fixed) | 2 | [52.63, 52.63] | 52.63 | **0.00** | 0.00 |
+| mistral:7b | none | 3 | [47.90, 57.85, 51.14] | 52.30 | **5.07** | 9.95 |
+| llama3.1:8b | none | 3 | TBD | TBD | TBD | TBD |
+
+**(a) Determinism holds.** `seed=42` produces byte-for-byte identical DABS across 2
+independent processes (`stdev=0.00`, every one of the 15 rounds matched exactly, not just the
+final aggregate) — see the raw per-round log,
+`output/benchmarks/logs/variance_2a_mistral_seed42_x2.log`. The v2 pipeline's own
+reproducibility claim (same seed → same DABS) is **not** in question. This isolates the
+open question to a single cause: whatever moved mistral/phi3.5/qwen2.5:7b/llama3.1:8b away
+from Table 1, it is not "the seed doesn't actually pin anything."
+
+**(b) Unseeded variance is real, large, and crosses the ~5-point line — but does not by
+itself reach the paper's value.** SD=5.07 across 3 runs is at the ~5-point threshold set as
+the "Table 1 didn't distinguish models reliably" criterion — a single unseeded run, as the
+original was, is not a reliable point estimate for this model. However: none of the 3 draws
+(max 57.85) came within 8 points of the paper's 66.27. Modeling the unseeded distribution as
+approximately normal (mean 52.30, sd 5.07), landing on 66.27 is a ~2.7σ draw — possible, but
+not the most parsimonious reading of 3 data points. **Conclusion: unseeded variance (ERRATA
+item 5) is a real, evidenced contributor, but is not sufficient on its own to explain the
+mistral/phi3.5 gap from Table 1 — something else (genuine pipeline/environment drift, or an
+enrichment effect, or a combination) most likely still contributes.** Not further decomposed
+without more data than 3 runs provides.
+
+**(c) llama3.1:8b, the inverted-direction case — TBD, running.**
+
+Raw per-model JSON for every repeat: `output/benchmarks/scaling_v2/dabs_<model>_run<N>_<timestamp>.json`.
+
+---
+
 ## 4. Scaling law fits
 
 | Fit | Equation | R² | n | Notes |
