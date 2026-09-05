@@ -2,14 +2,34 @@
 
 All notable changes to DUEL are documented in this file.
 
-## [Unreleased] — Weekly battle badge paused
+## [1.0.1] — Errata (2026-09-05)
 
-The weekly automated battle workflow (`.github/workflows/weekly-duel.yml`) used Groq model
-IDs that were decommissioned on Groq's side since the workflow's introduction on 2026-04-25.
-All 21 weekly runs to date silently completed with zero recorded rounds, so the README badge
-has never reflected a real battle result. The badge is paused until the workflow is fixed with
-verified Groq model IDs and a guard that fails the job (instead of committing) on a zero-result
-or API-error run.
+A research-integrity audit of the published paper's scaling-law experiment found four issues,
+now documented in `docs/ERRATA.md` (attached as `docs/ERRATA.pdf`). The paper's PDF itself
+(v1) is unchanged — this release adds the errata as a companion document.
+
+1. **Meta-Resilience weight was never applied.** Declared at 10% in §3.2, but never computed
+   for the published Table 1 — those scores used a renormalised 4-component form. DABS now
+   records `weight_profile`, `weights_nominal`, and `weights_effective` explicitly instead of
+   silently renormalizing.
+2. **Two parameter counts were wrong.** qwen2.5:7b (7.0B → 7.61B) and qwen2.5:14b (14.0B →
+   14.7B), corrected against official model cards. Refit R² moves from 0.0557 to 0.0530 —
+   conclusion unchanged.
+3. **The weekly automated battle badge never reflected a real result.** 21 runs
+   (2026-04-25–2026-08-31) used decommissioned Groq model IDs and silently recorded zero
+   rounds every time. Unrelated to the paper's numbers; the badge is now paused pending a
+   verified fix.
+4. **Live threat-intelligence enrichment was active in the original runs and is not
+   seed-controlled**, so the paper's seed=42 reproducibility claim did not hold as stated.
+   Benchmarks now default to `--threat-intel off` and record the mode used in every result.
+
+Also: a pre-existing binary-corruption bug was found and fixed — `docs/paper.pdf` was being
+silently mangled by Windows line-ending normalization on checkout (broken PDF `xref` table).
+`.gitattributes` now marks PDFs and other binary formats correctly; both `paper.pdf` and the
+new `ERRATA.pdf` were regenerated and verified byte-identical to their git blobs.
+
+**For Zenodo:** attach `docs/ERRATA.pdf` as an additional file on the new version; the v1
+paper PDF is not replaced.
 
 ## [1.0.0] — Current stable release
 
