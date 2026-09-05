@@ -80,9 +80,18 @@ def _battle(
     defender_model: str,
     logs_per_round: int,
     seed: int = 42,
+    mode: str = "normal",
 ) -> dict:
     technique_id = technique["technique_id"]
-    attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round, seed=seed)
+    if mode == "meta":
+        from engine.meta_attacker import MetaAttacker
+        # NOTE: MetaAttacker.__init__ has no `seed` param (unlike AttackerAgent) —
+        # passing seed= here would raise TypeError. This also affects main.py's
+        # --mode meta path (main.py:136 passes seed= and would crash) — found
+        # during this wiring pass, not fixed here (out of scope for this branch).
+        attacker: AttackerAgent = MetaAttacker(model=attacker_model, num_logs=logs_per_round)
+    else:
+        attacker = AttackerAgent(model=attacker_model, num_logs=logs_per_round, seed=seed)
     defender = DefenderAgent(model=defender_model, seed=seed)
     scorer   = BattleScorer(
         total_rounds=rounds,
@@ -90,6 +99,7 @@ def _battle(
         attacker_model=attacker_model,
         seed=seed,
     )
+    injection_results: list[dict] = []
 
     for round_num in range(1, rounds + 1):
         last_kql      = scorer.rounds[-1]["kql_rule"] if scorer.rounds else None
@@ -127,11 +137,20 @@ def _battle(
             kql_valid=det["kql_valid"],
         )
 
-    return {
+        if mode == "meta":
+            inj = attacker.check_injection_success(kql_rule, prev_kql=last_kql)
+            injection_results.append(inj)
+
+    result = {
         "rounds": scorer.rounds,
         "tactic": technique.get("tactic", technique.get("owasp_category", "Unknown")),
         "name":   technique.get("name", technique_id),
     }
+    if mode == "meta" and injection_results:
+        successful = sum(1 for r in injection_results if r.get("injected"))
+        result["meta_resilience"] = 1.0 - (successful / len(injection_results))
+        result["injection_results"] = injection_results
+    return result
 
 
 def _leaderboard_table(results: list[dict]) -> Table:
@@ -183,6 +202,7 @@ def main() -> None:
     parser.add_argument("--logs",        type=int, default=10,   help="Logs per round")
     parser.add_argument("--compare",     action="store_true",    help="Show leaderboard after benchmark")
     parser.add_argument("--seed",        type=int, default=42,   help="Random seed for reproducibility (default: 42)")
+    parser.add_argument("--mode",        default="normal", choices=["normal", "meta"], help="'meta' uses MetaAttacker (prompt-injection payloads) and populates meta_resilience")
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -241,6 +261,7 @@ def main() -> None:
                     defender_model=args.model,
                     logs_per_round=args.logs,
                     seed=args.seed,
+                    mode=args.mode,
                 )
                 technique_results[tech_id] = result
             except Exception as exc:

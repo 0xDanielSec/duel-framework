@@ -38,6 +38,7 @@ from rich.table import Table
 
 from agents.attacker import AttackerAgent
 from agents.defender import DefenderAgent
+from engine.meta_attacker import MetaAttacker
 from engine.dabs_scorer import DABSResult, DABSScorer, get_pipeline_version, get_tier
 from engine.detection import DetectionEngine
 from engine.llm_detection import LLMDetectionEngine
@@ -154,6 +155,7 @@ def _battle(
     attacker_platform: str | None = None,
     defender_platform: str | None = None,
     seed: int | None = 42,
+    mode: str = "normal",
 ) -> dict:
     """
     attacker_platform/defender_platform: None keeps the original auto-detect-
@@ -162,9 +164,18 @@ def _battle(
     DIFFERENT platforms in the same process — e.g. the Groq grid's fixed
     design: Attacker always "ollama" (llama3.1:8b), Defender "groq" for
     Groq-side grid entries.
+
+    mode="meta": Attacker is MetaAttacker instead of AttackerAgent (injects
+    prompt-injection payloads into log fields; see check_injection_success()
+    below). MetaAttacker does not accept platform/seed yet (known gap, not
+    fixed here — same one noted for main.py's --mode meta path) so meta runs
+    are always local-Ollama and unseeded regardless of --platform/--seed.
     """
     technique_id = technique["technique_id"]
-    attacker = AttackerAgent(model=attacker_model, num_logs=10, platform=attacker_platform, seed=seed)
+    if mode == "meta":
+        attacker: AttackerAgent = MetaAttacker(model=attacker_model, num_logs=10)
+    else:
+        attacker = AttackerAgent(model=attacker_model, num_logs=10, platform=attacker_platform, seed=seed)
     defender = DefenderAgent(
         model=defender_model,
         threat_intel_mode=threat_intel_mode,
@@ -178,6 +189,7 @@ def _battle(
         seed=seed,  # None -> "seed": null in the saved battle log, honestly marking it unseeded
         attacker_model=attacker_model,
     )
+    injection_results: list[dict] = []
 
     for round_num in range(1, rounds + 1):
         last_kql      = scorer.rounds[-1]["kql_rule"] if scorer.rounds else None
@@ -211,11 +223,71 @@ def _battle(
             f"det={record['detection_rate']:.2f} eva={record['evasion_rate']:.2f}"
         )
 
-    return {
+        if mode == "meta" and isinstance(attacker, MetaAttacker):
+            inj = attacker.check_injection_success(kql_rule, prev_kql=last_kql)
+            injection_results.append(inj)
+            console.print(
+                f"      [magenta]injection[/magenta] "
+                f"{'SUCCESS' if inj['injected'] else 'resisted'} "
+                f"(confidence={inj['confidence']:.0%})"
+            )
+
+    result = {
         "rounds": scorer.rounds,
         "tactic": technique.get("tactic", technique.get("owasp_category", "Unknown")),
         "name":   technique.get("name", technique_id),
     }
+    if mode == "meta" and injection_results:
+        successful = sum(1 for r in injection_results if r.get("injected"))
+        result["meta_resilience"] = 1.0 - (successful / len(injection_results))
+        result["injection_results"] = injection_results
+    return result
+
+
+SCALING_V2_DIR = Path(__file__).parent.parent / "output" / "benchmarks" / "scaling_v2"
+
+
+def _save_both_profiles(
+    model: str,
+    technique_results: dict[str, dict],
+    attacker_model: str,
+    total_techs: int,
+    platform: str,
+    threat_intel_mode: str,
+) -> tuple[DABSResult, DABSResult, Path]:
+    """
+    Score the same technique_results under both dabs_v1 (paper weights) and
+    dabs_v2 (current weights) so formula drift and LLM-output drift can be
+    told apart, then save one combined JSON to output/benchmarks/scaling_v2/
+    (versioned — this is the real artifact for the scaling_v2 comparison).
+    """
+    v1 = DABSScorer(
+        model=model, technique_results=technique_results, attacker_model=attacker_model,
+        total_techniques=total_techs, exclude_components=["swarm_resilience"],
+        platform=platform, weight_profile="dabs_v1",
+    ).compute()
+    v2 = DABSScorer(
+        model=model, technique_results=technique_results, attacker_model=attacker_model,
+        total_techniques=total_techs, exclude_components=["swarm_resilience"],
+        platform=platform, weight_profile="dabs_v2",
+    ).compute()
+
+    SCALING_V2_DIR.mkdir(parents=True, exist_ok=True)
+    safe = model.replace(":", "_").replace("/", "_")
+    ts   = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    path = SCALING_V2_DIR / f"dabs_{safe}_{ts}.json"
+    path.write_text(json.dumps({
+        "model":              model,
+        "attacker_model":     attacker_model,
+        "platform":           platform,
+        "threat_intel_mode":  threat_intel_mode,
+        "seed":               v1.seed,
+        "timestamp":          v2.timestamp,
+        "dabs_v1":            v1.to_dict(),
+        "dabs_v2":            v2.to_dict(),
+    }, indent=2), encoding="utf-8")
+
+    return v1, v2, path
 
 
 SCALING_V2_DIR = Path(__file__).parent.parent / "output" / "benchmarks" / "scaling_v2"
@@ -457,6 +529,7 @@ def _run_model(
     seed: int | None = 42,
     run_index: int | None = None,
     resume: bool = False,
+    mode: str = "normal",
 ) -> dict:
     if seed is None:
         console.print("  [yellow]UNSEEDED run — no seed sent to Ollama[/yellow]")
@@ -515,6 +588,7 @@ def _run_model(
                     threat_intel_mode=threat_intel_mode,
                     threat_intel_snapshot_path=threat_intel_snapshot_path,
                     seed=seed,
+                    mode=mode,
                 )
                 technique_results[tech_id] = result
                 _save_checkpoint(model, technique_results, seed, threat_intel_mode)
@@ -670,6 +744,13 @@ def main() -> None:
              "restarts the local Ollama app before each technique as a "
              "memory-pressure mitigation — see docs/scaling_v2_results.md.",
     )
+    parser.add_argument(
+        "--mode",
+        default="normal",
+        choices=["normal", "meta"],
+        help="'meta' uses MetaAttacker (prompt-injection payloads in log fields) "
+             "and populates meta_resilience per technique instead of leaving it excluded",
+    )
     args = parser.parse_args()
 
     seed = None if args.seed.strip().lower() == "none" else int(args.seed)
@@ -689,7 +770,8 @@ def main() -> None:
     console.print(f"  [dim]Round timeout:[/dim]   {args.round_timeout}s")
     console.print(f"  [dim]Threat intel:[/dim]    {args.threat_intel}")
     console.print(f"  [dim]Seed:[/dim]            {seed if seed is not None else 'NONE (unseeded)'}")
-    console.print(f"  [dim]Repeat:[/dim]          {args.repeat}\n")
+    console.print(f"  [dim]Repeat:[/dim]          {args.repeat}")
+    console.print(f"  [dim]Mode:[/dim]            {args.mode}\n")
 
     model_scores_v1: list[tuple[str, float]] = []
     model_scores_v2: list[tuple[str, float]] = []
@@ -710,6 +792,7 @@ def main() -> None:
                 seed=seed,
                 run_index=run_i if args.repeat > 1 else None,
                 resume=args.resume,
+                mode=args.mode,
             )
             if dabs.get("incomplete"):
                 console.print(
