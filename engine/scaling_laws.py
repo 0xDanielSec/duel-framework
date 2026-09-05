@@ -12,15 +12,91 @@ import numpy as np
 
 OUTPUT_DIR = Path(__file__).parent.parent / "output"
 
-MODEL_REGISTRY: dict[str, float] = {
-    "phi3.5:latest": 3.8,
-    "phi3.5":        3.8,
-    "mistral:7b":    7.0,
-    "mistral":       7.0,
-    "qwen2.5:7b":    7.0,
-    "llama3.1:8b":   8.0,
-    "llama3.1":      8.0,
-    "qwen2.5:14b":   14.0,
+def _entry(
+    params_total_b: float,
+    source_url: str,
+    platform: str = "ollama",
+    params_active_b: float | None = None,
+    arch: str = "dense",
+) -> dict:
+    """
+    params_active_b defaults to params_total_b for dense models — for a dense
+    model "active params" is not a meaningful distinct concept, so the two
+    are the same number by construction, not an estimate. For a
+    mixture-of-experts (arch="moe") model, params_active_b MUST be passed
+    explicitly from the same official source as params_total_b.
+
+    "params_b" is kept as a backward-compatible alias for params_total_b —
+    every existing caller (ScalingLawsAnalyzer, run_scaling_benchmark.py's
+    display table) that reads entry["params_b"] keeps working unchanged and
+    the MAIN scaling-law regression uses total params by default. Runs with
+    params_active_b as the x-axis instead are a separate sensitivity
+    analysis, not the primary fit — see docs/scaling_v2_results.md §4.
+    """
+    return {
+        "params_b":        params_total_b,  # alias, see docstring
+        "params_total_b":  params_total_b,
+        "params_active_b": params_active_b if params_active_b is not None else params_total_b,
+        "arch":            arch,
+        "source_url":      source_url,
+        "platform":        platform,
+    }
+
+
+# Every entry MUST carry a verifiable source (official model card / provider
+# docs) — no estimated parameter counts. A model with no confirmed source
+# does not get an entry and therefore cannot enter a benchmark grid.
+MODEL_REGISTRY: dict[str, dict] = {
+    # ── Original 5 (scaling_v2 reproduction) ────────────────────────────────
+    "phi3.5:latest": _entry(3.8,  "https://huggingface.co/microsoft/Phi-3.5-mini-instruct"),
+    "phi3.5":        _entry(3.8,  "https://huggingface.co/microsoft/Phi-3.5-mini-instruct"),
+    "mistral:7b":    _entry(7.0,  "https://ollama.com/library/mistral:7b"),
+    "mistral":       _entry(7.0,  "https://ollama.com/library/mistral:7b"),
+    "qwen2.5:7b":    _entry(7.61, "https://huggingface.co/Qwen/Qwen2.5-7B"),
+    "llama3.1:8b":   _entry(8.0,  "https://huggingface.co/meta-llama/Llama-3.1-8B"),
+    "llama3.1":      _entry(8.0,  "https://huggingface.co/meta-llama/Llama-3.1-8B"),
+    "qwen2.5:14b":   _entry(14.7, "https://huggingface.co/Qwen/Qwen2.5-14B"),
+
+    # ── New local (Ollama) low end — hybrid grid, 2026-09-05 ────────────────
+    "llama3.2:1b": _entry(1.23, "https://huggingface.co/meta-llama/Llama-3.2-1B"),
+    "llama3.2:3b": _entry(3.21, "https://huggingface.co/meta-llama/Llama-3.2-3B"),
+    "qwen2.5:3b":  _entry(3.09, "https://huggingface.co/Qwen/Qwen2.5-3B"),
+    # gemma2:2b — the HF card header literally reads "Model size: 3B params"
+    # (looks like a template artifact shared across the Gemma 2 family page),
+    # but the card body states "the 2B model was trained with 2 trillion
+    # tokens" for this specific checkpoint, and 2B matches the model's own
+    # name/tag. Recorded as 2.0B; flagged here rather than silently trusting
+    # either number.
+    "gemma2:2b":   _entry(2.0,  "https://huggingface.co/google/gemma-2-2b"),
+
+    # ── Cross-platform control — same model, both platforms ────────────────
+    # gpt-oss-20b: MoE, 21B total / 3.6B active (official card). Ollama's
+    # own `ollama show gpt-oss:latest` independently reports "parameters
+    # 20.9B", consistent with the 21B HF figure.
+    "gpt-oss:latest":       _entry(21.0, "https://huggingface.co/openai/gpt-oss-20b",
+                                   platform="ollama", params_active_b=3.6, arch="moe"),
+    "openai/gpt-oss-20b":   _entry(21.0, "https://huggingface.co/openai/gpt-oss-20b",
+                                   platform="groq", params_active_b=3.6, arch="moe"),
+
+    # ── New Groq-only ────────────────────────────────────────────────────────
+    "openai/gpt-oss-120b": _entry(117.0, "https://huggingface.co/openai/gpt-oss-120b",
+                                  platform="groq", params_active_b=5.1, arch="moe"),
+    # Qwen3.8-27B: card states "27B" with no separate active-params figure and
+    # no MoE naming pattern (cf. Qwen3's "-A3B" convention for its actual MoE
+    # variants) — treated as dense. Flagged as inferred, not confirmed, since
+    # the card doesn't say "dense" outright.
+    "qwen/qwen3.8-27b":    _entry(27.0, "https://huggingface.co/Qwen/Qwen3.8-27B",
+                                  platform="groq"),
+
+    # ── Verified but excluded from the current grid (see docs/scaling_v2_results.md) ──
+    # allam-2-7b: bilingual Arabic-English specialist; exact "-2-" HF card
+    # 401'd, citing the same publisher's public 7B card as the closest source.
+    "allam-2-7b": _entry(7.0, "https://huggingface.co/ALLaM-AI/ALLaM-7B-Instruct-preview",
+                         platform="groq"),
+    # openai/gpt-oss-safeguard-20b: same base as gpt-oss-20b, safety/
+    # moderation fine-tune — not a general-purpose Defender candidate.
+    "openai/gpt-oss-safeguard-20b": _entry(21.0, "https://huggingface.co/openai/gpt-oss-safeguard-20b",
+                                            platform="groq", params_active_b=3.6, arch="moe"),
 }
 
 
@@ -31,12 +107,13 @@ class ScalingLawsAnalyzer:
         self.output_dir = output_dir or OUTPUT_DIR
 
     def _resolve_params(self, model_name: str) -> Optional[float]:
-        if model_name in MODEL_REGISTRY:
-            return MODEL_REGISTRY[model_name]
+        entry = MODEL_REGISTRY.get(model_name)
+        if entry is not None:
+            return entry["params_b"]
         base = model_name.split(":")[0]
-        for key, params in MODEL_REGISTRY.items():
+        for key, entry in MODEL_REGISTRY.items():
             if key.split(":")[0] == base:
-                return params
+                return entry["params_b"]
         return None
 
     def _load_dabs_scores(self) -> list[dict]:

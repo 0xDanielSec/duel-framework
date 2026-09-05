@@ -229,19 +229,50 @@ Output ONLY the JSON policy object.
 
 
 class DefenderAgent:
-    def __init__(self, model: str = "mistral:7b", seed: int = 42, constitutional_mode: bool = False):
+    def __init__(
+        self,
+        model: str = "mistral:7b",
+        seed: int = 42,
+        constitutional_mode: bool = False,
+        threat_intel_mode: str = "live",
+        threat_intel_snapshot_path: str | None = None,
+        platform: str | None = None,
+    ):
+        """
+        threat_intel_mode:
+          "live"     — fetch from URLhaus/Feodo/OTX (default; unchanged app behaviour).
+          "snapshot" — load a fixed, versioned JSON file; never touches the network.
+          "off"      — no threat intel at all; self.threat_intel stays None.
+        Unattended/benchmark runs should use "off" or "snapshot" — a live fetch
+        is an uncontrolled external dependency that also breaks reproducibility
+        (the IOC list changes over time even with a fixed seed).
+        """
         self.model = model
         self.seed = seed
+        self.platform = platform  # None = auto-detect (existing behaviour); "ollama"/"groq" forces a backend
         self.constitutional_mode = constitutional_mode
+        self.threat_intel_mode = threat_intel_mode
         self.round_history: list[dict] = []
         self.last_kql: str | None = None
         self.constitution: dict | None = None
         self.compliance_history: list[dict] = []
-        try:
-            self.threat_intel: ThreatIntelFeed | None = ThreatIntelFeed()
-        except Exception as exc:
-            logger.warning("ThreatIntelFeed init failed: %s — continuing without TI", exc)
-            self.threat_intel = None
+        self.threat_intel: ThreatIntelFeed | None = None
+        if threat_intel_mode == "off":
+            pass
+        elif threat_intel_mode == "snapshot":
+            if not threat_intel_snapshot_path:
+                raise ValueError("threat_intel_mode='snapshot' requires threat_intel_snapshot_path")
+            try:
+                self.threat_intel = ThreatIntelFeed.from_snapshot(threat_intel_snapshot_path)
+            except Exception as exc:
+                logger.warning("ThreatIntelFeed snapshot load failed: %s — continuing without TI", exc)
+        elif threat_intel_mode == "live":
+            try:
+                self.threat_intel = ThreatIntelFeed()
+            except Exception as exc:
+                logger.warning("ThreatIntelFeed init failed: %s — continuing without TI", exc)
+        else:
+            raise ValueError(f"Unknown threat_intel_mode {threat_intel_mode!r} — must be live/snapshot/off")
         try:
             self.defender_memory: DefenderMemory | None = DefenderMemory()
         except Exception as exc:
@@ -521,6 +552,7 @@ class DefenderAgent:
                     {"role": "user", "content": prompt},
                 ],
                 options={"temperature": 0.3, "num_predict": 2048, "seed": self.seed},
+                platform=self.platform,
             )
             return response["message"]["content"]
         except Exception as exc:
@@ -562,6 +594,7 @@ class DefenderAgent:
                     {"role": "user", "content": prompt},
                 ],
                 options={"temperature": 0.4, "num_predict": 1024, "seed": self.seed},
+                platform=self.platform,
             )
             return response["message"]["content"]
         except Exception as exc:

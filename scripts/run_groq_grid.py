@@ -1,58 +1,57 @@
 #!/usr/bin/env python3
 """
-Groq scaling grid runner — extends the 5-model local reproduction
-(scripts/run_scaling_benchmark.py) to the >=12-model grid from
-scripts/list_groq_models.py, using the SAME fixed techniques/rounds/seed/
-scorer so results are directly comparable.
+Hybrid scaling grid runner — extends the 5-model local reproduction
+(scripts/run_scaling_benchmark.py) to a mixed Ollama+Groq grid, using the
+SAME fixed techniques/rounds/seed/scorer so results are directly comparable.
 
-Design (per mission "Parte B" decisions, do not change without discussion):
-  - One process = one platform. Like run_scaling_benchmark.py, the actual
-    inference backend is selected by engine/groq_client.py based on whether
-    GROQ_API_KEY is set in THIS process's environment — there is no mixed-
-    platform single run. To cover both platforms, run this script twice:
-    once with GROQ_API_KEY unset (--platform ollama) and once with it set
-    (--platform groq).
-  - On a Groq run, the Attacker ALSO runs on Groq (nearest available
-    equivalent to llama3.1:8b there) — fully cloud, no mixed attacker/
-    defender platform within one battle. The exact Groq attacker model id
-    must be passed explicitly via --attacker (never guessed/hardcoded here).
-  - Cross-platform control: llama3.1:8b as Defender, run once per platform
-    with the matching-platform Attacker each time. This isolates the
-    Attacker+Defender platform confound in one pair of runs, per mission
-    rule 3.
+Design decisions (2026-09-05, superseding the original "Attacker on Groq too"
+plan — do not change without discussion):
+  - The Attacker is ALWAYS llama3.1:8b on local Ollama, for every Defender in
+    the grid, Groq-platform Defenders included. There is no Groq-side
+    Attacker in this design; consistency of the Attacker was judged more
+    valuable than matching Attacker platform to Defender platform. This is
+    possible in a single process because engine/groq_client.py now supports
+    an explicit per-agent `platform` override instead of one auto-detected
+    singleton backend for the whole process — see AttackerAgent(platform=)/
+    DefenderAgent(platform=).
+  - Each grid entry carries its OWN "platform" (ollama|groq) rather than one
+    global --platform flag for the whole run — the grid is mixed by design.
+  - Cross-platform control: the SAME model (gpt-oss-20b) has two grid
+    entries, one per platform ("gpt-oss:latest" on ollama, "openai/gpt-oss-
+    20b" on groq) — both use the local llama3.1:8b Attacker, isolating the
+    Defender-platform effect alone (no Attacker-platform confound).
+  - Groq runs are meant to happen AFTER the concurrent local reproduction
+    finishes, so they don't compete for the same Ollama/GPU resource (the
+    Attacker is local even for Groq-Defender entries).
   - threat-intel defaults to "off" (see docs/ERRATA.md item 4) and every
     saved JSON records platform/attacker_model/defender_model/
     threat_intel_mode/weight_profile/seed explicitly.
 
-Grid input: a JSON file shaped like scripts/list_groq_models.py's snapshot
-output, filtered/curated by a human (every entry needs params_b AND
-source_url from an official model card — see grid schema below). This
-script does not invent or infer parameter counts; a grid entry missing
-params_b or source_url is rejected.
+Grid input: a curated JSON file (human-approved — this script does not build
+or approve a grid on its own). Every entry needs params_b AND source_url
+already verified in engine/scaling_laws.py::MODEL_REGISTRY; this script
+resolves params from there rather than trusting the grid file's own
+params/source fields (which may be stale) — a model not in MODEL_REGISTRY is
+rejected.
 
 Grid entry schema (one dict per model):
 {
-  "groq_id":        "llama-3.3-70b-versatile",
-  "family":         "Llama 3.3",
-  "params_b":       70.0,
-  "source_url":     "https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct",
-  "context_window": 131072,
-  "role":           "defender"   # "defender" | "attacker" | "both"
+  "model_id":  "openai/gpt-oss-20b",   # exact id passed to DefenderAgent(model=...)
+  "platform":  "groq",                  # "ollama" | "groq" — THIS entry's Defender platform
+  "role":      "defender"               # "defender" | "control" (control = also run on the other platform)
 }
 
 Usage:
     # Validate a grid file and print what would run — no network calls at all.
-    python scripts/run_groq_grid.py --grid path/to/grid.json --platform groq \\
-        --attacker llama-3.3-70b-versatile --dry-run
+    python scripts/run_groq_grid.py --grid path/to/grid.json --dry-run
 
-    # Real run (requires GROQ_API_KEY in env for --platform groq):
-    python scripts/run_groq_grid.py --grid path/to/grid.json --platform groq \\
-        --attacker llama-3.3-70b-versatile
+    # Real run (requires GROQ_API_KEY for any "groq"-platform entry):
+    python scripts/run_groq_grid.py --grid path/to/grid.json
 
-Output: output/benchmarks/groq_grid/dabs_<model>_<timestamp>.json — same
-dabs_v1/dabs_v2 combined schema as output/benchmarks/scaling_v2/, in a
-separate directory so a real run here can never collide with the ongoing
-5-model reproduction's output files.
+Output: output/benchmarks/groq_grid/dabs_<model>_<platform>_<timestamp>.json
+— same dabs_v1/dabs_v2 combined schema as output/benchmarks/scaling_v2/, in
+a separate directory so a real run here can never collide with the
+concurrent 5-model reproduction's output files.
 """
 import argparse
 import json
@@ -80,9 +79,13 @@ from scripts.run_scaling_benchmark import (  # noqa: E402
     _load_technique,
 )
 from engine.dabs_scorer import DABSScorer  # noqa: E402
+from engine.scaling_laws import MODEL_REGISTRY  # noqa: E402
+
+ATTACKER_MODEL = "llama3.1:8b"
+ATTACKER_PLATFORM = "ollama"  # fixed — see module docstring
 
 GRID_OUTPUT_DIR = Path(__file__).parent.parent / "output" / "benchmarks" / "groq_grid"
-REQUIRED_GRID_FIELDS = ("groq_id", "family", "params_b", "source_url", "role")
+REQUIRED_GRID_FIELDS = ("model_id", "platform", "role")
 
 console = Console()
 
@@ -97,33 +100,47 @@ def load_grid(path: str) -> list[dict]:
     for i, entry in enumerate(entries):
         missing = [f for f in REQUIRED_GRID_FIELDS if not entry.get(f)]
         if missing:
-            raise ValueError(
-                f"{path}: entry {i} ({entry.get('groq_id', '?')!r}) missing required "
-                f"field(s) {missing} — every grid model needs params_b AND source_url "
-                f"from an official model card. Not entering the grid without one."
-            )
-        if entry["role"] not in ("defender", "attacker", "both"):
+            raise ValueError(f"{path}: entry {i} missing required field(s) {missing}")
+        if entry["platform"] not in ("ollama", "groq"):
+            raise ValueError(f"{path}: entry {i} has invalid platform {entry['platform']!r}")
+        if entry["role"] not in ("defender", "control"):
             raise ValueError(f"{path}: entry {i} has invalid role {entry['role']!r}")
+
+        registry_entry = MODEL_REGISTRY.get(entry["model_id"])
+        if registry_entry is None:
+            raise ValueError(
+                f"{path}: entry {i} ({entry['model_id']!r}) is not in "
+                f"engine/scaling_laws.py::MODEL_REGISTRY — every grid model needs a "
+                f"verified params_b + source_url there first. Not entering the grid "
+                f"without one."
+            )
+        entry = {**entry, **registry_entry}  # params_b/params_total_b/params_active_b/arch/source_url
         validated.append(entry)
     return validated
 
 
-def print_grid(entries: list[dict], platform: str) -> None:
-    tbl = Table(title=f"Groq Grid — platform={platform}", style="cyan")
-    tbl.add_column("groq_id", style="bold white")
-    tbl.add_column("family")
-    tbl.add_column("params_b", justify="right")
+def print_grid(entries: list[dict]) -> None:
+    tbl = Table(title="Hybrid Scaling Grid", style="cyan")
+    tbl.add_column("model_id", style="bold white")
+    tbl.add_column("platform")
     tbl.add_column("role")
+    tbl.add_column("total_B", justify="right")
+    tbl.add_column("active_B", justify="right")
+    tbl.add_column("arch")
     tbl.add_column("source_url", overflow="fold")
-    for e in sorted(entries, key=lambda x: x["params_b"]):
-        tbl.add_row(e["groq_id"], e["family"], f"{e['params_b']:.1f}", e["role"], e["source_url"])
+    for e in sorted(entries, key=lambda x: x["params_total_b"]):
+        tbl.add_row(
+            e["model_id"], e["platform"], e["role"],
+            f"{e['params_total_b']:.2f}", f"{e['params_active_b']:.2f}", e["arch"],
+            e["source_url"],
+        )
     console.print(tbl)
+    console.print(f"\n[dim]Attacker (fixed, all entries):[/dim] {ATTACKER_MODEL} [dim](platform={ATTACKER_PLATFORM})[/dim]")
 
 
 def run_defender(
     defender_model: str,
-    attacker_model: str,
-    platform: str,
+    defender_platform: str,
     round_timeout: int,
     threat_intel_mode: str,
 ) -> Path:
@@ -134,30 +151,33 @@ def run_defender(
     for tech_id in technique_ids:
         technique = _load_technique(tech_id)
         technique_results[tech_id] = _battle(
-            technique, DEFAULT_ROUNDS, attacker_model, defender_model,
+            technique, DEFAULT_ROUNDS, ATTACKER_MODEL, defender_model,
             round_timeout=round_timeout,
             threat_intel_mode=threat_intel_mode,
+            attacker_platform=ATTACKER_PLATFORM,
+            defender_platform=defender_platform,
         )
 
     v1 = DABSScorer(
-        model=defender_model, technique_results=technique_results, attacker_model=attacker_model,
+        model=defender_model, technique_results=technique_results, attacker_model=ATTACKER_MODEL,
         total_techniques=total_techs, exclude_components=["swarm_resilience"],
-        platform=platform, weight_profile="dabs_v1",
+        platform=defender_platform, weight_profile="dabs_v1",
     ).compute()
     v2 = DABSScorer(
-        model=defender_model, technique_results=technique_results, attacker_model=attacker_model,
+        model=defender_model, technique_results=technique_results, attacker_model=ATTACKER_MODEL,
         total_techniques=total_techs, exclude_components=["swarm_resilience"],
-        platform=platform, weight_profile="dabs_v2",
+        platform=defender_platform, weight_profile="dabs_v2",
     ).compute()
 
     GRID_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    safe = defender_model.replace(":", "_").replace("/", "_")
+    safe = f"{defender_model}_{defender_platform}".replace(":", "_").replace("/", "_")
     ts   = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     path = GRID_OUTPUT_DIR / f"dabs_{safe}_{ts}.json"
     path.write_text(json.dumps({
         "model":             defender_model,
-        "attacker_model":    attacker_model,
-        "platform":          platform,
+        "attacker_model":    ATTACKER_MODEL,
+        "platform":          defender_platform,       # Defender's platform (Attacker is always ollama)
+        "attacker_platform": ATTACKER_PLATFORM,
         "threat_intel_mode": threat_intel_mode,
         "seed":              v1.seed,
         "timestamp":         v2.timestamp,
@@ -168,48 +188,40 @@ def run_defender(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="DUEL Groq Grid Runner")
+    parser = argparse.ArgumentParser(description="DUEL Hybrid Scaling Grid Runner")
     parser.add_argument("--grid", required=True, help="Path to a curated grid JSON file")
-    parser.add_argument("--platform", required=True, choices=["ollama", "groq"])
     parser.add_argument(
-        "--attacker", required=True,
-        help="Attacker model id for THIS platform (never guessed — pass explicitly)",
+        "--only-platform", choices=["ollama", "groq"], default=None,
+        help="Run only entries matching this platform (e.g. run local models "
+             "now, Groq models later once the concurrent reproduction is done)",
     )
     parser.add_argument("--round-timeout", type=int, default=DEFAULT_ROUND_TIMEOUT)
     parser.add_argument("--threat-intel", default="off", choices=["live", "snapshot", "off"])
-    parser.add_argument("--dry-run", action="store_true", help="Validate and print the grid; make zero network calls")
+    parser.add_argument("--dry-run", action="store_true", help="Validate and print the grid; make zero network/Ollama calls")
     args = parser.parse_args()
 
     entries = load_grid(args.grid)
-    defenders = [e for e in entries if e["role"] in ("defender", "both")]
+    if args.only_platform:
+        entries = [e for e in entries if e["platform"] == args.only_platform]
 
-    print_grid(entries, args.platform)
-    console.print(f"\n[dim]Attacker for this run:[/dim] {args.attacker}  [dim](platform={args.platform})[/dim]")
-    console.print(f"[dim]Defenders to run:[/dim] {len(defenders)}")
+    print_grid(entries)
+    console.print(f"[dim]Entries to run:[/dim] {len(entries)}")
     console.print(f"[dim]Techniques:[/dim] {', '.join(DEFAULT_TECHNIQUES)}  [dim]Rounds:[/dim] {DEFAULT_ROUNDS}")
     console.print(f"[dim]Threat intel:[/dim] {args.threat_intel}  [dim]Round timeout:[/dim] {args.round_timeout}s")
 
     if args.dry_run:
-        console.print("\n[bold yellow]--dry-run: no network calls made, no output written.[/bold yellow]")
+        console.print("\n[bold yellow]--dry-run: no network/Ollama calls made, no output written.[/bold yellow]")
         return
 
-    if args.platform == "groq" and not os.environ.get("GROQ_API_KEY", "").strip():
-        console.print("[red]--platform groq requires GROQ_API_KEY in the environment.[/red]")
-        sys.exit(1)
-    if args.platform == "ollama" and os.environ.get("GROQ_API_KEY", "").strip():
-        console.print(
-            "[red]GROQ_API_KEY is set but --platform ollama was requested — "
-            "engine/groq_client.py would route calls to Groq regardless. "
-            "Unset GROQ_API_KEY for an ollama run.[/red]"
-        )
+    if any(e["platform"] == "groq" for e in entries) and not os.environ.get("GROQ_API_KEY", "").strip():
+        console.print("[red]Grid includes a 'groq' entry but GROQ_API_KEY is not set (env or .env).[/red]")
         sys.exit(1)
 
-    for e in defenders:
-        console.print(f"\n[bold cyan]== Defender: {e['groq_id']} ({e['params_b']}B) ==[/bold cyan]")
+    for e in entries:
+        console.print(f"\n[bold cyan]== Defender: {e['model_id']} ({e['platform']}, {e['params_total_b']}B total) ==[/bold cyan]")
         path = run_defender(
-            defender_model=e["groq_id"],
-            attacker_model=args.attacker,
-            platform=args.platform,
+            defender_model=e["model_id"],
+            defender_platform=e["platform"],
             round_timeout=args.round_timeout,
             threat_intel_mode=args.threat_intel,
         )
