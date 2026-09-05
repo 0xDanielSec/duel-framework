@@ -54,6 +54,10 @@ class GroqClient:
         }
 
         logger.debug("Groq request model=%s (mapped from %r)", groq_model, model)
+        # Generous timeout — this is the actual LLM generation call (the Groq
+        # equivalent of an Ollama round), not an auxiliary network fetch, so it
+        # gets the same "per round" budget as engine/groq_client.py's Ollama
+        # fallback client below (600s), not the 5s used for threat-intel calls.
         resp = requests.post(
             _GROQ_API_URL,
             headers={
@@ -61,7 +65,7 @@ class GroqClient:
                 "Content-Type": "application/json",
             },
             json=payload,
-            timeout=120,
+            timeout=(10, 600),  # (connect, read)
         )
         resp.raise_for_status()
 
@@ -70,14 +74,18 @@ class GroqClient:
 
 
 def _build_backend() -> object:
-    """Resolve backend once: Groq if key present, else ollama module."""
+    """Resolve backend once: Groq if key present, else a local Ollama client."""
     api_key = os.environ.get("GROQ_API_KEY", "").strip()
     if api_key:
         logger.info("GROQ_API_KEY detected — using Groq inference backend")
         return GroqClient(api_key)
-    import ollama  # noqa: PLC0415
+    from ollama import Client as OllamaClient  # noqa: PLC0415
     logger.info("No GROQ_API_KEY — using local Ollama backend")
-    return ollama
+    # The bare `ollama` module's default client is constructed with
+    # timeout=None, i.e. NO timeout at all — a hung Ollama server or a stuck
+    # generation blocks forever. Build our own client with a generous but
+    # finite per-request timeout instead.
+    return OllamaClient(timeout=600)
 
 
 # Lazy singleton — not resolved until first chat() call so that tests and
@@ -94,4 +102,12 @@ def chat(
     global _backend
     if _backend is None:
         _backend = _build_backend()
-    return _backend.chat(model=model, messages=messages, options=options)
+    if isinstance(_backend, GroqClient):
+        return _backend.chat(model=model, messages=messages, options=options)
+    # Real Ollama client: force immediate unload after each call (keep_alive=0)
+    # instead of the server's default ~5min residency. Attacker and Defender
+    # models are often both several GB; observed OOM on a 16GB machine when
+    # qwen2.5:14b (9GB) tried to load while llama3.1:8b (7GB) was still
+    # resident from the previous call — see docs/scaling_v2_results.md.
+    # Reload cost per call (~10-30s) is noise next to multi-minute rounds.
+    return _backend.chat(model=model, messages=messages, options=options, keep_alive=0)
