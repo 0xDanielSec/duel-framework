@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "duel-framework"
-version = "1.0.0"
+version = "1.0.1"
 description = "Adversarial LLM security framework — two AI agents battle across 38 MITRE ATT&CK and OWASP LLM techniques"
 readme = "README.md"
 license = { text = "MIT" }

@@ -16,7 +16,7 @@ Full installation (web UI + MCP require data files from source):
     pip install -e .
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "Daniel Gomes"
 __email__ = "dani.gomesvr@gmail.com"
 __license__ = "MIT"
