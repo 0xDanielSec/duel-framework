@@ -37,7 +37,7 @@ from rich.table import Table
 
 from agents.attacker import AttackerAgent
 from agents.defender import DefenderAgent
-from engine.dabs_scorer import DABSResult, DABSScorer, get_tier
+from engine.dabs_scorer import DABSResult, DABSScorer, get_pipeline_version, get_tier
 from engine.detection import DetectionEngine
 from engine.llm_detection import LLMDetectionEngine
 from engine.scaling_laws import MODEL_REGISTRY, ScalingLawsAnalyzer
@@ -212,15 +212,16 @@ def _save_both_profiles(
     told apart, then save one combined JSON to output/benchmarks/scaling_v2/
     (versioned — this is the real artifact for the scaling_v2 comparison).
     """
+    pv = get_pipeline_version()
     v1 = DABSScorer(
         model=model, technique_results=technique_results, attacker_model=attacker_model,
         total_techniques=total_techs, exclude_components=["swarm_resilience"],
-        platform=platform, weight_profile="dabs_v1",
+        platform=platform, weight_profile="dabs_v1", pipeline_version=pv,
     ).compute()
     v2 = DABSScorer(
         model=model, technique_results=technique_results, attacker_model=attacker_model,
         total_techniques=total_techs, exclude_components=["swarm_resilience"],
-        platform=platform, weight_profile="dabs_v2",
+        platform=platform, weight_profile="dabs_v2", pipeline_version=pv,
     ).compute()
 
     SCALING_V2_DIR.mkdir(parents=True, exist_ok=True)
@@ -232,6 +233,7 @@ def _save_both_profiles(
         "attacker_model":     attacker_model,
         "platform":           platform,
         "threat_intel_mode":  threat_intel_mode,
+        "pipeline_version":   pv,
         "seed":               v1.seed,
         "timestamp":          v2.timestamp,
         "dabs_v1":            v1.to_dict(),

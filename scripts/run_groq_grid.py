@@ -81,6 +81,7 @@ from scripts.run_scaling_benchmark import (  # noqa: E402
 from engine.dabs_scorer import DABSScorer  # noqa: E402
 from engine.scaling_laws import MODEL_REGISTRY  # noqa: E402
 from engine.groq_client import DEFAULT_REASONING_EFFORT, is_reasoning_model  # noqa: E402
+from engine.dabs_scorer import get_pipeline_version  # noqa: E402
 
 ATTACKER_MODEL = "llama3.1:8b"
 ATTACKER_PLATFORM = "ollama"  # fixed — see module docstring
@@ -160,15 +161,16 @@ def run_defender(
             defender_platform=defender_platform,
         )
 
+    pv = get_pipeline_version()
     v1 = DABSScorer(
         model=defender_model, technique_results=technique_results, attacker_model=ATTACKER_MODEL,
         total_techniques=total_techs, exclude_components=["swarm_resilience"],
-        platform=defender_platform, weight_profile="dabs_v1",
+        platform=defender_platform, weight_profile="dabs_v1", pipeline_version=pv,
     ).compute()
     v2 = DABSScorer(
         model=defender_model, technique_results=technique_results, attacker_model=ATTACKER_MODEL,
         total_techniques=total_techs, exclude_components=["swarm_resilience"],
-        platform=defender_platform, weight_profile="dabs_v2",
+        platform=defender_platform, weight_profile="dabs_v2", pipeline_version=pv,
     ).compute()
 
     GRID_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -182,6 +184,7 @@ def run_defender(
         "attacker_platform": ATTACKER_PLATFORM,
         "threat_intel_mode": threat_intel_mode,
         "reasoning_effort":  DEFAULT_REASONING_EFFORT if is_reasoning_model(defender_model) else None,
+        "pipeline_version":  pv,
         "seed":              v1.seed,
         "timestamp":         v2.timestamp,
         "dabs_v1":           v1.to_dict(),

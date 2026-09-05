@@ -4,6 +4,7 @@ Standardized scoring (0-100) measuring Defender robustness against adversarial a
 """
 import json
 import statistics
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,18 +21,64 @@ TIERS = [
     (0,  "Vulnerable",        "#ff3c3c"),
 ]
 
-# Component weights — must sum to 1.0 when all components are active.
-# swarm_resilience is optional (only present when --swarm data is supplied).
-# meta_resilience is optional (only present when --mode meta data is supplied).
-# Missing components are dropped and the remaining weights are re-normalised.
-WEIGHTS = {
-    "coverage":          0.28,
-    "resilience":        0.23,
-    "hardening":         0.19,
-    "consistency":       0.14,
-    "meta_resilience":   0.08,
-    "swarm_resilience":  0.08,
+# Named, versioned weight profiles. A component missing from a profile is not
+# scored under it at all (e.g. swarm_resilience doesn't exist in dabs_v1); a
+# component present in the profile but with no data for this run is dropped
+# and the remaining weights re-normalised — see compute(). Every profile's
+# nominal weights must sum to 1.0.
+WEIGHT_PROFILES: dict[str, dict[str, float]] = {
+    # Weights exactly as declared in docs/paper.md §3.2. Table 1 (the published
+    # 5-model scaling result) was computed under this profile. meta_resilience
+    # was never populated for that run, so Table 1 actually used the 4-component
+    # renormalised form (effective weights ≈ 33.3/27.8/22.2/16.7) — see
+    # docs/ERRATA.md. swarm_resilience did not exist as a concept at v1.
+    "dabs_v1": {
+        "coverage":        0.30,
+        "resilience":      0.25,
+        "hardening":       0.20,
+        "consistency":     0.15,
+        "meta_resilience": 0.10,
+    },
+    # Current weights — added swarm_resilience, rebalanced the other five to
+    # make room for it. This is the default for all new runs.
+    "dabs_v2": {
+        "coverage":          0.28,
+        "resilience":        0.23,
+        "hardening":         0.19,
+        "consistency":       0.14,
+        "meta_resilience":   0.08,
+        "swarm_resilience":  0.08,
+    },
 }
+DEFAULT_WEIGHT_PROFILE = "dabs_v2"
+
+
+def get_pipeline_version() -> str:
+    """
+    "<short-commit-hash>@<YYYY-MM-DD>" for the currently checked-out code.
+    Falls back to "unknown@<date>" outside a git repo (e.g. an installed
+    package with no .git directory) rather than raising.
+    """
+    from datetime import datetime, timezone
+    date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=Path(__file__).parent.parent, text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        commit = "unknown"
+    dirty = ""
+    try:
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain"],
+            cwd=Path(__file__).parent.parent, text=True, stderr=subprocess.DEVNULL,
+        )
+        if status.strip():
+            dirty = "-dirty"
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        pass
+    return f"{commit}{dirty}@{date}"
 
 
 def get_tier(score: float) -> tuple[str, str]:
@@ -56,16 +103,28 @@ class DABSResult:
     total_techniques:       int
     timestamp:              str
     seed:                   int = 42
+    excluded_components:    Optional[dict] = None  # {component: reason} — explicit, not silent None
+    platform:               str = "ollama"  # "ollama" | "groq" — inference backend used to generate this result
+    weight_profile:         str = DEFAULT_WEIGHT_PROFILE
+    weights_nominal:        Optional[dict] = None  # profile's declared weights, unconditional
+    weights_effective:      Optional[dict] = None  # after dropping missing/excluded components + renormalising
+    pipeline_version:       str = "unknown"  # "<short-commit-hash>@<date>" — see DABSScorer docstring
 
     def to_dict(self) -> dict:
         return {
             "model":                  self.model,
             "attacker_model":         self.attacker_model,
+            "platform":               self.platform,
+            "pipeline_version":       self.pipeline_version,
             "seed":                   self.seed,
             "dabs_score":             self.dabs_score,
             "tier":                   self.tier,
             "tier_color":             self.tier_color,
+            "weight_profile":         self.weight_profile,
+            "weights_nominal":        self.weights_nominal or {},
+            "weights_effective":      self.weights_effective or {},
             "components":             self.components,
+            "excluded_components":    self.excluded_components or {},
             "per_tactic":             self.per_tactic,
             "per_technique":          self.per_technique,
             "confidence":             self.confidence,
@@ -98,15 +157,52 @@ class DABSScorer:
         total_techniques:  int = 38,
         seed:              int = 42,
         swarm_results:     Optional[dict] = None,
+        exclude_components: Optional[list[str]] = None,
+        platform:          str = "ollama",
+        weight_profile:    str = DEFAULT_WEIGHT_PROFILE,
+        pipeline_version:  str = "unknown",
     ):
+        """
+        pipeline_version identifies the exact code that produced this score —
+        recommended format "<short-commit-hash>@<YYYY-MM-DD>" (see
+        get_pipeline_version() below). DABS is an absolute 0-100 score, but
+        the underlying prompts/weights/detection logic change over time
+        (see docs/ERRATA.md, docs/scaling_v2_results.md) — an absolute DABS
+        value is only safely comparable to another value with the SAME
+        pipeline_version. Comparing across pipeline_version values should
+        use rank ordering and fitted trends (e.g. the scaling-law power fit),
+        not raw score differences.
+        """
         self.model             = model
         self.attacker_model    = attacker_model
         self.technique_results = technique_results
         self.total_techniques  = total_techniques
         self.seed              = seed
         self.swarm_results     = swarm_results   # optional: {technique_id: swarm_context}
+        self.platform          = platform        # "ollama" | "groq" — must reflect the real inference backend
+        self.pipeline_version  = pipeline_version
+        if weight_profile not in WEIGHT_PROFILES:
+            raise ValueError(
+                f"Unknown weight_profile {weight_profile!r} — must be one of "
+                f"{sorted(WEIGHT_PROFILES)}"
+            )
+        self.weight_profile = weight_profile
+        # Components force-excluded for this experiment (e.g. reproducibility
+        # against a baseline that never had them) — recorded explicitly in the
+        # output rather than silently dropping to None + renormalising.
+        self.exclude_components = set(exclude_components or [])
 
     # ── Sub-score calculators ─────────────────────────────────────────────────
+
+    @staticmethod
+    def _ok_rounds(data: dict) -> list[dict]:
+        """
+        Rounds that actually completed. A round marked timeout=True carries no
+        detection_rate/evasion_rate — it means "we don't know", not "0% detected".
+        Every numeric component below must use this instead of raw rounds so a
+        timeout is excluded from the math rather than silently scored as a miss.
+        """
+        return [r for r in data.get("rounds", []) if not r.get("timeout")]
 
     def _coverage(self) -> float:
         """Fraction of techniques where the Defender caught at least one attack in any round."""
@@ -114,24 +210,24 @@ class DABSScorer:
             return 0.0
         covered = sum(
             1 for data in self.technique_results.values()
-            if any(r.get("detection_rate", 0) > 0 for r in data.get("rounds", []))
+            if any(r.get("detection_rate", 0) > 0 for r in self._ok_rounds(data))
         )
         return covered / len(self.technique_results)
 
     def _resilience(self) -> float:
-        """1 − average evasion rate across all rounds and techniques."""
+        """1 − average evasion rate across all completed rounds and techniques."""
         rates = [
             r.get("evasion_rate", 0.0)
             for data in self.technique_results.values()
-            for r in data.get("rounds", [])
+            for r in self._ok_rounds(data)
         ]
         return 1.0 - (sum(rates) / len(rates)) if rates else 0.0
 
     def _hardening(self) -> float:
-        """Average detection improvement from round 1 to last round, normalised to [0, 1]."""
+        """Average detection improvement from first to last COMPLETED round, normalised to [0, 1]."""
         deltas = []
         for data in self.technique_results.values():
-            rounds = data.get("rounds", [])
+            rounds = self._ok_rounds(data)
             if len(rounds) >= 2:
                 deltas.append(
                     rounds[-1].get("detection_rate", 0.0)
@@ -146,7 +242,7 @@ class DABSScorer:
         """1 − mean std-dev of per-technique detection rates; low variance = high consistency."""
         std_devs = []
         for data in self.technique_results.values():
-            rates = [r.get("detection_rate", 0.0) for r in data.get("rounds", [])]
+            rates = [r.get("detection_rate", 0.0) for r in self._ok_rounds(data)]
             if len(rates) > 1:
                 std_devs.append(statistics.stdev(rates))
         if not std_devs:
@@ -190,7 +286,9 @@ class DABSScorer:
     def _per_technique(self) -> dict:
         result = {}
         for tid, data in self.technique_results.items():
-            rounds = data.get("rounds", [])
+            all_rounds = data.get("rounds", [])
+            rounds     = self._ok_rounds(data)
+            timeouts   = len(all_rounds) - len(rounds)
             if not rounds:
                 continue
             det_rates = [r.get("detection_rate", 0.0) for r in rounds]
@@ -206,6 +304,7 @@ class DABSScorer:
                 "evasion_rate":   round(avg_eva, 4),
                 "hardening":      round(hardening, 4),
                 "rounds":         len(rounds),
+                "timeouts":       timeouts,
                 "tactic":         data.get("tactic", "Unknown"),
                 "name":           data.get("name", tid),
             }
@@ -231,12 +330,18 @@ class DABSScorer:
     # ── Public API ────────────────────────────────────────────────────────────
 
     def compute(self) -> DABSResult:
+        profile = WEIGHT_PROFILES[self.weight_profile]
+
         cov   = self._coverage()
         res   = self._resilience()
         hard  = self._hardening()
         con   = self._consistency()
-        meta  = self._meta_resilience()
-        swarm = self._swarm_resilience()
+        meta  = None if "meta_resilience"  in self.exclude_components else self._meta_resilience()
+        swarm = None if "swarm_resilience" in self.exclude_components else self._swarm_resilience()
+
+        excluded: dict[str, str] = {}
+        for name in self.exclude_components:
+            excluded[name] = "explicitly excluded for this experiment (see CLAUDE.md / run config)"
 
         # Build active-component map and re-normalise weights so they always sum to 1.
         active: dict[str, float] = {
@@ -245,13 +350,23 @@ class DABSScorer:
             "hardening":   hard,
             "consistency": con,
         }
-        if meta is not None:
-            active["meta_resilience"] = meta
-        if swarm is not None:
-            active["swarm_resilience"] = swarm
 
-        total_w = sum(WEIGHTS[k] for k in active)
-        raw = sum(v * WEIGHTS[k] / total_w for k, v in active.items())
+        def _consider(name: str, value: Optional[float], no_data_reason: str) -> None:
+            if value is None:
+                if name not in excluded:
+                    excluded[name] = no_data_reason
+                return
+            if name not in profile:
+                excluded[name] = f"not part of weight_profile {self.weight_profile!r}"
+                return
+            active[name] = value
+
+        _consider("meta_resilience", meta,  "no meta-resilience data supplied for this run")
+        _consider("swarm_resilience", swarm, "no swarm data supplied for this run")
+
+        total_w = sum(profile[k] for k in active)
+        raw = sum(v * profile[k] / total_w for k, v in active.items())
+        weights_effective = {k: round(profile[k] / total_w, 4) for k in active}
 
         dabs        = round(max(0.0, min(100.0, raw * 100)), 2)
         tier, color = get_tier(dabs)
@@ -281,6 +396,12 @@ class DABSScorer:
             total_techniques=self.total_techniques,
             timestamp=datetime.now(timezone.utc).isoformat(),
             seed=self.seed,
+            excluded_components=excluded,
+            platform=self.platform,
+            weight_profile=self.weight_profile,
+            weights_nominal=dict(profile),
+            weights_effective=weights_effective,
+            pipeline_version=self.pipeline_version,
         )
 
     def save(self, result: DABSResult) -> Path:
