@@ -161,12 +161,23 @@ Output JSON array only.
 
 
 class AttackerAgent:
-    def __init__(self, model: str = "llama3.1:8b", num_logs: int = 10, seed: int = 42):
+    def __init__(self, model: str = "llama3.1:8b", num_logs: int = 10, seed: int | None = 42, platform: str | None = None):
+        # seed=None reproduces the pre-e30fdb0 (2026-05-10) behaviour: no
+        # "seed" key sent to Ollama at all, i.e. genuinely unseeded — see
+        # docs/ERRATA.md item 5. seed=<int> (default 42) is the current,
+        # deterministic behaviour.
         self.model = model
         self.num_logs = num_logs
         self.seed = seed
+        self.platform = platform  # None = auto-detect (existing behaviour); "ollama"/"groq" forces a backend
         self.round_history: list[dict] = []
         self.memory = MemoryStore()
+
+    def _opts(self, **kw) -> dict:
+        """Build an Ollama options dict, omitting "seed" entirely when self.seed is None."""
+        if self.seed is not None:
+            kw["seed"] = self.seed
+        return kw
 
     # ------------------------------------------------------------------
     # Public API
@@ -362,7 +373,8 @@ class AttackerAgent:
                     {"role": "system", "content": ATTACKER_LLM_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                options={"temperature": 0.9, "num_predict": 4096, "seed": self.seed},
+                options=self._opts(temperature=0.9, num_predict=4096),
+                platform=self.platform,
             )
             return response["message"]["content"]
         except Exception as exc:
@@ -423,7 +435,8 @@ class AttackerAgent:
                     {"role": "system", "content": ATTACKER_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                options={"temperature": 0.85, "num_predict": 4096, "seed": self.seed},
+                options=self._opts(temperature=0.85, num_predict=4096),
+                platform=self.platform,
             )
             return response["message"]["content"]
         except Exception as exc:

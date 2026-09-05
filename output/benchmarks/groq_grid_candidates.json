@@ -1,0 +1,12 @@
+{
+  "candidates": [
+    {"model_id": "llama3.2:1b",              "platform": "ollama", "role": "defender"},
+    {"model_id": "llama3.2:3b",              "platform": "ollama", "role": "defender"},
+    {"model_id": "qwen2.5:3b",               "platform": "ollama", "role": "defender"},
+    {"model_id": "gemma2:2b",                "platform": "ollama", "role": "defender"},
+    {"model_id": "gpt-oss:latest",           "platform": "ollama", "role": "control"},
+    {"model_id": "openai/gpt-oss-20b",       "platform": "groq",   "role": "control"},
+    {"model_id": "openai/gpt-oss-120b",      "platform": "groq",   "role": "defender"},
+    {"model_id": "qwen/qwen3.8-27b",         "platform": "groq",   "role": "defender"}
+  ]
+}

@@ -4,6 +4,7 @@ Standardized scoring (0-100) measuring Defender robustness against adversarial a
 """
 import json
 import statistics
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -52,6 +53,34 @@ WEIGHT_PROFILES: dict[str, dict[str, float]] = {
 DEFAULT_WEIGHT_PROFILE = "dabs_v2"
 
 
+def get_pipeline_version() -> str:
+    """
+    "<short-commit-hash>@<YYYY-MM-DD>" for the currently checked-out code.
+    Falls back to "unknown@<date>" outside a git repo (e.g. an installed
+    package with no .git directory) rather than raising.
+    """
+    from datetime import datetime, timezone
+    date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=Path(__file__).parent.parent, text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        commit = "unknown"
+    dirty = ""
+    try:
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain"],
+            cwd=Path(__file__).parent.parent, text=True, stderr=subprocess.DEVNULL,
+        )
+        if status.strip():
+            dirty = "-dirty"
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        pass
+    return f"{commit}{dirty}@{date}"
+
+
 def get_tier(score: float) -> tuple[str, str]:
     for threshold, label, color in TIERS:
         if score >= threshold:
@@ -79,12 +108,14 @@ class DABSResult:
     weight_profile:         str = DEFAULT_WEIGHT_PROFILE
     weights_nominal:        Optional[dict] = None  # profile's declared weights, unconditional
     weights_effective:      Optional[dict] = None  # after dropping missing/excluded components + renormalising
+    pipeline_version:       str = "unknown"  # "<short-commit-hash>@<date>" — see DABSScorer docstring
 
     def to_dict(self) -> dict:
         return {
             "model":                  self.model,
             "attacker_model":         self.attacker_model,
             "platform":               self.platform,
+            "pipeline_version":       self.pipeline_version,
             "seed":                   self.seed,
             "dabs_score":             self.dabs_score,
             "tier":                   self.tier,
@@ -129,7 +160,19 @@ class DABSScorer:
         exclude_components: Optional[list[str]] = None,
         platform:          str = "ollama",
         weight_profile:    str = DEFAULT_WEIGHT_PROFILE,
+        pipeline_version:  str = "unknown",
     ):
+        """
+        pipeline_version identifies the exact code that produced this score —
+        recommended format "<short-commit-hash>@<YYYY-MM-DD>" (see
+        get_pipeline_version() below). DABS is an absolute 0-100 score, but
+        the underlying prompts/weights/detection logic change over time
+        (see docs/ERRATA.md, docs/scaling_v2_results.md) — an absolute DABS
+        value is only safely comparable to another value with the SAME
+        pipeline_version. Comparing across pipeline_version values should
+        use rank ordering and fitted trends (e.g. the scaling-law power fit),
+        not raw score differences.
+        """
         self.model             = model
         self.attacker_model    = attacker_model
         self.technique_results = technique_results
@@ -137,6 +180,7 @@ class DABSScorer:
         self.seed              = seed
         self.swarm_results     = swarm_results   # optional: {technique_id: swarm_context}
         self.platform          = platform        # "ollama" | "groq" — must reflect the real inference backend
+        self.pipeline_version  = pipeline_version
         if weight_profile not in WEIGHT_PROFILES:
             raise ValueError(
                 f"Unknown weight_profile {weight_profile!r} — must be one of "
@@ -357,6 +401,7 @@ class DABSScorer:
             weight_profile=self.weight_profile,
             weights_nominal=dict(profile),
             weights_effective=weights_effective,
+            pipeline_version=self.pipeline_version,
         )
 
     def save(self, result: DABSResult) -> Path:

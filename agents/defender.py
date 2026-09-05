@@ -232,12 +232,18 @@ class DefenderAgent:
     def __init__(
         self,
         model: str = "mistral:7b",
-        seed: int = 42,
+        seed: int | None = 42,
         constitutional_mode: bool = False,
         threat_intel_mode: str = "live",
         threat_intel_snapshot_path: str | None = None,
+        platform: str | None = None,
     ):
         """
+        seed=None reproduces the pre-e30fdb0 (2026-05-10) behaviour: no "seed"
+        key sent to Ollama at all, i.e. genuinely unseeded — see
+        docs/ERRATA.md item 5. seed=<int> (default 42) is the current,
+        deterministic behaviour.
+
         threat_intel_mode:
           "live"     — fetch from URLhaus/Feodo/OTX (default; unchanged app behaviour).
           "snapshot" — load a fixed, versioned JSON file; never touches the network.
@@ -248,6 +254,7 @@ class DefenderAgent:
         """
         self.model = model
         self.seed = seed
+        self.platform = platform  # None = auto-detect (existing behaviour); "ollama"/"groq" forces a backend
         self.constitutional_mode = constitutional_mode
         self.threat_intel_mode = threat_intel_mode
         self.round_history: list[dict] = []
@@ -287,6 +294,12 @@ class DefenderAgent:
                 self.constitutional_mode = False
         else:
             self._constitution_engine = None
+
+    def _opts(self, **kw) -> dict:
+        """Build an Ollama options dict, omitting "seed" entirely when self.seed is None."""
+        if self.seed is not None:
+            kw["seed"] = self.seed
+        return kw
 
     # ------------------------------------------------------------------
     # Public API
@@ -549,7 +562,9 @@ class DefenderAgent:
                     {"role": "system", "content": DEFENDER_LLM_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                options={"temperature": 0.3, "num_predict": 2048, "seed": self.seed},
+                options=self._opts(temperature=0.3, num_predict=2048),
+                platform=self.platform,
+                reasoning_effort=ollama.DEFAULT_REASONING_EFFORT if ollama.is_reasoning_model(self.model) else None,
             )
             return response["message"]["content"]
         except Exception as exc:
@@ -590,7 +605,9 @@ class DefenderAgent:
                     {"role": "system", "content": DEFENDER_SYSTEM},
                     {"role": "user", "content": prompt},
                 ],
-                options={"temperature": 0.4, "num_predict": 1024, "seed": self.seed},
+                options=self._opts(temperature=0.4, num_predict=1024),
+                platform=self.platform,
+                reasoning_effort=ollama.DEFAULT_REASONING_EFFORT if ollama.is_reasoning_model(self.model) else None,
             )
             return response["message"]["content"]
         except Exception as exc:
