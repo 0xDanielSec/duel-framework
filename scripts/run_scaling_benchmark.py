@@ -360,18 +360,68 @@ def _clear_checkpoint(model: str) -> None:
         p.unlink()
 
 
+_OLLAMA_BASE_URL = "http://localhost:11434"
+
+
+def _ollama_has_resident_model() -> bool:
+    """
+    True if Ollama currently reports a loaded model (GET /api/ps, same data
+    `ollama ps` shows). Used to skip restarting a daemon that has nothing
+    resident to begin with -- restarting is only useful when something is
+    actually loaded that could overlap with the next technique's model.
+    Any request failure is treated as "no resident model" (nothing to
+    restart away from), not as a reason to restart.
+    """
+    import requests
+    try:
+        r = requests.get(f"{_OLLAMA_BASE_URL}/api/ps", timeout=3)
+        r.raise_for_status()
+        return bool(r.json().get("models"))
+    except Exception:
+        return False
+
+
+def _wait_for_ollama_ready(max_wait: int = 60, settle: int = 10) -> float:
+    """
+    Poll GET /api/tags until it responds 200 (daemon actually up and ready to
+    serve, not just the process existing), then wait `settle` more seconds
+    before returning -- replaces a fixed sleep with a real readiness check.
+    Returns the elapsed seconds until the daemon answered (logged by the
+    caller). If it never responds within max_wait, proceeds anyway (logged)
+    rather than hanging indefinitely.
+    """
+    import time
+    import requests
+    start = time.time()
+    while time.time() - start < max_wait:
+        try:
+            r = requests.get(f"{_OLLAMA_BASE_URL}/api/tags", timeout=2)
+            if r.status_code == 200:
+                elapsed = time.time() - start
+                console.print(f"  [dim]Ollama daemon ready after {elapsed:.1f}s -- waiting {settle}s more to settle[/dim]")
+                time.sleep(settle)
+                return elapsed
+        except Exception:
+            pass
+        time.sleep(1)
+    console.print(f"  [yellow]Ollama daemon did not respond within {max_wait}s -- proceeding anyway[/yellow]")
+    return float(max_wait)
+
+
 def _restart_ollama() -> None:
     """
-    Kill and relaunch the Ollama app so each --resume technique starts
-    against a clean daemon. Mitigates (does not diagnose) an OOM observed on
-    a 16GB machine partway through a run despite 9-11 GB free throughout --
-    the per-20s memory samples around the failure did not show a sustained
-    decline, so a slow leak/KV-cache-growth theory is not well supported by
-    the evidence in hand; a transient allocation spike right at a model
-    reload (keep_alive=0 forces one on every call) is at least as plausible.
-    Restarting between techniques is a symptom-level mitigation either way --
-    see docs/scaling_v2_results.md §2b/§2c. Windows-only, best-effort: any
-    failure here is logged and swallowed rather than aborting the run.
+    Kill and relaunch the Ollama app, then wait for it to actually be ready
+    (see _wait_for_ollama_ready) instead of a fixed sleep. Call only when
+    _ollama_has_resident_model() is True and this is not the first technique
+    of the run/resume -- see _run_model. Mitigates (does not diagnose) an
+    OOM observed on a 16GB machine partway through a run despite 9-11 GB
+    free throughout -- the per-20s memory samples around the failure did not
+    show a sustained decline, so a slow leak/KV-cache-growth theory is not
+    well supported by the evidence in hand; a transient allocation spike
+    right at a model reload (keep_alive=0 forces one on every call) is at
+    least as plausible. See docs/scaling_v2_results.md §2b/§2c/§2d.
+    Windows-only, best-effort: any failure here is logged and swallowed
+    rather than aborting the run.
     """
     import subprocess
     import time
@@ -386,8 +436,8 @@ def _restart_ollama() -> None:
         app_path = Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama app.exe"
         if app_path.exists():
             subprocess.Popen([str(app_path)], creationflags=subprocess.DETACHED_PROCESS)
-            time.sleep(3)  # let the daemon come up before the next technique's first call
-            console.print("  [dim]Ollama restarted[/dim]")
+            elapsed = _wait_for_ollama_ready()
+            console.print(f"  [dim]Ollama restarted (ready in {elapsed:.1f}s)[/dim]")
         else:
             console.print(f"  [yellow]_restart_ollama: {app_path} not found, skipped relaunch[/yellow]")
     except Exception as exc:
@@ -439,6 +489,7 @@ def _run_model(
             progress.advance(task, len(technique_results))
 
         skipped_not_found: set[str] = set()
+        is_first_technique_to_run = True  # never restart before this one -- nothing to gain, only risk
 
         for tech_id in technique_ids:
             if tech_id in technique_results:
@@ -453,8 +504,9 @@ def _run_model(
                 progress.advance(task)
                 continue
 
-            if resume:
+            if resume and not is_first_technique_to_run and _ollama_has_resident_model():
                 _restart_ollama()
+            is_first_technique_to_run = False
 
             try:
                 result = _battle(
