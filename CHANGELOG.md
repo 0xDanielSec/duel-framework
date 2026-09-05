@@ -2,6 +2,15 @@
 
 All notable changes to DUEL are documented in this file.
 
+## [Unreleased] — Weekly battle badge paused
+
+The weekly automated battle workflow (`.github/workflows/weekly-duel.yml`) used Groq model
+IDs that were decommissioned on Groq's side since the workflow's introduction on 2026-04-25.
+All 21 weekly runs to date silently completed with zero recorded rounds, so the README badge
+has never reflected a real battle result. The badge is paused until the workflow is fixed with
+verified Groq model IDs and a guard that fails the job (instead of committing) on a zero-result
+or API-error run.
+
 ## [1.0.0] — Current stable release
 
 Full production-ready release. All modules stable and integrated. MCP Server, 38 techniques,
