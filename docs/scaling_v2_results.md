@@ -96,6 +96,69 @@ drift are never conflated.
 > substantive behavioral change elsewhere in the prompt/scoring pipeline since the paper was
 > written that has not yet been identified. Not diagnosed further until the table is
 > complete.
+>
+> **Update:** phi3.5 (0.7966) and mistral (0.7943) reproduce at a consistent ~0.795 ratio of
+> the paper value — not random per-model noise, a systematic multiplicative factor. Updated
+> stop rule (still in effect): a model whose ratio falls **outside ~0.7–0.9**, or whose
+> direction inverts (reproduces *higher* than paper), triggers a full stop — the ~0.795
+> pattern itself is now the expected baseline, not a violation. See §2a for the code-level
+> diagnosis of candidate causes.
+
+### 2a. Diagnosis — what changed since the paper, at the code level
+
+`226aed4` (2026-05-08, "feat: scaling laws...") is the commit that introduced the scaling-law
+feature and is taken as the pipeline state that produced Table 1 (same day as the paper draft
+commit `eada793`; DOI added the next day in `d6af684`). `git diff 226aed4 HEAD` for the files
+the mission asked about:
+
+**The single largest finding: `seed` did not exist in the code when the paper was written.**
+`agents/attacker.py` and `agents/defender.py` had no `seed` parameter and no `"seed"` key in
+any `ollama.chat()` `options={}` dict at `226aed4`. It was added two days later, in
+`e30fdb0` (2026-05-10, "feat: reproducible seed support — all experiments reproducible with
+--seed 42") — **after** the paper draft and the Zenodo DOI commit. Every LLM call in the
+original scaling-law run was unseeded. The paper's §3.3 claim "All experiments use seed=42"
+was not true of the run that produced Table 1 — the capability didn't exist yet. This is not
+a "the pipeline drifted" finding, it's a "the original run was never deterministic in the
+first place" finding, and on its own could fully explain why a seeded re-run lands on a
+different, but internally consistent, operating point.
+
+| # | File | Change since `226aed4` | Affects score? | Note |
+|---|---|---|---|---|
+| 1 | `agents/attacker.py`, `agents/defender.py` | `seed=42` added to every `options={}` (previously no `seed` key existed at all) | **YES** | See above — the leading candidate cause |
+| 2 | `agents/defender.py` | `DefenderMemory` — injects accumulated per-technique context into the round-1 prompt | No, *in this reproduction* | Added 2026-05-17 (`0e8a6a5`), 9 days after the paper. `output/defender_memory.json` does not exist in this environment; `get_context()` returns `""` for every technique (tested directly). `run_scaling_benchmark.py`'s `_battle()` never calls `save_full_battle_log()` either, so this reproduction never reads *or* writes memory. Latent risk for a future run in an environment where that file has accumulated data — not a factor here. |
+| 3 | `agents/defender.py` | `ConstitutionEngine` / `constitutional_mode` | No | Added 2026-05-17 (`2fa6d30`); defaults `False`, not enabled by this reproduction — dead code path for our runs |
+| 4 | `agents/attacker.py`, `agents/defender.py` | `temperature`, `num_predict` | No | Byte-identical: 0.9/4096 (attacker payload call), 0.85/4096 (attacker main call), 0.3/2048 (defender LLM-mode call), 0.4/1024 (defender KQL call) |
+| 5 | `agents/attacker.py`, `agents/defender.py` | System prompt text (`DEFENDER_SYSTEM`, `ATTACKER_SYSTEM`, etc.) | No | Unchanged; the Defender's `INITIAL_PROMPT_TEMPLATE` gained `{defender_memory}`/`{constitution}` interpolation slots, both empty per #2/#3 |
+| 6 | `engine/scoring.py` | `compliance_result`, `constitution`, `constitution_attacks` fields on `BattleScorer`/saved log | No | Constitutional-mode only, inert here |
+| 7 | `engine/scoring.py` | `seed` field added to `BattleScorer` and the saved battle-log dict | No (metadata only) | Doesn't touch `record_round()`'s detection-rate/evasion-rate math |
+| 8 | `engine/dabs_scorer.py` | `WEIGHTS` 30/25/20/15/10 → 28/23/19/14/8/8, `swarm_resilience` added | **YES, but already controlled for** | Exactly `docs/ERRATA.md` item 1 — isolated by scoring every reproduction under `weight_profile="dabs_v1"` (paper weights) for the comparison in §2; not a residual confound in the Δ column above |
+| 9 | `engine/dabs_scorer.py` | `_coverage`/`_resilience`/`_hardening`/`_consistency` formulas | No | Byte-identical — only the weighting/renormalisation logic around them changed |
+| 10 | `engine/detection.py` | — | No | Zero diff. KQL detection engine is byte-identical to `226aed4` |
+| 11 | *(not a code diff — a deliberate choice for this reproduction)* | `--threat-intel off` | **Suspected, unresolved** | The feature existed before the paper (2026-04-25) and ran live/unconditionally then (`docs/ERRATA.md` item 4). Turning it off for this reproduction is correct methodology going forward but is a real difference from how the original ran. Isolation test below. |
+
+`prompts/` does not exist anywhere in this repo's history — system/template prompts live
+inline in `agents/attacker.py` and `agents/defender.py`, covered above.
+
+**Prepared, not run — queued after the 3 Groq entries:**
+
+```
+python scripts/run_scaling_benchmark.py \
+  --models mistral:7b \
+  --threat-intel snapshot \
+  --threat-intel-snapshot output/benchmarks/threat_intel_snapshot_2026-09-05.json
+```
+
+Isolation test for cause #11. `output/benchmarks/threat_intel_snapshot_2026-09-05.json` was
+generated today from live `ThreatIntelFeed` (no code changes — used as-is). **Caveat that
+limits what this test can show:** URLhaus's `/v1/urls/recent/` endpoint now returns
+`401 Unauthorized` (it previously required no auth — an external API change, not a local bug)
+and Feodo Tracker returned `503` at fetch time; a local SSL certificate issue was also found
+and fixed along the way (`SSL_CERT_FILE` wasn't pointed at `certifi`'s bundle) but is a
+separate problem from the 401/503s. Today's snapshot therefore has **zero real IOCs** — only
+the static baseline user-agent list. Running mistral against this snapshot tests whether
+merely *activating* the threat-intel code path (prompt scaffolding, `_build_ti_block()`) moves
+the score at all with no real matches — a real IOC-driven test would need URLhaus API
+credentials or a working Feodo endpoint, neither available right now.
 
 Raw per-model JSON: `output/benchmarks/scaling_v2/dabs_<model>_<timestamp>.json` (each contains
 both `dabs_v1` and `dabs_v2` in full, including per-component and per-technique breakdowns).
@@ -122,6 +185,19 @@ both `dabs_v1` and `dabs_v2` in full, including per-component and per-technique 
 | v2 reproduced, n=5 | TBD | TBD | 5 | Current pipeline, dabs_v2 weights, same 5 models |
 | v2 full grid, n≥12 | TBD | TBD | ≥12 | Current pipeline, dabs_v2 weights, full grid |
 | v2 full grid, Groq-only subset | TBD | TBD | TBD | Isolates platform effect — Ollama models excluded |
+
+**`pipeline_version` and comparability.** Every result JSON now records `pipeline_version`
+(`<short-commit-hash>[-dirty]@<date>`, `engine/dabs_scorer.py::get_pipeline_version()`, added
+on `feat/groq-grid`, not yet in main). DABS is an absolute 0-100 score, but the prompts,
+weights, and scoring logic it depends on change over time — exactly what §2/§2a document.
+**An absolute DABS value is only safely comparable to another value carrying the same
+`pipeline_version`.** Comparing across pipeline versions (e.g. this reproduction vs. the
+paper's original run, which predates `pipeline_version` existing at all and is identified
+only as "the code at `226aed4`") should use rank ordering and fitted trends — which model
+beats which, and the shape/exponent of the power-law fit — not raw score differences. The
+~0.795 ratio pattern (§2) is itself an example: the *ordering* of phi3.5 vs. mistral is
+preserved (mistral still scores higher), even though neither absolute value matches its
+paper counterpart.
 
 ---
 

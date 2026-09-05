@@ -1,0 +1,27 @@
+{
+  "last_updated": "2026-09-05T14:21:44.606763+00:00",
+  "source_status": {
+    "urlhaus": "error",
+    "feodo": "http_503",
+    "otx": "auth_required"
+  },
+  "malicious_ips": [],
+  "malicious_domains": [],
+  "malicious_useragents": [
+    "python-requests/",
+    "Go-http-client/",
+    "curl/",
+    "libwww-perl/",
+    "masscan/",
+    "zgrab/",
+    "nmap scripting engine",
+    "sqlmap/",
+    "nikto/",
+    "dirbuster",
+    "gobuster",
+    "nuclei/",
+    "httpx/",
+    "wfuzz/",
+    "ffuf/"
+  ]
+}
