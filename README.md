@@ -40,11 +40,11 @@ The dashboard updates automatically every Monday after the weekly GitHub Actions
 
 ## What is DUEL
 
-DUEL is a fully local, offline adversarial security research framework. Two LLM agents — an **Attacker** and a **Defender** — battle across multiple rounds using real Microsoft Sentinel schemas. The Attacker (llama3.1:8b) generates synthetic telemetry that mimics documented MITRE ATT&CK techniques against cloud infrastructure. The Defender (mistral:7b) writes KQL detection rules. A deterministic detection engine scores every round, and the Attacker mutates its telemetry each round based on what got caught.
+DUEL is local-first: it runs fully offline on Ollama by default. Groq cloud inference is used only for large-model scaling benchmarks and CI, and every Groq-generated result is labeled `platform: groq` in its output. Two LLM agents — an **Attacker** and a **Defender** — battle across multiple rounds using real Microsoft Sentinel schemas. The Attacker (llama3.1:8b) generates synthetic telemetry that mimics documented MITRE ATT&CK techniques against cloud infrastructure. The Defender (mistral:7b) writes KQL detection rules. A deterministic detection engine scores every round, and the Attacker mutates its telemetry each round based on what got caught.
 
 The framework covers **38 techniques**: 28 MITRE ATT&CK cloud/identity techniques spanning all major Microsoft Sentinel tables (`SigninLogs`, `AuditLogs`, `AzureActivity`, `OfficeActivity`) and the full **OWASP LLM Top 10 2025** for AI/LLM-specific attack simulation. The Attacker carries **persistent memory** across sessions — evasion patterns, dangerous field values, and stable mutation strategies accumulate in `output/attacker_memory.json` and feed every subsequent battle.
 
-DUEL ships with a full-featured **web UI** (6 dashboards), a **MCP Server** that exposes all capabilities as tools for Claude Desktop and Cursor, **autonomous red team mode** where an LLM chooses the attack sequence, **tournament mode** for ranking Ollama models, **campaign mode** for multi-stage kill chains, **PDF report generation**, one-click **Microsoft Sentinel ARM template export**, and **Sigma rule export** (deploy surviving detections to Splunk, Elastic, QRadar, or any Sigma-compatible SIEM). Zero external API calls — everything runs on Ollama.
+DUEL ships with a full-featured **web UI** (6 dashboards), a **MCP Server** that exposes all capabilities as tools for Claude Desktop and Cursor, **autonomous red team mode** where an LLM chooses the attack sequence, **tournament mode** for ranking Ollama models, **campaign mode** for multi-stage kill chains, **PDF report generation**, one-click **Microsoft Sentinel ARM template export**, and **Sigma rule export** (deploy surviving detections to Splunk, Elastic, QRadar, or any Sigma-compatible SIEM). Runs fully offline on Ollama by default; Groq cloud is used only for large-model scaling benchmarks and CI, always labeled `platform: groq` in outputs.
 
 ---
 
@@ -294,7 +294,7 @@ Run battles for T1110.003, T1528, and T1606.002, then compare their evasion rate
 
 ## Real-World Results
 
-The following figures are drawn from actual DUEL battle runs against a local Ollama stack (llama3.1:8b Attacker, mistral:7b Defender):
+The following figures are drawn from actual DUEL battle runs on a local Ollama stack by default (llama3.1:8b Attacker, mistral:7b Defender); large-model scaling results use Groq cloud instead, always labeled `platform: groq`:
 
 | Technique | Name | Rounds | Final Evasion | Attacker Won |
 |-----------|------|--------|---------------|--------------|
@@ -925,7 +925,7 @@ PRs extending the engine must include a new test case.
 
 **Model benchmarking** — tested against `llama3.1:8b` (Attacker) and `mistral:7b` (Defender). If you benchmark other Ollama models and find better pairings, open an issue with the evasion/detection rates.
 
-All contributions must follow the hard rules in `CLAUDE.md`: English only, zero external API calls, no simplification of KQL realism.
+All contributions must follow the hard rules in `CLAUDE.md`: English only, Ollama-first (Groq permitted only for scaling benchmarks/CI, always labeled `platform: groq`), no simplification of KQL realism.
 
 ---
 

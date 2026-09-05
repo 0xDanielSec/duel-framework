@@ -9,7 +9,9 @@ each round.
 
 ## Hard Rules
 - All code, comments, commits, and output files must be in English
-- Zero calls to Anthropic API or any paid LLM API — Ollama only
+- Ollama é o backend padrão. Groq é permitido para benchmarks de scaling e CI,
+  e todo resultado gerado via Groq deve registrar `platform: groq` no output.
+  Anthropic/OpenAI e outras APIs pagas continuam proibidas.
 - Never simplify the KQL rules to make detection easier — realism matters
 - Attacker must always reason about previous round detections before mutating
 - Defender must always reference evaded samples before hardening rules
