@@ -139,7 +139,34 @@ different, but internally consistent, operating point.
 `prompts/` does not exist anywhere in this repo's history — system/template prompts live
 inline in `agents/attacker.py` and `agents/defender.py`, covered above.
 
-**Prepared, not run — queued after the 3 Groq entries:**
+### GPU queue — prepared, not run yet (executes on `feat/groq-grid`, after the concurrent
+### 5-model reproduction on `main` finishes; nothing shares GPU with it)
+
+**1. Seed isolation + first DABS variance estimate.** mistral:7b, unseeded, 3 independent
+runs, everything else identical (`--threat-intel off`, both weight profiles):
+
+```
+python scripts/run_scaling_benchmark.py \
+  --models mistral:7b \
+  --seed none \
+  --repeat 3 \
+  --threat-intel off
+```
+
+Dual purpose: (a) if the mean lands back near 66.27, `seed=42` not existing in the original
+code (ERRATA item 5) explains the ~0.795 ratio; (b) the standard deviation across the 3 runs
+is the project's first empirical estimate of DABS variance, to be reported as an error bar in
+every table going forward, not just this one. `agents/attacker.py`/`agents/defender.py` now
+support `seed=None` (omits the `seed` key from Ollama options entirely, not a sentinel value)
+and `run_scaling_benchmark.py` supports `--repeat N` with automatic mean/stdev — both
+implemented and unit-/integration-tested on `feat/groq-grid` (mocked, no real Ollama calls
+yet), not merged to main.
+
+**2.** The 4 new local models + `gpt-oss:latest` (the cross-platform control, Ollama leg).
+
+**3.** The 3 new Groq models.
+
+**4. Threat-intel snapshot test — only if time allows; low expected information value.**
 
 ```
 python scripts/run_scaling_benchmark.py \
@@ -148,17 +175,17 @@ python scripts/run_scaling_benchmark.py \
   --threat-intel-snapshot output/benchmarks/threat_intel_snapshot_2026-09-05.json
 ```
 
-Isolation test for cause #11. `output/benchmarks/threat_intel_snapshot_2026-09-05.json` was
-generated today from live `ThreatIntelFeed` (no code changes — used as-is). **Caveat that
-limits what this test can show:** URLhaus's `/v1/urls/recent/` endpoint now returns
-`401 Unauthorized` (it previously required no auth — an external API change, not a local bug)
-and Feodo Tracker returned `503` at fetch time; a local SSL certificate issue was also found
-and fixed along the way (`SSL_CERT_FILE` wasn't pointed at `certifi`'s bundle) but is a
-separate problem from the 401/503s. Today's snapshot therefore has **zero real IOCs** — only
-the static baseline user-agent list. Running mistral against this snapshot tests whether
+`output/benchmarks/threat_intel_snapshot_2026-09-05.json` was generated today from live
+`ThreatIntelFeed` (no code changes — used as-is). **The v1 (original paper) threat-intel
+enrichment is irreconstructable**: URLhaus's `/v1/urls/recent/` endpoint now returns
+`401 Unauthorized` (it previously required no auth — an external API change, not a local bug,
+discovered this session) and Feodo Tracker returned `503` at fetch time; a local SSL
+certificate issue was also found and fixed along the way (`SSL_CERT_FILE` wasn't pointed at
+`certifi`'s bundle) but is a separate problem from the 401/503s. Today's snapshot has **zero
+real IOCs** — only the static baseline user-agent list, so this test can only show whether
 merely *activating* the threat-intel code path (prompt scaffolding, `_build_ti_block()`) moves
-the score at all with no real matches — a real IOC-driven test would need URLhaus API
-credentials or a working Feodo endpoint, neither available right now.
+the score with no real matches — not what the original run's actual enrichment did, which
+cannot be recovered.
 
 Raw per-model JSON: `output/benchmarks/scaling_v2/dabs_<model>_<timestamp>.json` (each contains
 both `dabs_v1` and `dabs_v2` in full, including per-component and per-technique breakdowns).
