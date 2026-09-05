@@ -320,7 +320,7 @@ All three use `--threat-intel off`, both weight profiles, otherwise identical to
 |---|---|---|---|---|---|---|
 | mistral:7b | 42 (fixed) | 2 | [52.63, 52.63] | 52.63 | **0.00** | 0.00 |
 | mistral:7b | none | 3 | [47.90, 57.85, 51.14] | 52.30 | **5.07** | 9.95 |
-| llama3.1:8b | none | 3 | TBD | TBD | TBD | TBD |
+| llama3.1:8b | none | 3 | [59.63, 60.62, 63.39] | 61.21 | **1.95** | 3.76 |
 
 **(a) Determinism holds.** `seed=42` produces byte-for-byte identical DABS across 2
 independent processes (`stdev=0.00`, every one of the 15 rounds matched exactly, not just the
@@ -342,7 +342,26 @@ mistral/phi3.5 gap from Table 1 — something else (genuine pipeline/environment
 enrichment effect, or a combination) most likely still contributes.** Not further decomposed
 without more data than 3 runs provides.
 
-**(c) llama3.1:8b, the inverted-direction case — TBD, running.**
+**(c) llama3.1:8b — low variance, and unseeded runs don't come close to the paper value at
+all. This is the more decisive result of the three.** `raw=[59.63, 60.62, 63.39]`,
+`mean=61.21`, `sd=1.95` — well *under* the 5-point threshold, tightly clustered, all three
+runs individually triggering `[PARE]` against the paper's 41.53 (ratios 1.44-1.53). Modeling
+this as normal(61.21, 1.95), the paper's 41.53 is ~10σ away — not a plausible unseeded draw
+from whatever distribution these three runs sample. **Unlike mistral:7b, unseeded variance
+(ERRATA item 5) cannot explain llama3.1:8b's divergence from Table 1 at all** — this looks
+like a real, reproducible, systematic difference between the current pipeline and whatever
+produced the original 41.53, not sampling noise. Not yet identified. One structural note,
+not yet investigated further: llama3.1:8b is both Attacker (fixed for every model in this
+whole reproduction) and Defender in this specific run — a self-play configuration that may
+behave differently from every other model pairing tested, worth isolating in a future test
+(e.g. does a *different* fixed Attacker change llama3.1:8b's Defender score materially?).
+
+**Comparing (b) and (c): the two divergent models fail in qualitatively different ways.**
+mistral:7b's gap from Table 1 is partly (not fully) explained by high unseeded variance
+(sd=5.07) landing consistently on the low side. llama3.1:8b's gap is not explained by
+variance at all — it's a tight, consistent, ~20-point elevation above its paper value. Whatever
+changed since the paper, it did not affect every model the same way, and for at least one
+model (llama3.1:8b) it is not reducible to "the original run got unlucky."
 
 Raw per-model JSON for every repeat: `output/benchmarks/scaling_v2/dabs_<model>_run<N>_<timestamp>.json`.
 
