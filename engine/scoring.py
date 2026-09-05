@@ -85,6 +85,39 @@ class BattleScorer:
         self._save_round_log(record)
         return record
 
+    def record_timeout(self, round_num: int, phase: str = "round") -> dict:
+        """
+        Record a round that hit the per-round timeout instead of completing.
+
+        Distinct from a 0% detection round: detection_rate/evasion_rate are
+        None here, not 0.0 — a timeout means "we don't know," not "the
+        defender caught nothing." DABSScorer must treat these as excluded
+        data points, never as zeros (see engine/dabs_scorer.py::_ok_rounds).
+        """
+        record = {
+            "round": round_num,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timeout": True,
+            "timeout_phase": phase,
+            "attack_log_count": None,
+            "detected_count": None,
+            "evaded_count": None,
+            "detection_rate": None,
+            "evasion_rate": None,
+            "kql_valid": None,
+            # Carry the last real rule forward so the next round's "last_kql"
+            # context isn't silently lost because of one timed-out round.
+            "kql_rule": self.rounds[-1]["kql_rule"] if self.rounds else None,
+            "evaded_logs": [],
+            "detected_logs": [],
+            "attacker_cumulative_score": self.attacker_score,
+            "defender_cumulative_score": self.defender_score,
+            "compliance_result": None,
+        }
+        self.rounds.append(record)
+        self._save_round_log(record)
+        return record
+
     # ------------------------------------------------------------------
     # Convenience getters for agents
     # ------------------------------------------------------------------

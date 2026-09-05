@@ -12,15 +12,22 @@ import numpy as np
 
 OUTPUT_DIR = Path(__file__).parent.parent / "output"
 
-MODEL_REGISTRY: dict[str, float] = {
-    "phi3.5:latest": 3.8,
-    "phi3.5":        3.8,
-    "mistral:7b":    7.0,
-    "mistral":       7.0,
-    "qwen2.5:7b":    7.0,
-    "llama3.1:8b":   8.0,
-    "llama3.1":      8.0,
-    "qwen2.5:14b":   14.0,
+def _entry(params_b: float, source_url: str, platform: str = "ollama") -> dict:
+    return {"params_b": params_b, "source_url": source_url, "platform": platform}
+
+
+# Every entry MUST carry a verifiable source (official model card / provider
+# docs) — no estimated parameter counts. A model with no confirmed source
+# does not get an entry and therefore cannot enter a benchmark grid.
+MODEL_REGISTRY: dict[str, dict] = {
+    "phi3.5:latest": _entry(3.8,  "https://huggingface.co/microsoft/Phi-3.5-mini-instruct"),
+    "phi3.5":        _entry(3.8,  "https://huggingface.co/microsoft/Phi-3.5-mini-instruct"),
+    "mistral:7b":    _entry(7.0,  "https://ollama.com/library/mistral:7b"),
+    "mistral":       _entry(7.0,  "https://ollama.com/library/mistral:7b"),
+    "qwen2.5:7b":    _entry(7.61, "https://huggingface.co/Qwen/Qwen2.5-7B"),
+    "llama3.1:8b":   _entry(8.0,  "https://huggingface.co/meta-llama/Llama-3.1-8B"),
+    "llama3.1":      _entry(8.0,  "https://huggingface.co/meta-llama/Llama-3.1-8B"),
+    "qwen2.5:14b":   _entry(14.7, "https://huggingface.co/Qwen/Qwen2.5-14B"),
 }
 
 
@@ -31,12 +38,13 @@ class ScalingLawsAnalyzer:
         self.output_dir = output_dir or OUTPUT_DIR
 
     def _resolve_params(self, model_name: str) -> Optional[float]:
-        if model_name in MODEL_REGISTRY:
-            return MODEL_REGISTRY[model_name]
+        entry = MODEL_REGISTRY.get(model_name)
+        if entry is not None:
+            return entry["params_b"]
         base = model_name.split(":")[0]
-        for key, params in MODEL_REGISTRY.items():
+        for key, entry in MODEL_REGISTRY.items():
             if key.split(":")[0] == base:
-                return params
+                return entry["params_b"]
         return None
 
     def _load_dabs_scores(self) -> list[dict]:

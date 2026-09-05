@@ -288,24 +288,34 @@ def main() -> None:
     console.print(f"[bold yellow]╚══════════════════════════════════════════════╝[/bold yellow]\n")
 
     # ── Component table ───────────────────────────────────────────────────────
-    comp_tbl = Table(title="Score Components", style="yellow", border_style="dim", box=box.SIMPLE)
+    # Weights come from the profile the DABSScorer actually used (result.weights_effective)
+    # so the printed Contribution column always reconciles with result.dabs_score —
+    # a hardcoded weight list here previously drifted from the real WEIGHT_PROFILES.
+    comp_tbl = Table(
+        title=f"Score Components — weight_profile={result.weight_profile}",
+        style="yellow", border_style="dim", box=box.SIMPLE,
+    )
     comp_tbl.add_column("Component",    style="dim",     min_width=22)
     comp_tbl.add_column("Score",        justify="right", min_width=8)
     comp_tbl.add_column("Weight",       justify="right", min_width=8)
     comp_tbl.add_column("Contribution", justify="right", min_width=12)
 
-    for key, label, weight in [
-        ("coverage",        "Detection Coverage (30%)", 0.30),
-        ("resilience",      "Resilience         (25%)", 0.25),
-        ("hardening",       "Hardening Rate     (20%)", 0.20),
-        ("consistency",     "Consistency        (15%)", 0.15),
-        ("meta_resilience", "Meta-Resilience    (10%)", 0.10),
-    ]:
+    COMPONENT_LABELS = {
+        "coverage":         "Detection Coverage",
+        "resilience":       "Resilience",
+        "hardening":        "Hardening Rate",
+        "consistency":      "Consistency",
+        "meta_resilience":  "Meta-Resilience",
+        "swarm_resilience": "Swarm Resilience",
+    }
+    weights_effective = result.weights_effective or {}
+    for key, label in COMPONENT_LABELS.items():
         val = comp.get(key)
-        if val is None:
-            comp_tbl.add_row(label, "—", f"{weight:.0%}", "—")
+        weight = weights_effective.get(key)
+        if val is None or weight is None:
+            comp_tbl.add_row(label, "—", "—", "—")
         else:
-            comp_tbl.add_row(label, f"{val:.1f}", f"{weight:.0%}", f"{val * weight:.1f}")
+            comp_tbl.add_row(label, f"{val:.1f}", f"{weight:.1%}", f"{val * weight:.1f}")
 
     console.print(comp_tbl)
 

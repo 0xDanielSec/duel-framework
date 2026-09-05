@@ -38,7 +38,13 @@ class ThreatIntelFeed:
 
     CACHE_PATH = OUTPUT_DIR / "threat_intel_cache.json"
     CACHE_TTL  = 3600   # seconds before a refresh
-    TIMEOUT    = 12     # HTTP timeout per source
+    # HTTP timeout per source. NOTE: urllib's `timeout=` bounds each individual
+    # socket read/write, but on some platforms it does NOT bound the initial
+    # DNS resolution inside socket.create_connection() — a black-holed/hanging
+    # resolver can still stall well past this value. This is a real, observed
+    # failure mode (see docs/scaling_v2_results.md Limitations) — the actual
+    # protection for unattended runs is ThreatIntelMode.OFF, not this number.
+    TIMEOUT    = 5
 
     def __init__(self):
         self._iocs: dict[str, list[str]] = {
@@ -49,6 +55,25 @@ class ThreatIntelFeed:
         self._source_status: dict[str, str] = {}
         self._last_updated: str = ""
         self._load_or_refresh()
+
+    @classmethod
+    def from_snapshot(cls, path: str | Path) -> "ThreatIntelFeed":
+        """
+        Build a feed from a fixed, versioned JSON snapshot instead of live
+        network fetches — bypasses __init__/_fetch_all() entirely, so this
+        never touches the network. Snapshot must have the same shape as
+        CACHE_PATH (malicious_ips/malicious_domains/malicious_useragents).
+        """
+        self = cls.__new__(cls)
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        self._iocs = {
+            "malicious_ips":        data.get("malicious_ips", []),
+            "malicious_domains":    data.get("malicious_domains", []),
+            "malicious_useragents": data.get("malicious_useragents", list(_BASELINE_UAS)),
+        }
+        self._source_status = {"snapshot": str(path)}
+        self._last_updated  = data.get("last_updated", "")
+        return self
 
     # ------------------------------------------------------------------
     # Public API
