@@ -20,6 +20,8 @@
 [![Dataset](https://img.shields.io/badge/🤗_Dataset-duel--adversarial--logs-yellow)](https://huggingface.co/datasets/0xDanielSec/duel-adversarial-logs)
 ![DABS](https://img.shields.io/badge/DABS-Benchmark-gold?style=flat-square&logo=star)
 
+📋 [Errata](docs/ERRATA.md) — corrections to the published paper (params, weight profile, weekly-badge incident)
+
 ---
 
 <!-- weekly-badge-start -->
