@@ -43,9 +43,17 @@ load_dotenv(_PROJECT_ROOT / ".env")  # no-op if the file doesn't exist
 _MODELS_URL = "https://api.groq.com/openai/v1/models"
 
 # Model ids containing any of these substrings are not general-purpose chat
-# completion models (audio in/out, moderation-only) and are excluded from the
-# scaling-grid candidate list.
-_NON_CHAT_MARKERS = ("whisper", "tts", "-tts")
+# completion models and are excluded from the scaling-grid candidate list:
+# audio (whisper/tts/orpheus = text-to-speech), classifier-only guard models
+# (prompt-guard = injection/safety classifier, not a generative LM), and
+# Groq's own "compound" agentic systems (a tool-calling orchestration layer
+# over one or more underlying models, not a single model with one parameter
+# count — has no single official model-card params_b to cite).
+_NON_CHAT_MARKERS = (
+    "whisper", "tts", "-tts", "orpheus",       # audio / TTS
+    "prompt-guard", "llamaguard", "llama-guard",  # classifier-only, not generative
+    "compound",                                 # agentic system, not a single model
+)
 
 # Known family display names by id prefix/substring — extend as Groq's
 # catalog changes. Order matters: more specific patterns first.
@@ -111,6 +119,11 @@ def build_candidates(raw_models: list[dict]) -> list[dict]:
             continue
         if any(marker in model_id.lower() for marker in _NON_CHAT_MARKERS):
             continue
+        note = None
+        if "safeguard" in model_id.lower():
+            note = "safety/moderation-tuned variant — not a general-purpose chat model; " \
+                   "using it as a Defender is a different research question than the other candidates"
+
         candidates.append({
             "groq_id":         model_id,
             "family":          _infer_family(model_id),
@@ -119,6 +132,7 @@ def build_candidates(raw_models: list[dict]) -> list[dict]:
             "context_window":  m.get("context_window"),
             "owned_by":        m.get("owned_by"),
             "active":          m.get("active", True),
+            "note":            note,
         })
     return sorted(candidates, key=lambda c: (c["family"], c["params_b"] or 0))
 
