@@ -1,0 +1,66 @@
+{
+  "fetched_at": "2026-09-05T13:55:33.169350+00:00",
+  "source_url": "https://api.groq.com/openai/v1/models",
+  "candidates": [
+    {
+      "groq_id": "openai/gpt-oss-20b",
+      "family": "GPT-OSS",
+      "params_b": 20.0,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "OpenAI",
+      "active": true,
+      "note": null
+    },
+    {
+      "groq_id": "openai/gpt-oss-safeguard-20b",
+      "family": "GPT-OSS",
+      "params_b": 20.0,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "OpenAI",
+      "active": true,
+      "note": "safety/moderation-tuned variant \u2014 not a general-purpose chat model; using it as a Defender is a different research question than the other candidates"
+    },
+    {
+      "groq_id": "openai/gpt-oss-120b",
+      "family": "GPT-OSS",
+      "params_b": 120.0,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "OpenAI",
+      "active": true,
+      "note": null
+    },
+    {
+      "groq_id": "qwen/qwen3.6-27b",
+      "family": "Qwen",
+      "params_b": 27.0,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "Alibaba Cloud",
+      "active": true,
+      "note": null
+    },
+    {
+      "groq_id": "qwen/qwen3.8-27b",
+      "family": "Qwen",
+      "params_b": 27.0,
+      "params_status": "unverified",
+      "context_window": 131042,
+      "owned_by": "Alibaba Cloud",
+      "active": true,
+      "note": null
+    },
+    {
+      "groq_id": "allam-2-7b",
+      "family": "unknown",
+      "params_b": 7.0,
+      "params_status": "unverified",
+      "context_window": 4096,
+      "owned_by": "SDAIA",
+      "active": true,
+      "note": null
+    }
+  ]
+}

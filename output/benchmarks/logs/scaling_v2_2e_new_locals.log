@@ -1,0 +1,103 @@
+
+DUEL — Scaling Laws Benchmark
+  Defender models: llama3.2:1b, llama3.2:3b, qwen2.5:3b, gemma2:2b, 
+gpt-oss:latest
+  Attacker:        llama3.1:8b
+  Techniques:      T1078.004, T1110.003, T1528, T1621, T1556.006
+  Rounds / tech:   3
+  Round timeout:   600s
+  Threat intel:    off
+  Seed:            42
+  Repeat:          1
+
+
+══ Defender: llama3.2:1b ══
+    2026-09-05T22:02:47.363882+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T22:04:41.546866+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-05T22:06:52.539597+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-05T22:08:46.221462+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T22:10:32.958983+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-05T22:12:26.682936+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-05T22:14:02.403099+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T22:15:55.437754+00:00 round 2/3 done — det=1.00 eva=0.00
+    2026-09-05T22:17:31.277764+00:00 round 3/3 done — det=1.00 eva=0.00
+    2026-09-05T22:19:00.852214+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T22:20:10.870210+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-05T22:21:40.564458+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-05T22:23:25.058196+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T22:24:54.412090+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-05T22:26:29.383955+00:00 round 3/3 done — det=0.00 eva=1.00
+  T1556.006       ------------------------- 5/5 DABS 36.7
+  llama3.2:1b          paper=n/a  reproduced_v1= 36.52  (no PAPER_DABS_V1 
+reference — not a stop-rule check)
+  DABS(v2) 36.7  DABS(v1, paper-comparable) 36.5  Tier Weak Defender  → 
+dabs_llama3.2_1b_20260905_222629.json
+
+══ Defender: llama3.2:3b ══
+    2026-09-05T22:28:18.774115+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T22:29:56.358894+00:00 round 2/3 done — det=0.22 eva=0.78
+    2026-09-05T22:31:32.190623+00:00 round 3/3 done — det=0.55 eva=0.45
+    2026-09-05T22:33:25.445312+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T22:35:11.299333+00:00 round 2/3 done — det=0.10 eva=0.90
+    2026-09-05T22:36:55.638566+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-05T22:38:28.505522+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T22:40:18.506519+00:00 round 2/3 done — det=1.00 eva=0.00
+    2026-09-05T22:41:57.462720+00:00 round 3/3 done — det=1.00 eva=0.00
+    2026-09-05T22:43:26.846288+00:00 round 1/3 done — det=0.44 eva=0.56
+    2026-09-05T22:45:10.223007+00:00 round 2/3 done — det=0.30 eva=0.70
+    2026-09-05T22:46:55.618688+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-05T22:48:35.740634+00:00 round 1/3 done — det=0.10 eva=0.90
+    2026-09-05T22:49:57.518214+00:00 round 2/3 done — det=0.55 eva=0.45
+    2026-09-05T22:51:32.046156+00:00 round 3/3 done — det=0.40 eva=0.60
+  T1556.006       ------------------------- 5/5 DABS 63.9
+  llama3.2:3b          paper=n/a  reproduced_v1= 63.76  (no PAPER_DABS_V1 
+reference — not a stop-rule check)
+  DABS(v2) 63.9  DABS(v1, paper-comparable) 63.8  Tier Strong Defender  → 
+dabs_llama3.2_3b_20260905_225132.json
+
+══ Defender: qwen2.5:3b ══
+    2026-09-05T22:53:17.995278+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T22:55:04.152166+00:00 round 2/3 done — det=0.40 eva=0.60
+    2026-09-05T22:56:54.294110+00:00 round 3/3 done — det=0.20 eva=0.80
+KQL starts with unknown table 'ResultType == 0\nIPAddress in ("192.168.1.100", "192.168.1.101", "192.168.1.102", "192.168.1.103")\nUserPrincipalName has "john.doe@contoso.com"\nUserPrincipalName has "jane.doe@contoso.com"\nbin(TimeGenerated, 10m)' — redirecting to 'SigninLogs'. Defender prompt should constrain to available tables.
+    2026-09-05T22:58:52.083271+00:00 round 1/3 done — det=1.00 eva=0.00
+    2026-09-05T23:00:30.659390+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-05T23:02:10.977169+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-05T23:03:43.220492+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T23:05:18.492123+00:00 round 2/3 done — det=0.56 eva=0.44
+    2026-09-05T23:07:10.064082+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-05T23:08:39.655150+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T23:10:07.505494+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-05T23:11:38.174969+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-05T23:13:18.146451+00:00 round 1/3 done — det=0.10 eva=0.90
+    2026-09-05T23:14:34.579017+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-05T23:16:19.022134+00:00 round 3/3 done — det=0.36 eva=0.64
+  T1556.006       ------------------------- 5/5 DABS 49.6
+  qwen2.5:3b           paper=n/a  reproduced_v1= 49.53  (no PAPER_DABS_V1 
+reference — not a stop-rule check)
+  DABS(v2) 49.6  DABS(v1, paper-comparable) 49.5  Tier Moderate Defender  → 
+dabs_qwen2.5_3b_20260905_231619.json
+
+══ Defender: gemma2:2b ══
+    2026-09-05T23:18:27.036347+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T23:20:10.907921+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-05T23:22:00.097514+00:00 round 3/3 done — det=0.10 eva=0.90
+    2026-09-05T23:23:58.156997+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T23:25:30.279579+00:00 round 2/3 done — det=0.78 eva=0.22
+    2026-09-05T23:26:59.454544+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-05T23:28:31.876081+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-05T23:30:11.105290+00:00 round 2/3 done — det=0.44 eva=0.56
+    2026-09-05T23:31:51.584189+00:00 round 3/3 done — det=0.33 eva=0.67
+    2026-09-05T23:33:20.097393+00:00 round 1/3 done — det=0.44 eva=0.56
+    2026-09-05T23:35:12.681157+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-05T23:36:32.408663+00:00 round 3/3 done — det=0.71 eva=0.29
+    2026-09-05T23:38:17.213744+00:00 round 1/3 done — det=0.10 eva=0.90
+    2026-09-05T23:39:54.292196+00:00 round 2/3 done — det=0.11 eva=0.89
+    2026-09-05T23:41:26.397260+00:00 round 3/3 done — det=0.09 eva=0.91
+  T1556.006       ------------------------- 5/5 DABS 61.2
+  gemma2:2b            paper=n/a  reproduced_v1= 61.03  (no PAPER_DABS_V1 
+reference — not a stop-rule check)
+  DABS(v2) 61.2  DABS(v1, paper-comparable) 61.0  Tier Strong Defender  → 
+dabs_gemma2_2b_20260905_234126.json
+
+══ Defender: gpt-oss:latest ══

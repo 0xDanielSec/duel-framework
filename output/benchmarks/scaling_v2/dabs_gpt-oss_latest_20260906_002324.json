@@ -1,0 +1,216 @@
+{
+  "model": "gpt-oss:latest",
+  "attacker_model": "llama3.1:8b",
+  "platform": "ollama",
+  "threat_intel_mode": "off",
+  "pipeline_version": "2029cd4-dirty@2026-09-06",
+  "seed": 42,
+  "run_index": null,
+  "timestamp": "2026-09-06T00:23:24.534303+00:00",
+  "stop_rule": {
+    "model": "gpt-oss:latest",
+    "paper": null,
+    "reproduced_v1": 51.16,
+    "ratio": null,
+    "status": "no_reference"
+  },
+  "dabs_v1": {
+    "model": "gpt-oss:latest",
+    "attacker_model": "llama3.1:8b",
+    "platform": "ollama",
+    "pipeline_version": "2029cd4-dirty@2026-09-06",
+    "seed": 42,
+    "dabs_score": 51.16,
+    "tier": "Moderate Defender",
+    "tier_color": "#e5c043",
+    "weight_profile": "dabs_v1",
+    "weights_nominal": {
+      "coverage": 0.3,
+      "resilience": 0.25,
+      "hardening": 0.2,
+      "consistency": 0.15,
+      "meta_resilience": 0.1
+    },
+    "weights_effective": {
+      "coverage": 0.3333,
+      "resilience": 0.2778,
+      "hardening": 0.2222,
+      "consistency": 0.1667
+    },
+    "components": {
+      "coverage": 60.0,
+      "resilience": 28.67,
+      "hardening": 47.0,
+      "consistency": 76.52,
+      "meta_resilience": null,
+      "swarm_resilience": null
+    },
+    "excluded_components": {
+      "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+      "meta_resilience": "no meta-resilience data supplied for this run"
+    },
+    "per_tactic": {
+      "Defense Evasion": 21.6,
+      "Persistence": 21.6,
+      "Privilege Escalation": 40.0,
+      "Initial Access": 40.0,
+      "Credential Access": 25.8
+    },
+    "per_technique": {
+      "T1078.004": {
+        "score": 40.0,
+        "detection_rate": 0.4,
+        "evasion_rate": 0.6,
+        "hardening": -0.2,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Defense Evasion, Persistence, Privilege Escalation, Initial Access",
+        "name": "Valid Accounts: Cloud Accounts"
+      },
+      "T1110.003": {
+        "score": 0.0,
+        "detection_rate": 0.0,
+        "evasion_rate": 1.0,
+        "hardening": 0.0,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Brute Force: Password Spraying"
+      },
+      "T1528": {
+        "score": 100.0,
+        "detection_rate": 1.0,
+        "evasion_rate": 0.0,
+        "hardening": 0.0,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Steal Application Access Token"
+      },
+      "T1621": {
+        "score": 0.0,
+        "detection_rate": 0.0,
+        "evasion_rate": 1.0,
+        "hardening": 0.0,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Multi-Factor Authentication Request Generation"
+      },
+      "T1556.006": {
+        "score": 3.3,
+        "detection_rate": 0.0333,
+        "evasion_rate": 0.9667,
+        "hardening": -0.1,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access, Defense Evasion, Persistence",
+        "name": "Modify Authentication Process: Multi-Factor Authentication"
+      }
+    },
+    "confidence": "medium",
+    "techniques_benchmarked": 5,
+    "total_techniques": 38,
+    "timestamp": "2026-09-06T00:23:24.534303+00:00"
+  },
+  "dabs_v2": {
+    "model": "gpt-oss:latest",
+    "attacker_model": "llama3.1:8b",
+    "platform": "ollama",
+    "pipeline_version": "2029cd4-dirty@2026-09-06",
+    "seed": 42,
+    "dabs_score": 51.23,
+    "tier": "Moderate Defender",
+    "tier_color": "#e5c043",
+    "weight_profile": "dabs_v2",
+    "weights_nominal": {
+      "coverage": 0.28,
+      "resilience": 0.23,
+      "hardening": 0.19,
+      "consistency": 0.14,
+      "meta_resilience": 0.08,
+      "swarm_resilience": 0.08
+    },
+    "weights_effective": {
+      "coverage": 0.3333,
+      "resilience": 0.2738,
+      "hardening": 0.2262,
+      "consistency": 0.1667
+    },
+    "components": {
+      "coverage": 60.0,
+      "resilience": 28.67,
+      "hardening": 47.0,
+      "consistency": 76.52,
+      "meta_resilience": null,
+      "swarm_resilience": null
+    },
+    "excluded_components": {
+      "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+      "meta_resilience": "no meta-resilience data supplied for this run"
+    },
+    "per_tactic": {
+      "Defense Evasion": 21.6,
+      "Persistence": 21.6,
+      "Privilege Escalation": 40.0,
+      "Initial Access": 40.0,
+      "Credential Access": 25.8
+    },
+    "per_technique": {
+      "T1078.004": {
+        "score": 40.0,
+        "detection_rate": 0.4,
+        "evasion_rate": 0.6,
+        "hardening": -0.2,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Defense Evasion, Persistence, Privilege Escalation, Initial Access",
+        "name": "Valid Accounts: Cloud Accounts"
+      },
+      "T1110.003": {
+        "score": 0.0,
+        "detection_rate": 0.0,
+        "evasion_rate": 1.0,
+        "hardening": 0.0,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Brute Force: Password Spraying"
+      },
+      "T1528": {
+        "score": 100.0,
+        "detection_rate": 1.0,
+        "evasion_rate": 0.0,
+        "hardening": 0.0,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Steal Application Access Token"
+      },
+      "T1621": {
+        "score": 0.0,
+        "detection_rate": 0.0,
+        "evasion_rate": 1.0,
+        "hardening": 0.0,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Multi-Factor Authentication Request Generation"
+      },
+      "T1556.006": {
+        "score": 3.3,
+        "detection_rate": 0.0333,
+        "evasion_rate": 0.9667,
+        "hardening": -0.1,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access, Defense Evasion, Persistence",
+        "name": "Modify Authentication Process: Multi-Factor Authentication"
+      }
+    },
+    "confidence": "medium",
+    "techniques_benchmarked": 5,
+    "total_techniques": 38,
+    "timestamp": "2026-09-06T00:23:24.534303+00:00"
+  }
+}

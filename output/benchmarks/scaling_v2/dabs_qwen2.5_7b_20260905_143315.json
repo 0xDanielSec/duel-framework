@@ -1,0 +1,205 @@
+{
+  "model": "qwen2.5:7b",
+  "attacker_model": "llama3.1:8b",
+  "platform": "ollama",
+  "threat_intel_mode": "off",
+  "seed": 42,
+  "timestamp": "2026-09-05T14:33:15.720130+00:00",
+  "dabs_v1": {
+    "model": "qwen2.5:7b",
+    "attacker_model": "llama3.1:8b",
+    "platform": "ollama",
+    "seed": 42,
+    "dabs_score": 62.42,
+    "tier": "Strong Defender",
+    "tier_color": "#00ff88",
+    "weight_profile": "dabs_v1",
+    "weights_nominal": {
+      "coverage": 0.3,
+      "resilience": 0.25,
+      "hardening": 0.2,
+      "consistency": 0.15,
+      "meta_resilience": 0.1
+    },
+    "weights_effective": {
+      "coverage": 0.3333,
+      "resilience": 0.2778,
+      "hardening": 0.2222,
+      "consistency": 0.1667
+    },
+    "components": {
+      "coverage": 100.0,
+      "resilience": 36.77,
+      "hardening": 73.27,
+      "consistency": 15.54,
+      "meta_resilience": null,
+      "swarm_resilience": null
+    },
+    "excluded_components": {
+      "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+      "meta_resilience": "no meta-resilience data supplied for this run"
+    },
+    "per_tactic": {
+      "Defense Evasion": 40.0,
+      "Persistence": 40.0,
+      "Privilege Escalation": 43.3,
+      "Initial Access": 43.3,
+      "Credential Access": 35.1
+    },
+    "per_technique": {
+      "T1078.004": {
+        "score": 43.3,
+        "detection_rate": 0.4333,
+        "evasion_rate": 0.5667,
+        "hardening": 0.7,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Defense Evasion, Persistence, Privilege Escalation, Initial Access",
+        "name": "Valid Accounts: Cloud Accounts"
+      },
+      "T1110.003": {
+        "score": 31.5,
+        "detection_rate": 0.3148,
+        "evasion_rate": 0.6852,
+        "hardening": 0.4444,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Brute Force: Password Spraying"
+      },
+      "T1528": {
+        "score": 57.6,
+        "detection_rate": 0.5758,
+        "evasion_rate": 0.4242,
+        "hardening": 0.7273,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Steal Application Access Token"
+      },
+      "T1621": {
+        "score": 14.8,
+        "detection_rate": 0.1481,
+        "evasion_rate": 0.8519,
+        "hardening": -0.4444,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Multi-Factor Authentication Request Generation"
+      },
+      "T1556.006": {
+        "score": 36.7,
+        "detection_rate": 0.3667,
+        "evasion_rate": 0.6333,
+        "hardening": 0.9,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access, Defense Evasion, Persistence",
+        "name": "Modify Authentication Process: Multi-Factor Authentication"
+      }
+    },
+    "confidence": "medium",
+    "techniques_benchmarked": 5,
+    "total_techniques": 38,
+    "timestamp": "2026-09-05T14:33:15.719126+00:00"
+  },
+  "dabs_v2": {
+    "model": "qwen2.5:7b",
+    "attacker_model": "llama3.1:8b",
+    "platform": "ollama",
+    "seed": 42,
+    "dabs_score": 62.57,
+    "tier": "Strong Defender",
+    "tier_color": "#00ff88",
+    "weight_profile": "dabs_v2",
+    "weights_nominal": {
+      "coverage": 0.28,
+      "resilience": 0.23,
+      "hardening": 0.19,
+      "consistency": 0.14,
+      "meta_resilience": 0.08,
+      "swarm_resilience": 0.08
+    },
+    "weights_effective": {
+      "coverage": 0.3333,
+      "resilience": 0.2738,
+      "hardening": 0.2262,
+      "consistency": 0.1667
+    },
+    "components": {
+      "coverage": 100.0,
+      "resilience": 36.77,
+      "hardening": 73.27,
+      "consistency": 15.54,
+      "meta_resilience": null,
+      "swarm_resilience": null
+    },
+    "excluded_components": {
+      "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+      "meta_resilience": "no meta-resilience data supplied for this run"
+    },
+    "per_tactic": {
+      "Defense Evasion": 40.0,
+      "Persistence": 40.0,
+      "Privilege Escalation": 43.3,
+      "Initial Access": 43.3,
+      "Credential Access": 35.1
+    },
+    "per_technique": {
+      "T1078.004": {
+        "score": 43.3,
+        "detection_rate": 0.4333,
+        "evasion_rate": 0.5667,
+        "hardening": 0.7,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Defense Evasion, Persistence, Privilege Escalation, Initial Access",
+        "name": "Valid Accounts: Cloud Accounts"
+      },
+      "T1110.003": {
+        "score": 31.5,
+        "detection_rate": 0.3148,
+        "evasion_rate": 0.6852,
+        "hardening": 0.4444,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Brute Force: Password Spraying"
+      },
+      "T1528": {
+        "score": 57.6,
+        "detection_rate": 0.5758,
+        "evasion_rate": 0.4242,
+        "hardening": 0.7273,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Steal Application Access Token"
+      },
+      "T1621": {
+        "score": 14.8,
+        "detection_rate": 0.1481,
+        "evasion_rate": 0.8519,
+        "hardening": -0.4444,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Multi-Factor Authentication Request Generation"
+      },
+      "T1556.006": {
+        "score": 36.7,
+        "detection_rate": 0.3667,
+        "evasion_rate": 0.6333,
+        "hardening": 0.9,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access, Defense Evasion, Persistence",
+        "name": "Modify Authentication Process: Multi-Factor Authentication"
+      }
+    },
+    "confidence": "medium",
+    "techniques_benchmarked": 5,
+    "total_techniques": 38,
+    "timestamp": "2026-09-05T14:33:15.720130+00:00"
+  }
+}

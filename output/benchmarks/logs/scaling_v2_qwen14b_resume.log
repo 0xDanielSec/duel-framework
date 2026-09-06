@@ -1,0 +1,14 @@
+
+DUEL — Scaling Laws Benchmark
+  Defender models: qwen2.5:14b
+  Attacker:        llama3.1:8b
+  Techniques:      T1078.004, T1110.003, T1528, T1621, T1556.006
+  Rounds / tech:   3
+  Round timeout:   600s
+  Threat intel:    off
+  Seed:            42
+  Repeat:          1
+
+
+══ Defender: qwen2.5:14b ══
+  Ollama restarted

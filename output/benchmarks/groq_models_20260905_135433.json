@@ -1,0 +1,114 @@
+{
+  "fetched_at": "2026-09-05T13:54:33.691487+00:00",
+  "source_url": "https://api.groq.com/openai/v1/models",
+  "candidates": [
+    {
+      "groq_id": "openai/gpt-oss-safeguard-20b",
+      "family": "GPT-OSS",
+      "params_b": 20.0,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "OpenAI",
+      "active": true
+    },
+    {
+      "groq_id": "openai/gpt-oss-20b",
+      "family": "GPT-OSS",
+      "params_b": 20.0,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "OpenAI",
+      "active": true
+    },
+    {
+      "groq_id": "openai/gpt-oss-120b",
+      "family": "GPT-OSS",
+      "params_b": 120.0,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "OpenAI",
+      "active": true
+    },
+    {
+      "groq_id": "qwen/qwen3.6-27b",
+      "family": "Qwen",
+      "params_b": 27.0,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "Alibaba Cloud",
+      "active": true
+    },
+    {
+      "groq_id": "qwen/qwen3.8-27b",
+      "family": "Qwen",
+      "params_b": 27.0,
+      "params_status": "unverified",
+      "context_window": 131042,
+      "owned_by": "Alibaba Cloud",
+      "active": true
+    },
+    {
+      "groq_id": "groq/compound-mini",
+      "family": "unknown",
+      "params_b": null,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "Groq",
+      "active": true
+    },
+    {
+      "groq_id": "groq/compound",
+      "family": "unknown",
+      "params_b": null,
+      "params_status": "unverified",
+      "context_window": 131072,
+      "owned_by": "Groq",
+      "active": true
+    },
+    {
+      "groq_id": "canopylabs/orpheus-v1-english",
+      "family": "unknown",
+      "params_b": null,
+      "params_status": "unverified",
+      "context_window": 4000,
+      "owned_by": "Canopy Labs",
+      "active": true
+    },
+    {
+      "groq_id": "canopylabs/orpheus-arabic-saudi",
+      "family": "unknown",
+      "params_b": null,
+      "params_status": "unverified",
+      "context_window": 4000,
+      "owned_by": "Canopy Labs",
+      "active": true
+    },
+    {
+      "groq_id": "meta-llama/llama-prompt-guard-2-22m",
+      "family": "unknown",
+      "params_b": null,
+      "params_status": "unverified",
+      "context_window": 512,
+      "owned_by": "Meta",
+      "active": true
+    },
+    {
+      "groq_id": "meta-llama/llama-prompt-guard-2-86m",
+      "family": "unknown",
+      "params_b": null,
+      "params_status": "unverified",
+      "context_window": 512,
+      "owned_by": "Meta",
+      "active": true
+    },
+    {
+      "groq_id": "allam-2-7b",
+      "family": "unknown",
+      "params_b": 7.0,
+      "params_status": "unverified",
+      "context_window": 4096,
+      "owned_by": "SDAIA",
+      "active": true
+    }
+  ]
+}

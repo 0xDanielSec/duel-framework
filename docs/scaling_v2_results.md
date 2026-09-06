@@ -306,7 +306,19 @@ and does not abort the run.
 
 | Model | Platform | Params (B) | DABS (dabs_v1) | DABS (dabs_v2) | Tier | Confidence | Notes |
 |---|---|---|---|---|---|---|---|
-| TBD | | | | | | | |
+| phi3.5:latest | ollama | 3.8 | 47.50 | 47.64 | Moderate Defender | confirmed | reproduced, ratio 0.7966 vs paper (§2) |
+| mistral:7b | ollama | 7.0 | 52.63 | 52.78 | Moderate Defender | confirmed | reproduced (seed=42), see §3a for unseeded x3 |
+| qwen2.5:7b | ollama | 7.61 | 62.42 | 62.57 | Strong Defender | confirmed | reproduced, ratio 1.1388 vs paper — [PARE] (§2) |
+| llama3.1:8b | ollama | 8.0 | 55.26 | 55.31 | Strong Defender | confirmed | reproduced (seed=42), ratio 1.3306 — [PARE] (§2); see §3a for unseeded x3 |
+| qwen2.5:14b | ollama | 14.7 | — | — | PENDING | confirmed | hardware OOM, queued last per §2b, not yet run |
+| llama3.2:1b | ollama | 1.23 | 36.52 | 36.7 | Weak Defender | confirmed | new local, no paper reference |
+| llama3.2:3b | ollama | 3.21 | 63.76 | 63.9 | Strong Defender | confirmed | new local, no paper reference |
+| qwen2.5:3b | ollama | 3.09 | 49.53 | 49.6 | Moderate Defender | confirmed | new local, no paper reference; one benign KQL table-redirect warning (SigninLogs), not an error |
+| gemma2:2b | ollama | 2.0 | 61.03 | 61.2 | Strong Defender | confirmed | new local, no paper reference |
+| gpt-oss:latest | ollama | 21.0 | 51.16 | 51.2 | Moderate Defender | confirmed | cross-platform control (Ollama leg); `KQL execution error: list index out of range` in 9/15 rounds — not seen in any other model this batch, flagged not yet diagnosed |
+| openai/gpt-oss-20b | groq | 21.0 | TBD | TBD | | confirmed | cross-platform control (Groq leg) — queue 2f |
+| openai/gpt-oss-120b | groq | 117.0 | TBD | TBD | | confirmed | new Groq — queue 2f |
+| qwen/qwen3.8-27b | groq | 27.0 | TBD | TBD | | inferred | new Groq — queue 2f |
 
 ---
 
