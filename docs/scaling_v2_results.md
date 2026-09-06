@@ -316,9 +316,9 @@ and does not abort the run.
 | qwen2.5:3b | ollama | 3.09 | 49.53 | 49.6 | Moderate Defender | confirmed | new local, no paper reference; one benign KQL table-redirect warning (SigninLogs), not an error |
 | gemma2:2b | ollama | 2.0 | 61.03 | 61.2 | Strong Defender | confirmed | new local, no paper reference |
 | gpt-oss:latest | ollama | 21.0 | 51.16 | 51.2 | Moderate Defender | confirmed | cross-platform control (Ollama leg); `KQL execution error: list index out of range` in 9/15 rounds — not seen in any other model this batch, flagged not yet diagnosed |
-| openai/gpt-oss-20b | groq | 21.0 | TBD | TBD | | confirmed | cross-platform control (Groq leg) — queue 2f |
-| openai/gpt-oss-120b | groq | 117.0 | TBD | TBD | | confirmed | new Groq — queue 2f |
-| qwen/qwen3.8-27b | groq | 27.0 | TBD | TBD | | inferred | new Groq — queue 2f |
+| openai/gpt-oss-20b | groq | 21.0 | 52.59 | 52.68 | Moderate Defender | confirmed | cross-platform control (Groq leg), see §5 |
+| openai/gpt-oss-120b | groq | 117.0 | 65.30 | 65.28 | Strong Defender | confirmed | new Groq; 1/15 rounds hit the gpt-oss KQL parsing error (§5) |
+| qwen/qwen3.8-27b | groq | 27.0 | 69.00 | 68.98 | Strong Defender | inferred | new Groq, no KQL parsing errors |
 
 ---
 
@@ -406,17 +406,45 @@ paper counterpart.
 
 ## 5. Groq vs. Ollama — platform cross-check
 
-Per mission rule 3: at least one model run on both platforms (llama3.1:8b) to check whether
-quantization/sampling differences between Groq's hosted inference and local Ollama move the
-DABS score.
+Per mission rule 3: at least one model run on both platforms. As noted in §1, llama3.1:8b
+itself could not be the cross-platform pair — no Groq model near its size exists on this
+account's catalog, and llama3.1:8b is the fixed Attacker for every grid entry, never a Groq
+Defender. The actual control is the **gpt-oss-20b pair**: same model weights
+(huggingface.co/openai/gpt-oss-20b), one leg on local Ollama (`gpt-oss:latest`), one on Groq
+(`openai/gpt-oss-20b`), same fixed local llama3.1:8b Attacker, same seed/techniques/rounds/
+threat-intel-off.
 
-| Model | Platform | DABS (dabs_v2) | Components (coverage/resilience/hardening/consistency) | Notes |
+| Model | Platform | DABS (dabs_v1) | DABS (dabs_v2) | Components (coverage/resilience/hardening/consistency, dabs_v2) |
 |---|---|---|---|---|
-| llama3.1:8b | ollama | TBD | TBD | Reproduction run, Section 2 |
-| llama3.1:8b | groq | TBD | TBD | Same seed/techniques/rounds |
+| gpt-oss:latest | ollama | 51.16 | 51.23 | 60.0 / 28.67 / 47.0 / **76.52** |
+| openai/gpt-oss-20b | groq | 52.59 | 52.68 | **80.0** / 30.96 / 53.56 / **32.53** |
 
-**Δ:** TBD. If this exceeds ~5 DABS points, it is reported as a limitation (below), not
-smoothed over — platform is a confound, not a modeling choice.
+**Δ (total score): +1.43 (v1), +1.45 (v2), ratio ≈1.03.** The aggregate DABS is close between
+platforms — well inside the ~5-point threshold used elsewhere in this document to call a
+difference "real" — so at the total-score level, platform is not a large confound for this
+model. **But the component breakdown is not close at all**: `coverage` is 20 points higher on
+Groq (80.0 vs 60.0) while `consistency` is 44 points higher on Ollama (76.52 vs 32.53) —
+these two shifts happen to cancel out in the weighted total almost exactly. Reading only the
+aggregate DABS would hide this; the two platforms are not producing the same *kind* of
+Defender behavior; they land on a similar overall grade for different reasons. Not
+diagnosed further here (5 techniques × 3 rounds is not enough to separate quantization,
+sampling, or Groq-side serving differences from ordinary run-to-run variance per §3a) — flagged
+as an open question, not smoothed over.
+
+**reasoning_effort verification (per the new CLAUDE.md rule — checked against code, not
+assumed):** `agents/defender.py` sets `reasoning_effort=DEFAULT_REASONING_EFFORT` ("medium")
+for both calls whenever `is_reasoning_model(self.model)` is true, regardless of platform — so
+both legs of this pair *did* run at the same reasoning effort. However, only
+`scripts/run_groq_grid.py`'s saved JSON records this field (`"reasoning_effort": "medium"` on
+the Groq leg); `scripts/run_scaling_benchmark.py` never serializes it, so the Ollama leg's
+saved JSON has no `reasoning_effort` key at all — the value was fixed correctly in the actual
+LLM call, but is not independently verifiable from the artifact alone. Documented as a gap,
+not backfilled after the fact.
+
+The `KQL execution error: list index out of range` pattern (§3 table, gpt-oss:latest row) also
+reproduced on the Groq leg (6/15 rounds) and on `openai/gpt-oss-120b` (1/15) — present on both
+platforms, so it is a property of gpt-oss's KQL output style hitting an `engine/detection.py`
+edge case, not a platform-specific bug.
 
 ---
 

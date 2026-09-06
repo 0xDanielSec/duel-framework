@@ -1,0 +1,91 @@
+                              Hybrid Scaling Grid                              
+┌───────────┬──────────┬──────────┬─────────┬──────────┬──────────┬───────────┐
+│           │          │          │         │          │          │ source_ur │
+│ model_id  │ platform │ role     │ total_B │ active_B │ arch     │ l         │
+├───────────┼──────────┼──────────┼─────────┼──────────┼──────────┼───────────┤
+│ openai/g… │ groq     │ control  │   21.00 │     3.60 │ moe      │ https://h │
+│           │          │          │         │          │          │ uggingfac │
+│           │          │          │         │          │          │ e.co/open │
+│           │          │          │         │          │          │ ai/gpt-os │
+│           │          │          │         │          │          │ s-20b     │
+│ qwen/qwe… │ groq     │ defender │   27.00 │    27.00 │ dense    │ https://h │
+│           │          │          │         │          │ (inferr… │ uggingfac │
+│           │          │          │         │          │          │ e.co/Qwen │
+│           │          │          │         │          │          │ /Qwen3.8- │
+│           │          │          │         │          │          │ 27B       │
+│ openai/g… │ groq     │ defender │  117.00 │     5.10 │ moe      │ https://h │
+│           │          │          │         │          │          │ uggingfac │
+│           │          │          │         │          │          │ e.co/open │
+│           │          │          │         │          │          │ ai/gpt-os │
+│           │          │          │         │          │          │ s-120b    │
+└───────────┴──────────┴──────────┴─────────┴──────────┴──────────┴───────────┘
+
+Attacker (fixed, all entries): llama3.1:8b (platform=ollama)
+Entries to run: 3
+Techniques: T1078.004, T1110.003, T1528, T1621, T1556.006  Rounds: 3
+Threat intel: off  Round timeout: 600s
+
+== Defender: openai/gpt-oss-20b (groq, 21.0B total) ==
+    2026-09-06T00:26:42.996458+00:00 round 1/3 done — det=0.10 eva=0.90
+KQL execution error: list index out of range
+    2026-09-06T00:28:26.824932+00:00 round 2/3 done — det=0.00 eva=1.00
+KQL execution error: list index out of range
+    2026-09-06T00:30:15.514242+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-06T00:32:06.508526+00:00 round 1/3 done — det=0.00 eva=1.00
+KQL execution error: list index out of range
+    2026-09-06T00:33:45.640806+00:00 round 2/3 done — det=0.00 eva=1.00
+KQL execution error: list index out of range
+    2026-09-06T00:35:30.238248+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-06T00:37:01.013435+00:00 round 1/3 done — det=1.00 eva=0.00
+    2026-09-06T00:38:36.574675+00:00 round 2/3 done — det=1.00 eva=0.00
+KQL execution error: list index out of range
+    2026-09-06T00:40:09.819488+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-06T00:41:36.332286+00:00 round 1/3 done — det=0.44 eva=0.56
+KQL execution error: list index out of range
+    2026-09-06T00:42:49.942374+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-06T00:43:58.864017+00:00 round 3/3 done — det=1.00 eva=0.00
+    2026-09-06T00:45:36.501822+00:00 round 1/3 done — det=0.10 eva=0.90
+KQL execution error: list index out of range
+    2026-09-06T00:46:58.156753+00:00 round 2/3 done — det=0.00 eva=1.00
+    2026-09-06T00:48:19.848239+00:00 round 3/3 done — det=1.00 eva=0.00
+  saved -> 
+output\benchmarks\groq_grid\dabs_openai_gpt-oss-20b_groq_20260906_004819.json
+
+== Defender: openai/gpt-oss-120b (groq, 117.0B total) ==
+    2026-09-06T00:50:03.436966+00:00 round 1/3 done — det=0.30 eva=0.70
+    2026-09-06T00:51:54.093628+00:00 round 2/3 done — det=0.60 eva=0.40
+    2026-09-06T00:53:48.840396+00:00 round 3/3 done — det=0.50 eva=0.50
+    2026-09-06T00:55:45.472146+00:00 round 1/3 done — det=0.00 eva=1.00
+    2026-09-06T00:57:32.289180+00:00 round 2/3 done — det=0.20 eva=0.80
+    2026-09-06T00:59:04.354823+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-06T01:00:36.795592+00:00 round 1/3 done — det=1.00 eva=0.00
+    2026-09-06T01:02:12.186164+00:00 round 2/3 done — det=1.00 eva=0.00
+    2026-09-06T01:03:59.670971+00:00 round 3/3 done — det=0.00 eva=1.00
+    2026-09-06T01:05:30.552479+00:00 round 1/3 done — det=1.00 eva=0.00
+    2026-09-06T01:07:03.594269+00:00 round 2/3 done — det=1.00 eva=0.00
+    2026-09-06T01:08:27.280899+00:00 round 3/3 done — det=1.00 eva=0.00
+    2026-09-06T01:10:05.911542+00:00 round 1/3 done — det=0.10 eva=0.90
+    2026-09-06T01:11:21.946727+00:00 round 2/3 done — det=0.36 eva=0.64
+KQL execution error: list index out of range
+    2026-09-06T01:12:52.463448+00:00 round 3/3 done — det=0.00 eva=1.00
+  saved -> 
+output\benchmarks\groq_grid\dabs_openai_gpt-oss-120b_groq_20260906_011252.json
+
+== Defender: qwen/qwen3.8-27b (groq, 27.0B total) ==
+    2026-09-06T01:14:34.214897+00:00 round 1/3 done — det=0.30 eva=0.70
+    2026-09-06T01:16:13.567449+00:00 round 2/3 done — det=1.00 eva=0.00
+    2026-09-06T01:17:27.404701+00:00 round 3/3 done — det=0.55 eva=0.45
+    2026-09-06T01:19:17.138094+00:00 round 1/3 done — det=0.55 eva=0.45
+    2026-09-06T01:20:55.617992+00:00 round 2/3 done — det=1.00 eva=0.00
+    2026-09-06T01:22:35.762019+00:00 round 3/3 done — det=1.00 eva=0.00
+    2026-09-06T01:24:05.314557+00:00 round 1/3 done — det=1.00 eva=0.00
+    2026-09-06T01:25:08.386240+00:00 round 2/3 done — det=0.36 eva=0.64
+    2026-09-06T01:26:21.947958+00:00 round 3/3 done — det=0.50 eva=0.50
+    2026-09-06T01:27:47.806357+00:00 round 1/3 done — det=0.44 eva=0.56
+    2026-09-06T01:29:28.801795+00:00 round 2/3 done — det=0.36 eva=0.64
+    2026-09-06T01:30:56.631680+00:00 round 3/3 done — det=0.30 eva=0.70
+    2026-09-06T01:32:33.813734+00:00 round 1/3 done — det=0.10 eva=0.90
+    2026-09-06T01:33:51.933046+00:00 round 2/3 done — det=0.80 eva=0.20
+    2026-09-06T01:35:09.281197+00:00 round 3/3 done — det=0.45 eva=0.55
+  saved -> 
+output\benchmarks\groq_grid\dabs_qwen_qwen3.8-27b_groq_20260906_013509.json

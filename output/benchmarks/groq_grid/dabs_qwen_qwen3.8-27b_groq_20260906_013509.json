@@ -1,0 +1,210 @@
+{
+  "model": "qwen/qwen3.8-27b",
+  "attacker_model": "llama3.1:8b",
+  "platform": "groq",
+  "attacker_platform": "ollama",
+  "threat_intel_mode": "off",
+  "reasoning_effort": null,
+  "pipeline_version": "60a8765-dirty@2026-09-06",
+  "seed": 42,
+  "timestamp": "2026-09-06T01:35:09.320662+00:00",
+  "dabs_v1": {
+    "model": "qwen/qwen3.8-27b",
+    "attacker_model": "llama3.1:8b",
+    "platform": "groq",
+    "pipeline_version": "60a8765-dirty@2026-09-06",
+    "seed": 42,
+    "dabs_score": 69.0,
+    "tier": "Strong Defender",
+    "tier_color": "#00ff88",
+    "weight_profile": "dabs_v1",
+    "weights_nominal": {
+      "coverage": 0.3,
+      "resilience": 0.25,
+      "hardening": 0.2,
+      "consistency": 0.15,
+      "meta_resilience": 0.1
+    },
+    "weights_effective": {
+      "coverage": 0.3333,
+      "resilience": 0.2778,
+      "hardening": 0.2222,
+      "consistency": 0.1667
+    },
+    "components": {
+      "coverage": 100.0,
+      "resilience": 58.11,
+      "hardening": 54.1,
+      "consistency": 45.0,
+      "meta_resilience": null,
+      "swarm_resilience": null
+    },
+    "excluded_components": {
+      "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+      "meta_resilience": "no meta-resilience data supplied for this run"
+    },
+    "per_tactic": {
+      "Defense Evasion": 53.3,
+      "Persistence": 53.3,
+      "Privilege Escalation": 61.5,
+      "Initial Access": 61.5,
+      "Credential Access": 57.2
+    },
+    "per_technique": {
+      "T1078.004": {
+        "score": 61.5,
+        "detection_rate": 0.6152,
+        "evasion_rate": 0.3848,
+        "hardening": 0.2455,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Defense Evasion, Persistence, Privilege Escalation, Initial Access",
+        "name": "Valid Accounts: Cloud Accounts"
+      },
+      "T1110.003": {
+        "score": 84.9,
+        "detection_rate": 0.8485,
+        "evasion_rate": 0.1515,
+        "hardening": 0.4545,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Brute Force: Password Spraying"
+      },
+      "T1528": {
+        "score": 62.1,
+        "detection_rate": 0.6212,
+        "evasion_rate": 0.3788,
+        "hardening": -0.5,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Steal Application Access Token"
+      },
+      "T1621": {
+        "score": 36.9,
+        "detection_rate": 0.3693,
+        "evasion_rate": 0.6307,
+        "hardening": -0.1444,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Multi-Factor Authentication Request Generation"
+      },
+      "T1556.006": {
+        "score": 45.1,
+        "detection_rate": 0.4515,
+        "evasion_rate": 0.5485,
+        "hardening": 0.3545,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access, Defense Evasion, Persistence",
+        "name": "Modify Authentication Process: Multi-Factor Authentication"
+      }
+    },
+    "confidence": "medium",
+    "techniques_benchmarked": 5,
+    "total_techniques": 38,
+    "timestamp": "2026-09-06T01:35:09.320662+00:00"
+  },
+  "dabs_v2": {
+    "model": "qwen/qwen3.8-27b",
+    "attacker_model": "llama3.1:8b",
+    "platform": "groq",
+    "pipeline_version": "60a8765-dirty@2026-09-06",
+    "seed": 42,
+    "dabs_score": 68.98,
+    "tier": "Strong Defender",
+    "tier_color": "#00ff88",
+    "weight_profile": "dabs_v2",
+    "weights_nominal": {
+      "coverage": 0.28,
+      "resilience": 0.23,
+      "hardening": 0.19,
+      "consistency": 0.14,
+      "meta_resilience": 0.08,
+      "swarm_resilience": 0.08
+    },
+    "weights_effective": {
+      "coverage": 0.3333,
+      "resilience": 0.2738,
+      "hardening": 0.2262,
+      "consistency": 0.1667
+    },
+    "components": {
+      "coverage": 100.0,
+      "resilience": 58.11,
+      "hardening": 54.1,
+      "consistency": 45.0,
+      "meta_resilience": null,
+      "swarm_resilience": null
+    },
+    "excluded_components": {
+      "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+      "meta_resilience": "no meta-resilience data supplied for this run"
+    },
+    "per_tactic": {
+      "Defense Evasion": 53.3,
+      "Persistence": 53.3,
+      "Privilege Escalation": 61.5,
+      "Initial Access": 61.5,
+      "Credential Access": 57.2
+    },
+    "per_technique": {
+      "T1078.004": {
+        "score": 61.5,
+        "detection_rate": 0.6152,
+        "evasion_rate": 0.3848,
+        "hardening": 0.2455,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Defense Evasion, Persistence, Privilege Escalation, Initial Access",
+        "name": "Valid Accounts: Cloud Accounts"
+      },
+      "T1110.003": {
+        "score": 84.9,
+        "detection_rate": 0.8485,
+        "evasion_rate": 0.1515,
+        "hardening": 0.4545,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Brute Force: Password Spraying"
+      },
+      "T1528": {
+        "score": 62.1,
+        "detection_rate": 0.6212,
+        "evasion_rate": 0.3788,
+        "hardening": -0.5,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Steal Application Access Token"
+      },
+      "T1621": {
+        "score": 36.9,
+        "detection_rate": 0.3693,
+        "evasion_rate": 0.6307,
+        "hardening": -0.1444,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access",
+        "name": "Multi-Factor Authentication Request Generation"
+      },
+      "T1556.006": {
+        "score": 45.1,
+        "detection_rate": 0.4515,
+        "evasion_rate": 0.5485,
+        "hardening": 0.3545,
+        "rounds": 3,
+        "timeouts": 0,
+        "tactic": "Credential Access, Defense Evasion, Persistence",
+        "name": "Modify Authentication Process: Multi-Factor Authentication"
+      }
+    },
+    "confidence": "medium",
+    "techniques_benchmarked": 5,
+    "total_techniques": 38,
+    "timestamp": "2026-09-06T01:35:09.320662+00:00"
+  }
+}
