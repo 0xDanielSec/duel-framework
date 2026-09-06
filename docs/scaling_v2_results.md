@@ -71,7 +71,7 @@ drift are never conflated.
 | mistral:7b | 66.27 | 52.63 | −13.64 | 0.7942 | LOWER | 52.78 | +0.15 |
 | qwen2.5:7b | 54.81 | 62.42 | **+7.61** | **1.1388** | **HIGHER** | 62.57 | +0.15 |
 | llama3.1:8b | 41.53 | 55.26 | **+13.73** | **1.3306** | **HIGHER** | 55.31 | +0.05 |
-| qwen2.5:14b | 55.97 | — | — | — | **PENDING — hardware limitation, see §2b** | — | — |
+| qwen2.5:14b | 55.97 | 59.96 | **+3.99** | **1.0713** | **HIGHER** | 60.0 | +0.04 |
 
 > ### ⚠ STOP RULE TRIGGERED, TWICE, AND MISSED TWICE — this is the second time in this audit
 >
@@ -125,6 +125,15 @@ drift are never conflated.
 > systematic bias). Left here rather than deleted, as a record of a conclusion this audit
 > drew too early from n=2 and had to revise at n=4. See §2a for the code-level diagnosis of
 > candidate causes.
+>
+> **Update at n=5 (qwen2.5:14b, §2b):** ratio 1.0713, **HIGHER**, `[PARE]`. The pattern is now
+> 2 lower (phi3.5, mistral) / 3 higher (qwen2.5:7b, llama3.1:8b, qwen2.5:14b) — still mixed
+> direction, still inconsistent with one uniform systematic bias, still consistent with ERRATA
+> item 5 (unseeded original runs as independent random draws). qwen2.5:14b's ratio (1.0713) is
+> the closest to 1.0 of the three "higher" models — notably milder than qwen2.5:7b (1.1388) or
+> llama3.1:8b (1.3306) — which does not fit a simple "larger models drift higher" story either;
+> ordering by parameter count does not track ordering by ratio. **All 5 original models now
+> reproduced; this table will not gain further rows.**
 
 ### 2a. Diagnosis — what changed since the paper, at the code level
 
@@ -243,20 +252,35 @@ The exact effective default for the installed Ollama version (0.33.3) was not in
 verified here — if `num_ctx` ever needs to be pinned for cross-run comparability, it isn't
 today, for any model in this reproduction, not just qwen2.5:14b.
 
-**Outcome: qwen2.5:14b marked PENDING — hardware limitation, not run.** A 4th attempt, with
-all three mitigations above applied (keep_alive=0, `OLLAMA_MAX_LOADED_MODELS=1`, background
-apps closed, free RAM ~9-11 GB throughout — a real improvement over the ~8.3 GB of the first
-three attempts), progressed further than any prior attempt: 4 of 5 techniques completed in
-full, and the 5th (`T1556.006`) reached round 2 of 3 before being OOM-killed by the OS again.
-No partial or corrupted JSON was written (`_save_both_profiles()` only runs after all
-techniques finish) — confirmed nothing exists for this model in
-`output/benchmarks/scaling_v2/`. Per instruction, this was the last attempt — no 5th retry.
-**The reproduction stands at 4 of 5 models** (phi3.5:latest, mistral:7b, qwen2.5:7b,
-llama3.1:8b); qwen2.5:14b's Table 1 row (55.97) has no reproduced counterpart in this audit.
-Revisiting it is a matter of hardware (more RAM, a machine with a GPU that has enough VRAM to
-avoid system-RAM contention entirely, or the pagefile increase actually taking effect after a
-reboot), not of code or methodology — nothing here suggests the model itself is unreproducible
-in principle.
+**Outcome after the 4th attempt: 4 of 5 techniques completed, 5th OOM-killed again.** With all
+three mitigations above applied (free RAM ~9-11 GB throughout, a real improvement over the
+~8.3 GB of the first three attempts), this attempt progressed further than any prior one: 4 of
+5 techniques completed in full, and the 5th (`T1556.006`) reached round 2 of 3 before being
+OOM-killed by the OS again. No partial or corrupted JSON was written (`_save_both_profiles()`
+only runs after all techniques finish). Two more `--resume` attempts after this both died
+**immediately after the Ollama restart**, before round 1 of the resumed technique even started
+— with healthy free memory both before and after the restart. This pointed at the restart
+sequence itself (killing and immediately reloading a large model into an app still settling)
+as the likely trigger, not general memory scarcity.
+
+**Fix: stop restarting Ollama unless something is actually still resident, and stop guessing
+how long to wait.** `_ollama_has_resident_model()` (`GET /api/ps`) now gates the restart
+entirely — with `keep_alive=0` on every call, nothing should be resident between techniques,
+so the old unconditional per-technique restart was mostly restarting a already-idle app for no
+reason, and doing it right before loading a 9 GB model back in. `_wait_for_ollama_ready()`
+replaced the old fixed `sleep(3)` after a restart with polling `GET /api/tags` until it
+returns 200, plus a 10s settle — so on the rare case a restart genuinely is needed, the next
+model load doesn't race the app's own startup.
+
+**5th and final attempt (this document's authorized last try): succeeded, 5/5 techniques,
+no OOM, no restart triggered at all.** Free RAM stayed 9.4-11.9 GB throughout
+(`output/benchmarks/logs/scaling_v2_qwen14b_final.log`); `qwen2.5:14b` reproduced at
+`dabs_v1=59.96` against the paper's `55.97` (ratio 1.0713, ratio-based `[PARE]` — outside the
+0.7-0.9 band, same "reproduces higher" direction as qwen2.5:7b and llama3.1:8b, not the "lower"
+direction of phi3.5/mistral). **The reproduction now stands at 5 of 5 original models.**
+Whether the fix (removing an unnecessary restart) or simply having more free RAM available at
+this specific attempt is what actually resolved it was not isolated — both changed at once.
+Recorded honestly as "no longer failing" rather than "root-caused."
 
 ### 2c. Per-technique checkpointing + `--resume`
 
@@ -310,7 +334,7 @@ and does not abort the run.
 | mistral:7b | ollama | 7.0 | 52.63 | 52.78 | Moderate Defender | confirmed | reproduced (seed=42), see §3a for unseeded x3 |
 | qwen2.5:7b | ollama | 7.61 | 62.42 | 62.57 | Strong Defender | confirmed | reproduced, ratio 1.1388 vs paper — [PARE] (§2) |
 | llama3.1:8b | ollama | 8.0 | 55.26 | 55.31 | Strong Defender | confirmed | reproduced (seed=42), ratio 1.3306 — [PARE] (§2); see §3a for unseeded x3 |
-| qwen2.5:14b | ollama | 14.7 | — | — | PENDING | confirmed | hardware OOM, queued last per §2b, not yet run |
+| qwen2.5:14b | ollama | 14.7 | 59.96 | 60.0 | Strong Defender | confirmed | reproduced (seed=42), ratio 1.0713 — [PARE] (§2); resolved after 6+ OOM attempts, see §2b |
 | llama3.2:1b | ollama | 1.23 | 36.52 | 36.7 | Weak Defender | confirmed | new local, no paper reference |
 | llama3.2:3b | ollama | 3.21 | 63.76 | 63.9 | Strong Defender | confirmed | new local, no paper reference |
 | qwen2.5:3b | ollama | 3.09 | 49.53 | 49.6 | Moderate Defender | confirmed | new local, no paper reference; one benign KQL table-redirect warning (SigninLogs), not an error |
