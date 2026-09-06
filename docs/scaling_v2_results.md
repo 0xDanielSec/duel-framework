@@ -408,10 +408,69 @@ Raw per-model JSON for every repeat: `output/benchmarks/scaling_v2/dabs_<model>_
 | Fit | Equation | R² | n | Notes |
 |---|---|---|---|---|
 | v1 published (paper) | DABS = 65.36 × P^−0.087 | 0.0557 | 5 | Original Table 1, params as originally (mis)stated |
-| v1 corrected (this audit) | DABS = 64.67 × P^−0.080 | 0.0530 | 5 | Same 5 DABS scores, corrected params (7.61B, 14.7B) — see ERRATA.md item 2 |
-| v2 reproduced, n=5 | TBD | TBD | 5 | Current pipeline, dabs_v2 weights, same 5 models |
-| v2 full grid, n≥12 | TBD | TBD | ≥12 | Current pipeline, dabs_v2 weights, full grid |
-| v2 full grid, Groq-only subset | TBD | TBD | TBD | Isolates platform effect — Ollama models excluded |
+| v1 corrected (this audit) | DABS = 64.67 × P^−0.080 | 0.0530 | 5 | Same 5 DABS scores, corrected params (7.61B, 14.7B) — see ERRATA.md item 2. Confirms `_fit_power_law` reproduces the paper's method: 0.0530 vs. published 0.0557, difference fully attributable to the params correction. |
+| reproduced n=5 (this audit, dabs_v1) | DABS = 38.76 × P^+0.176 | **0.5653** | 5 | Same 5 models/positions as the paper, current pipeline, seed=42 (§2 table) — **not** the paper's own numbers. Sign flips positive. |
+| **full grid, n=12 (dabs_v1)** | DABS = 47.08 × P^+0.080 | **0.3103** | 12 | Full §3 grid, total params, gpt-oss counted once (Ollama leg; Groq leg excluded — see below) |
+| full grid, n=12 (dabs_v2) | DABS = 47.26 × P^+0.079 | 0.3056 | 12 | Same 12 points, current (dabs_v2) weight profile — formula drift alone barely moves R² |
+| full grid, n=12 (dabs_v1, MoE on **active** params) | DABS = 44.74 × P^+0.132 | 0.3762 | 12 | Sensitivity check: gpt-oss:latest at 3.6B, gpt-oss-120b at 5.1B active instead of 21.0B/117.0B total — R² gets *stronger*, not weaker |
+
+**Fit computed via `ScalingLawsAnalyzer()._fit_power_law()`** — the same log-linearized
+power-law fit (`DABS = a · P^b`, R² measured in linear space against the fitted curve) already
+implemented in `engine/scaling_laws.py` and used by `scripts/run_scaling_benchmark.py`'s own
+console output. Not reimplemented for this document. The disk-loading half of
+`ScalingLawsAnalyzer` (`_load_dabs_scores`/`analyze()`) was checked and found **stale** — it
+globs `output/dabs_*.json` (not `output/benchmarks/scaling_v2/`) and reads a top-level
+`dabs_score` key that no longer exists in the current `dabs_v1`/`dabs_v2` nested schema — so
+every point in the table above was extracted by hand from each model's saved JSON
+(`dabs_v1.dabs_score` / `dabs_v2.dabs_score`) and fed directly to `_fit_power_law()`, not
+produced by running `analyze()`. The fit math is unmodified original code; only the
+data-loading step was bypassed. Points used, in order: llama3.2:1b (1.23B), gemma2:2b (2.0B),
+qwen2.5:3b (3.09B), llama3.2:3b (3.21B), phi3.5:latest (3.8B), mistral:7b (7.0B), qwen2.5:7b
+(7.61B), llama3.1:8b (8.0B), qwen2.5:14b (14.7B), gpt-oss:latest (21.0B, Ollama leg only —
+see below), qwen/qwen3.8-27b (27.0B), openai/gpt-oss-120b (117.0B). All from §2/§3, seed=42,
+`--threat-intel off`, single run each (not the §3a repeat means).
+
+**Why gpt-oss's Groq leg is excluded from the fit.** Per §1, the gpt-oss control pair is one
+model measured on two platforms, not two grid points — including both (52.59 alongside 51.16
+at the identical params_b=21.0) would double-weight one model and, worse, silently smuggle a
+platform effect into what is supposed to be a params-only fit. The Ollama leg was kept as
+canonical because the rest of the local-model grid is also Ollama; this is a judgment call,
+stated here rather than left implicit. Using the Groq leg instead (52.59) or the mean of both
+(51.88) changes R² by at most ~0.01 in informal spot checks — the conclusion below does not
+hinge on this choice.
+
+> ### The central finding of v2: n=12 shows a real positive trend the n=5 paper result did not
+>
+> The paper's headline claim — "scaling laws do not predict adversarial robustness," R²=0.055
+> — does not survive this expansion. **R² rises from 0.053-0.056 at n=5 to 0.31 at n=12**
+> (dabs_v1; dabs_v2 is materially the same, 0.306), and the fitted exponent **flips sign**,
+> from slightly negative (P^-0.08, larger models trending *worse*) to positive (P^+0.08,
+> larger models trending *better*). The MoE active-params sensitivity check makes the positive
+> trend *stronger* (R²=0.376), not weaker — this is not an artifact of one debatable parameter
+> count.
+>
+> **This is not solely an effect of adding new models.** Re-fitting the *original 5 models at
+> their original positions*, under only the current pipeline (seed=42, §2 table, no new models
+> added at all), already gives R²=0.5653 — a strong positive relationship the paper's own
+> n=5 fit (R²=0.053-0.056) did not show, using the exact same 5 model sizes. Combined with §2's
+> finding that 3 of these 5 models reproduce meaningfully higher than their Table 1 values and
+> 2 reproduce lower (mixed direction, not a uniform shift), the most defensible reading is:
+> **the paper's original n=5 dataset was not merely small, it was noisy in a way that happened
+> to erase a real trend** — most plausibly because those runs were unseeded single draws
+> (ERRATA item 5) from a noisy underlying process, not because no relationship exists.
+>
+> **What this does and does not establish.** It does not vindicate a clean scaling law —
+> R²=0.31-0.38 at n=12 is a real, moderate, positive trend, not the R²>0.8 that would be needed
+> to call parameter count a strong predictor, and 12 points is still a small sample for a
+> power-law fit (`docs/paper.md` §6.2's own "≥15 techniques for medium confidence" bar is about
+> technique count, not model count, but the spirit — this sample is still small — applies
+> equally here). It also does not mean the paper's authors were wrong to report what their data
+> showed; R²=0.055 on 5 unseeded single-draw points was an honest description of what those 5
+> points looked like. What changed is the data, not just the conclusion drawn from it. **The
+> honest summary is: the original claim of "no relationship" was an artifact of n=5 and lack of
+> seeding, not a property of the underlying phenomenon — a positive, moderate scaling
+> relationship is visible once more models and seeded reproducibility are used, but it is not
+> yet strong enough to make confident predictions from parameter count alone.**
 
 **`pipeline_version` and comparability.** Every result JSON now records `pipeline_version`
 (`<short-commit-hash>[-dirty]@<date>`, `engine/dabs_scorer.py::get_pipeline_version()`, added
@@ -508,22 +567,82 @@ edge case, not a platform-specific bug.
   of them Llama) — likely an Enterprise-tier gate, unconfirmed. If a higher account tier
   becomes available, the grid should be revisited; the current 12-model grid reflects what
   this specific key can actually run, not the full Groq catalog.
-- TBD — parameter range actually achieved vs. the "1B to 70B+" target.
-- TBD — technique subset is still 5 of 38; full-campaign DABS needs ≥15 techniques for
-  medium confidence (per `docs/paper.md` §6.2, unchanged here).
-- TBD — Groq quantization/serving details are not publicly documented per-model the way a
-  local Ollama quantization tag is; this limits how precisely the Ollama-vs-Groq comparison
-  in Section 5 can attribute a delta to quantization specifically vs. other serving
-  differences (sampling implementation, system prompt handling, etc).
-- TBD — any model that failed (rate limit, decommissioned, unavailable) during the run, with
-  no invented substitute value. List every failure here even if the final grid still reaches
-  n≥12 without it.
-- TBD — anything else surfaced during execution.
+- **Parameter range achieved: 1.23B to 117B total (3.6B to 117B active)** — the "1B to 70B+"
+  target from the mission brief is met and exceeded at the top end (gpt-oss-120b, 117B total),
+  though the two largest points (27B, 117B) are both Groq-only, so the top of the range is not
+  independently cross-checked on local hardware the way the 1-14.7B span is.
+- **Technique subset is still 5 of 38** (T1078.004, T1110.003, T1528, T1621, T1556.006) — the
+  same 5 as the original paper, kept fixed for comparability (§2). `docs/paper.md` §6.2's own
+  bar of ≥15 techniques for "medium confidence" is not met by this reproduction either; every
+  DABS value in this document inherits that same limitation from the original paper, unchanged.
+- **Groq quantization/serving details are not publicly documented per-model** the way a local
+  Ollama quantization tag is. §5 found the two platforms land within ~1.4 points on aggregate
+  DABS but differ sharply per-component (coverage +20 Groq, consistency +44 Ollama) — this
+  document cannot attribute that split to quantization specifically vs. other serving
+  differences (sampling implementation, system prompt handling, etc.) with the data collected.
+- **No model failed outright during this audit's own runs** (rate limit, decommissioned,
+  unavailable) — every one of the 12 grid models plus the 5 original-position reproductions
+  completed with 5/5 techniques. The one real failure mode encountered was local hardware OOM
+  on qwen2.5:14b (§2b, 4 attempts before a 5th succeeded) — not a model/API failure, and no
+  substitute value was ever used in its place; it is either a real reproduced score or marked
+  PENDING, never estimated.
+- **`meta_resilience` and `swarm_resilience` remain excluded from every DABS computation in
+  this document** (`exclude_components=["swarm_resilience"]` is set explicitly in both
+  `scripts/run_scaling_benchmark.py` and `scripts/run_groq_grid.py`; `meta_resilience` is
+  never populated by the fixed 5-technique battle format at all — see `docs/ERRATA.md` item 1).
+  This means every dabs_v1/dabs_v2 score in this document, old and new, is computed over 4 of
+  6 nominal components — consistent within this document, but the "10% weight" and "8%+8%
+  weight" figures in the weight-profile definitions are partly theoretical for any run that
+  doesn't also exercise the meta/swarm battle modes.
 
 ---
 
-## Summary (to be written last)
+## Summary
 
-<!-- The 10-line summary requested in the mission: old R² (n=5) vs new (n≥12), whether the
-     paper's conclusion holds, changes, and what goes into v2. Written only after every table
-     above is filled from real runs. -->
+1. **The paper's conclusion does not hold as stated.** "Scaling laws do not predict adversarial
+   robustness" (R²=0.055, n=5) was an artifact of a small, unseeded, single-draw sample — not a
+   property of the underlying phenomenon. At n=12, with a fixed seed and corrected parameter
+   counts, R² rises to **0.31** (dabs_v1) / **0.31** (dabs_v2), and the fitted trend **flips
+   from negative to positive** (larger models now trend toward *better* Defender performance,
+   not worse or flat). A sensitivity check using active (not total) parameters for the two MoE
+   models makes the trend *stronger* (R²=0.38), not weaker.
+2. **This is not just "more models changed the answer."** Re-running the *original 5 model
+   positions alone*, under the current pipeline, already gives R²=0.57 — a strong positive
+   relationship the paper's own 5 points did not show at the same 5 sizes. The paper's dataset
+   itself, not just its size, produced the "no relationship" finding.
+3. **The original 5-model reproduction split in both directions**: phi3.5 and mistral scored
+   *lower* than Table 1 (ratio ~0.79), qwen2.5:7b, llama3.1:8b, and qwen2.5:14b scored *higher*
+   (ratio 1.07-1.33) — mixed-direction, not a uniform bias, consistent with the leading
+   candidate cause (`docs/ERRATA.md` item 5: the original runs had no seed at all, so Table 1
+   is 5 independent unrepeated draws from a noisy process, not 5 stable measurements). One
+   exception was flagged and left unresolved: llama3.1:8b's elevation (~20 points, tight
+   variance, ~10σ from paper) is too large and too consistent to be explained by unseeded
+   variance alone (§3a) — a genuine, unidentified pipeline/environment difference likely also
+   contributes for at least this model.
+4. **qwen2.5:14b, the one model that could not be reproduced for most of this audit** (6+ OOM
+   failures on 16GB local RAM), succeeded on the final attempt after fixing an unnecessary
+   Ollama-restart-then-immediate-load sequence in `scripts/run_scaling_benchmark.py`. All 5
+   original models are now reproduced; none are missing or estimated.
+5. **Groq vs. Ollama, the one required cross-platform check (mission rule 3):** the gpt-oss-20b
+   control pair lands within 1.4 DABS points on the aggregate score (ratio ≈1.03) but diverges
+   sharply per-component (coverage +20 on Groq, consistency +44 on Ollama, cancelling out in
+   the total) — platform is not a large confound for the *headline number*, but is a real,
+   unexplained confound for the *component breakdown*, and this document does not paper over
+   that with the clean aggregate result.
+6. **What v2 adds structurally, independent of any single number:** `pipeline_version` on every
+   result, versioned `dabs_v1`/`dabs_v2` weight profiles with explicit `excluded_components`,
+   per-technique checkpointing with `--resume`, an automated stop-rule check that failed
+   manually twice before being made automatic, and a CLAUDE.md rule requiring any
+   methodological claim in `docs/` to be checked against the cited commit before being written
+   — used, and it caught one real gap in this document (§5's `reasoning_effort` field) before
+   publication.
+7. **What is still weak, stated plainly:** n=12 is a small sample for a power-law fit; the
+   technique count (5 of 38) is unchanged from the paper and still below its own bar for
+   medium confidence; the two largest grid points (27B, 117B) are Groq-only with no local
+   cross-check; and R²=0.31-0.38 is a real trend, not a strong one — it does not license
+   confident predictions of Defender robustness from parameter count alone. **The honest
+   revision is "the paper measured a real effect too small a sample to see," not "the paper
+   was wrong that a stronger prediction isn't yet possible."**
+
+`docs/ERRATA.md` — 5 items — should accompany any future Zenodo update alongside this document,
+per the earlier decision to batch corrections into one revision rather than issue several.
