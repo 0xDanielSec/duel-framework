@@ -110,8 +110,11 @@ reproducibility claim was false for the published data.
 This is the leading candidate explanation for why this audit's reproduction (same 5 models,
 `--seed 42`, `--threat-intel off`) does not land on the original Table 1 values: the original
 run was never deterministic in the first place. A dedicated isolation test (mistral:7b,
-unseeded, 3 independent runs, see `docs/scaling_v2_results.md`) is queued to check whether
-removing the seed alone accounts for the gap.
+unseeded, 3 independent runs, see `docs/scaling_v2_results.md`) confirmed unseeded variance is
+real and large — SD=5.07 across mistral:7b's 3 runs, SD=1.95 across llama3.1:8b's 3 runs — but
+not sufficient on its own to fully explain the reproduction gap for every model (§3a of
+`docs/scaling_v2_results.md`). This result motivated expanding the grid to n=13 models to get a
+more reliable scaling-law estimate; see the replication summary below.
 
 Dated 2026-09-05.
 
