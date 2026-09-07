@@ -998,10 +998,33 @@ async def ws_swarm(websocket: WebSocket):
         })
 
         swarm_context = await _in_thread(swarm.get_swarm_context, technique_id)
+
+        # Wire swarm_resilience into DABS for real (previously computed here
+        # and sent to the UI, but never passed to a DABSScorer at all — the
+        # component stayed permanently excluded). Single-technique session,
+        # so total_techniques=1 and confidence will read "low" — that is the
+        # honest value for a one-technique probe, not a full campaign.
+        from engine.dabs_scorer import DABSScorer
+        swarm_technique_results = {
+            technique_id: {
+                "rounds": scorer.rounds,
+                "tactic": technique.get("tactic", technique.get("owasp_category", "Unknown")),
+                "name":   technique.get("name", technique_id),
+            }
+        }
+        swarm_dabs = DABSScorer(
+            model=defender_model,
+            technique_results=swarm_technique_results,
+            attacker_model=attacker_model,
+            total_techniques=1,
+            swarm_results={technique_id: swarm_context},
+        ).compute()
+
         await send({
             "type":          "swarm_complete",
             "winner":        winner,
             "swarm_context": swarm_context,
+            "dabs":          swarm_dabs.to_dict(),
         })
 
     except WebSocketDisconnect:
