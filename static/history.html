@@ -116,6 +116,17 @@
     #nav-links a.active.nav-scaling   { color: var(--cyan);   border-color: rgba(6,182,212,.4); }
 
     /* ── Controls bar ────────────────────────────────────────────────────── */
+    #coverage-notice {
+      flex-shrink: 0;
+      padding: 7px 20px;
+      background: rgba(255,140,66,0.08);
+      border-bottom: 1px solid rgba(255,140,66,0.3);
+      color: #f97316;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    #coverage-notice strong { color: var(--yellow); }
+
     #controls {
       flex-shrink: 0;
       display: flex;
@@ -358,6 +369,15 @@
     <a href="/benchmark" class="nav-dabs">⭐ DABS</a>
     <a href="/scaling"   class="nav-scaling">📈 SCALING</a>
   </nav>
+</div>
+
+<div id="coverage-notice">
+  <strong>Coverage:</strong> this page reads standard Attacker/Defender battle logs only
+  (<code>output/full_battle_log_*.json</code>, via <code>engine/historical_analysis.py</code>).
+  <strong>Constitutional, Swarm (multi-attacker), and Meta-attacker modes are not covered</strong>
+  — not aggregated separately, not excluded either: if one of those modes ever writes into the
+  same <code>full_battle_log_*.json</code> files, its rounds are mixed into these charts
+  indistinguishably from a standard battle. No new mode support was added here.
 </div>
 
 <div id="controls">
