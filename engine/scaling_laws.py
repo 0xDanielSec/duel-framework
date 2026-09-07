@@ -19,6 +19,7 @@ def _entry(
     params_active_b: float | None = None,
     arch: str = "dense",
     arch_confidence: str = "confirmed",
+    domain: str = "general",
 ) -> dict:
     """
     params_active_b defaults to params_total_b for dense models — for a dense
@@ -33,6 +34,15 @@ def _entry(
     the MAIN scaling-law regression uses total params by default. Runs with
     params_active_b as the x-axis instead are a separate sensitivity
     analysis, not the primary fit — see docs/scaling_v2_results.md §4.
+
+    domain: "general" (default) or "security" — whether the model's
+    pretraining/fine-tuning corpus was specifically curated for cybersecurity
+    (per its own model card), vs. a general-purpose instruct model with no
+    such claim. Added for the n=13 grid (docs/scaling_v2_results.md §7) to
+    test whether domain explains DABS residual beyond what parameter count
+    predicts — every entry before that grid is general-purpose and is
+    marked "general" explicitly here rather than left to a default that
+    could silently mean "unknown."
     """
     return {
         "params_b":        params_total_b,  # alias, see docstring
@@ -48,6 +58,7 @@ def _entry(
         "arch_confidence": arch_confidence,
         "source_url":      source_url,
         "platform":        platform,
+        "domain":          domain,
     }
 
 
@@ -56,55 +67,86 @@ def _entry(
 # does not get an entry and therefore cannot enter a benchmark grid.
 MODEL_REGISTRY: dict[str, dict] = {
     # ── Original 5 (scaling_v2 reproduction) ────────────────────────────────
-    "phi3.5:latest": _entry(3.8,  "https://huggingface.co/microsoft/Phi-3.5-mini-instruct"),
-    "phi3.5":        _entry(3.8,  "https://huggingface.co/microsoft/Phi-3.5-mini-instruct"),
-    "mistral:7b":    _entry(7.0,  "https://ollama.com/library/mistral:7b"),
-    "mistral":       _entry(7.0,  "https://ollama.com/library/mistral:7b"),
-    "qwen2.5:7b":    _entry(7.61, "https://huggingface.co/Qwen/Qwen2.5-7B"),
-    "llama3.1:8b":   _entry(8.0,  "https://huggingface.co/meta-llama/Llama-3.1-8B"),
-    "llama3.1":      _entry(8.0,  "https://huggingface.co/meta-llama/Llama-3.1-8B"),
-    "qwen2.5:14b":   _entry(14.7, "https://huggingface.co/Qwen/Qwen2.5-14B"),
+    # domain="general" marked explicitly on every entry below (not left to
+    # _entry()'s default) -- see docs/scaling_v2_results.md §7: all 12 models
+    # in the n=12 grid are general-purpose instruct models with no
+    # cybersecurity-specific pretraining claim on their model cards.
+    "phi3.5:latest": _entry(3.8,  "https://huggingface.co/microsoft/Phi-3.5-mini-instruct", domain="general"),
+    "phi3.5":        _entry(3.8,  "https://huggingface.co/microsoft/Phi-3.5-mini-instruct", domain="general"),
+    "mistral:7b":    _entry(7.0,  "https://ollama.com/library/mistral:7b", domain="general"),
+    "mistral":       _entry(7.0,  "https://ollama.com/library/mistral:7b", domain="general"),
+    "qwen2.5:7b":    _entry(7.61, "https://huggingface.co/Qwen/Qwen2.5-7B", domain="general"),
+    "llama3.1:8b":   _entry(8.0,  "https://huggingface.co/meta-llama/Llama-3.1-8B", domain="general"),
+    "llama3.1":      _entry(8.0,  "https://huggingface.co/meta-llama/Llama-3.1-8B", domain="general"),
+    "qwen2.5:14b":   _entry(14.7, "https://huggingface.co/Qwen/Qwen2.5-14B", domain="general"),
 
     # ── New local (Ollama) low end — hybrid grid, 2026-09-05 ────────────────
-    "llama3.2:1b": _entry(1.23, "https://huggingface.co/meta-llama/Llama-3.2-1B"),
-    "llama3.2:3b": _entry(3.21, "https://huggingface.co/meta-llama/Llama-3.2-3B"),
-    "qwen2.5:3b":  _entry(3.09, "https://huggingface.co/Qwen/Qwen2.5-3B"),
+    "llama3.2:1b": _entry(1.23, "https://huggingface.co/meta-llama/Llama-3.2-1B", domain="general"),
+    "llama3.2:3b": _entry(3.21, "https://huggingface.co/meta-llama/Llama-3.2-3B", domain="general"),
+    "qwen2.5:3b":  _entry(3.09, "https://huggingface.co/Qwen/Qwen2.5-3B", domain="general"),
     # gemma2:2b — the HF card header literally reads "Model size: 3B params"
     # (looks like a template artifact shared across the Gemma 2 family page),
     # but the card body states "the 2B model was trained with 2 trillion
     # tokens" for this specific checkpoint, and 2B matches the model's own
     # name/tag. Recorded as 2.0B; flagged here rather than silently trusting
     # either number.
-    "gemma2:2b":   _entry(2.0,  "https://huggingface.co/google/gemma-2-2b"),
+    "gemma2:2b":   _entry(2.0,  "https://huggingface.co/google/gemma-2-2b", domain="general"),
+
+    # ── Security-domain model — n=13 grid, 2026-09-06 ───────────────────────
+    # Foundation-Sec-8B-Instruct (Cisco Foundation AI, org fdtn-ai): 8B dense,
+    # Llama-3.1-8B backbone continued-pretrained + instruction-tuned on a
+    # curated cybersecurity corpus (CVEs, threat intel reports, exploit
+    # write-ups, compliance guides per the model card) -- the only model in
+    # this registry with a domain-specific (not general-purpose) training
+    # claim. License: dual -- base weights under the Llama 3.1 Community
+    # License (Meta), Cisco's continued-pretraining/fine-tuning changes under
+    # Apache 2.0 (see NOTICE.md at the source URL). No official Ollama
+    # library tag exists at time of writing; no third-party community GGUF
+    # port was used either -- imported from fdtn-ai's OWN official Q8_0 GGUF
+    # quantization (fdtn-ai/Foundation-Sec-8B-Instruct-Q8_0-GGUF,
+    # foundation-sec-8b-instruct-q8_0.gguf, 8,541,888,288 bytes) via
+    # `ollama create` + a Modelfile reusing ollama's own llama3.1:8b chat
+    # template verbatim (tokenizer_config.json confirms identical special
+    # tokens: <|start_header_id|>/<|end_header_id|>/<|eot_id|>, ids
+    # 128006/128007/128009 -- no custom chat_template published for this
+    # model, so the base Llama-3.1-Instruct template applies unmodified).
+    # Context length: the model card prose says 4,096 tokens but config.json
+    # reports 131,072 (inherited from the Llama-3.1-8B base) -- both are
+    # recorded here rather than silently picking one; not load-bearing for
+    # this benchmark (techniques/prompts here are far under either bound).
+    "foundation-sec-8b:instruct-q8_0": _entry(
+        8.0, "https://huggingface.co/fdtn-ai/Foundation-Sec-8B-Instruct-Q8_0-GGUF",
+        platform="ollama", domain="security",
+    ),
 
     # ── Cross-platform control — same model, both platforms ────────────────
     # gpt-oss-20b: MoE, 21B total / 3.6B active (official card). Ollama's
     # own `ollama show gpt-oss:latest` independently reports "parameters
     # 20.9B", consistent with the 21B HF figure.
     "gpt-oss:latest":       _entry(21.0, "https://huggingface.co/openai/gpt-oss-20b",
-                                   platform="ollama", params_active_b=3.6, arch="moe"),
+                                   platform="ollama", params_active_b=3.6, arch="moe", domain="general"),
     "openai/gpt-oss-20b":   _entry(21.0, "https://huggingface.co/openai/gpt-oss-20b",
-                                   platform="groq", params_active_b=3.6, arch="moe"),
+                                   platform="groq", params_active_b=3.6, arch="moe", domain="general"),
 
     # ── New Groq-only ────────────────────────────────────────────────────────
     "openai/gpt-oss-120b": _entry(117.0, "https://huggingface.co/openai/gpt-oss-120b",
-                                  platform="groq", params_active_b=5.1, arch="moe"),
+                                  platform="groq", params_active_b=5.1, arch="moe", domain="general"),
     # Qwen3.8-27B: card states "27B" with no separate active-params figure and
     # no MoE naming pattern (cf. Qwen3's "-A3B" convention for its actual MoE
     # variants) — treated as dense. Flagged as inferred, not confirmed, since
     # the card doesn't say "dense" outright.
     "qwen/qwen3.8-27b":    _entry(27.0, "https://huggingface.co/Qwen/Qwen3.8-27B",
-                                  platform="groq", arch_confidence="inferred"),
+                                  platform="groq", arch_confidence="inferred", domain="general"),
 
     # ── Verified but excluded from the current grid (see docs/scaling_v2_results.md) ──
     # allam-2-7b: bilingual Arabic-English specialist; exact "-2-" HF card
     # 401'd, citing the same publisher's public 7B card as the closest source.
     "allam-2-7b": _entry(7.0, "https://huggingface.co/ALLaM-AI/ALLaM-7B-Instruct-preview",
-                         platform="groq"),
+                         platform="groq", domain="general"),
     # openai/gpt-oss-safeguard-20b: same base as gpt-oss-20b, safety/
     # moderation fine-tune — not a general-purpose Defender candidate.
     "openai/gpt-oss-safeguard-20b": _entry(21.0, "https://huggingface.co/openai/gpt-oss-safeguard-20b",
-                                            platform="groq", params_active_b=3.6, arch="moe"),
+                                            platform="groq", params_active_b=3.6, arch="moe", domain="general"),
 }
 
 

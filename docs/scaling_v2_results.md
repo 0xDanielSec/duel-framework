@@ -695,6 +695,121 @@ edge case, not a platform-specific bug.
 
 ---
 
+## 7. n=13 — Foundation-Sec-8B-Instruct (security domain)
+
+**Model.** `fdtn-ai/Foundation-Sec-8B-Instruct` (Cisco Foundation AI): 8B dense, Llama-3.1-8B
+backbone continued-pretrained + instruction-tuned on a curated cybersecurity corpus (CVEs,
+threat intel reports, exploit write-ups, compliance guides per the model card) — the only
+model in this document with a domain-specific, not general-purpose, training claim. License:
+dual — base weights under the Llama 3.1 Community License (Meta), Cisco's own
+continued-pretraining/fine-tuning changes under Apache 2.0
+(`https://huggingface.co/fdtn-ai/Foundation-Sec-8B-Instruct/blob/main/NOTICE.md`). No official
+Ollama library tag existed at the time of this run; no third-party community GGUF port was
+used either — imported from fdtn-ai's own official Q8_0 GGUF quantization
+(`fdtn-ai/Foundation-Sec-8B-Instruct-Q8_0-GGUF`, file `foundation-sec-8b-instruct-q8_0.gguf`,
+8,541,888,288 bytes, sha256 `d0072df70235e92bd996d4efd2347b38c9db530ed83df21f6be3f8958a9832d`)
+via a Modelfile that reuses ollama's own `llama3.1:8b` chat template verbatim — confirmed by
+`tokenizer_config.json` that the model's special tokens (`<|start_header_id|>`,
+`<|end_header_id|>`, `<|eot_id|>`, ids 128006/128007/128009) are unchanged from stock
+Llama-3.1-Instruct, and no custom `chat_template` is published for this checkpoint. Registered
+as `foundation-sec-8b:instruct-q8_0` in `engine/scaling_laws.py::MODEL_REGISTRY` with a new
+`domain` field: `"security"` for this entry, and `"general"` marked explicitly (not left to the
+field's default) on all 12 n=12-grid entries plus the two previously-excluded ones
+(`allam-2-7b`, `openai/gpt-oss-safeguard-20b`) — neither is cybersecurity-domain-trained, so
+`"general"` is accurate for both, not a placeholder. Context
+length: the model card prose states 4,096 tokens but `config.json` reports 131,072 (inherited
+from the Llama-3.1-8B base) — both recorded rather than one silently picked; not load-bearing
+for this benchmark (every technique/prompt here is far under either bound).
+
+**Run.** `--seed 42 --threat-intel off`, same 5 techniques/3 rounds as every other grid entry,
+`keep_alive=0` (already the unconditional default for every local Ollama call in
+`engine/groq_client.py::chat()` — no flag needed). **Took 3 attempts**: attempts 1 and 2 were
+killed by an OS-level low-memory watchdog mid-run (not a Python exception — `ollama ps` showed
+nothing resident and free RAM read 8.9-9.5GB at the time, the same range documented in §2b for
+`qwen2.5:14b`'s OOM pattern on this 16GB machine). Per-technique checkpointing (§2c) meant each
+retry only re-ran the missing techniques via `--resume`, not the full 5. Attempt 3 succeeded
+after closing the same background applications §2b already identified (Chrome, Discord,
+Spotify, Notion — freed RAM to 11.2-11.9GB) with `OLLAMA_MAX_LOADED_MODELS=1` confirmed still
+set. **The optional unseeded ×3 repeat (for an error bar matching mistral:7b/llama3.1:8b, §3a)
+was attempted 3 times and killed by the same watchdog every time** (including one `--resume`
+retry after freeing RAM the same way) — stopped after the third failure per the standing rule
+for this audit (a model does not get a fourth attempt); **no unseeded-variance measurement
+exists for this model.** Its single seed=42 point is reported with the same caveat every other
+single-run point in this document carries (§4b), with no model-specific SD available the way
+mistral:7b (5.07) and llama3.1:8b (1.95) have.
+
+**Result:** `dabs_v1=44.56`, `dabs_v2=44.69`, Moderate Defender, both under `weight_profile`s
+with `swarm_resilience` excluded exactly as every other grid entry (§2a item 8/§6).
+Components (dabs_v1): coverage 60.0, resilience 15.15, hardening 49.39, consistency 56.23.
+Raw JSON: `output/benchmarks/scaling_v2/dabs_foundation-sec-8b_instruct-q8_0_20260907_033242.json`.
+
+**Observation, not yet a diagnosed cause:** both of this model's first two completed
+techniques (T1078.004, T1110.003) scored exactly 0% detection across all 6 of their rounds —
+`kql_valid=True` in every case (the KQL parsed), but the rules matched specific hardcoded
+example values (e.g. `UserPrincipalName in ("johndoe@contoso.com", "jane.doe@contoso.com", ...)`,
+`AppDisplayName == "Azure Active Directory"`) that never appear in this benchmark's actual
+generated attacker logs (which use different synthetic UPNs/app names each round). This reads
+like literal textbook-example IOCs from training data rather than schema-general conditions —
+plausible given a security-corpus fine-tune, but this is **one qualitative read of 6 rounds
+from one model, not a diagnosed mechanism** — later techniques in the same run (T1528, T1621,
+T1556.006) did score non-zero detection (see the raw JSON), so it is not a universal failure
+mode for this model either.
+
+| Model | Platform | Params (B) | Domain | DABS (dabs_v1) | DABS (dabs_v2) | Tier | Notes |
+|---|---|---|---|---|---|---|---|
+| foundation-sec-8b:instruct-q8_0 | ollama | 8.0 | **security** | 44.56 | 44.69 | Moderate Defender | seed=42, single run (see above for why no repeat SD exists); 3rd attempt after 2 OOM kills |
+
+**Refit, n=13** (adding the row above to the n=12 grid in §3, same method as §4/§4a —
+`scipy.stats.linregress` on `log(P)`/`log(DABS)`, `_fit_power_law` for the linear-space R² that
+matches the rest of this document):
+
+| Fit | n | Equation | R² (linear) | R² (log) | p (H0: b=0) | 95% CI for b |
+|---|---|---|---|---|---|---|
+| n=12 (unchanged, §4/§4a) | 12 | DABS = 47.08 × P^+0.0802 | 0.3103 | 0.3313 | 0.0502 | [−0.0001, +0.1605] |
+| **n=13 (with Foundation-Sec-8B)** | 13 | DABS = 46.34 × P^+0.0797 | 0.2754 | 0.2897 | **0.0577** | [−0.0031, +0.1624] |
+
+Adding this one point moves the fit **further from significance**, not closer (p rises from
+0.0502 to 0.0577, R² falls from 0.31 to 0.28) — consistent with §4a's finding that this fit is
+sensitive to individual points at n=12; a single below-fit-line addition at a already
+well-populated parameter size (8.0B — three other models already sit at 7.0-8.0B) pulls both
+statistics the same direction the n=11-without-gpt-oss-120b check did. **No claim of
+significance is made at n=13 either.**
+
+**Domain residual — does domain explain what parameter count doesn't?** Using the (unchanged)
+n=12 fit as the size-only prediction, `predicted = 47.08 × 8.0^0.0802 = 55.63`. Foundation-Sec-8B's
+residual (observed − predicted) is **44.56 − 55.63 = −11.07**. Compared against the three
+general-purpose models already sitting at 7.0-8.0B in the n=12 grid:
+
+| Model | Params (B) | Domain | Observed | Predicted (n=12 fit) | Residual |
+|---|---|---|---|---|---|
+| mistral:7b | 7.00 | general | 52.63 | 55.04 | −2.41 |
+| qwen2.5:7b | 7.61 | general | 62.42 | 55.41 | +7.01 |
+| llama3.1:8b | 8.00 | general | 55.26 | 55.63 | −0.37 |
+| **foundation-sec-8b** | 8.00 | **security** | 44.56 | 55.63 | **−11.07** |
+
+Foundation-Sec-8B's residual is more negative than all three same-size generalist models —
+roughly 4-30 points lower than each of theirs. But read against the *full* n=12 residual
+spread (all 12 general models against the same n=12 fit, not just the 7-8B cluster): the range
+runs from −11.35 (llama3.2:1b) to +12.06 (llama3.2:3b) — **−11.07 is within the range already
+produced by general-purpose models elsewhere in the grid**, barely milder than its most
+negative point. It is a low outcome, but not a value outside what parameter-count noise alone
+already produces at other sizes in this same grid. Full 12-point residual table:
+`output/benchmarks/scaling_v2/fit_stats_n13_result.json`.
+
+**Answered at the honest strength the mission asked for: domain does not clearly explain what
+size doesn't, on this evidence.** Foundation-Sec-8B underperforms same-size generalists by a
+real margin (4-30 points), and the qualitative KQL-overfitting observation above is a plausible
+mechanism — but its residual is not extreme relative to the *whole* grid's already-wide
+scatter, and **n=1 for the security domain cannot separate "security fine-tuning hurts this
+benchmark" from "this specific model happened to land on the low side, the same way
+llama3.2:1b or gpt-oss:latest did for reasons unrelated to domain."** This is **one security
+model, explicitly not a sample** — no claim about security-domain models in general is made or
+supportable from this data. A second and third security-domain model (a different size, a
+different lab) would be needed before "domain" could be treated as its own variable rather than
+one data point's story.
+
+---
+
 ## Summary
 
 1. **The paper's n=5, unseeded result does not hold as originally stated, but the correct
@@ -759,6 +874,18 @@ edge case, not a platform-specific bug.
    not "the paper was wrong," and not "a real scaling relationship is now established."** More
    models, more seeded repeats, or more techniques — not a different fit method — are what
    would resolve p=0.05 in either direction.
+9. **n=13 (§7): the first security-domain model added, and it does not change any conclusion
+   above.** Foundation-Sec-8B-Instruct (Cisco Foundation AI) scored dabs_v1=44.56 — adding it
+   moves the n=12 fit *further* from significance (p: 0.0502 → 0.0577, R²: 0.31 → 0.28), not
+   closer, reinforcing point 8's "too small a sample" reading rather than contradicting it. Its
+   residual against the n=12 fit (−11.07) is worse than the three general-purpose 7-8B models
+   already in the grid, but not more extreme than the *full* grid's own residual range
+   (−11.35 to +12.06) — **domain does not clearly explain what parameter count doesn't, on this
+   evidence.** This is one security-domain model, explicitly not a sample of security models;
+   no general claim about domain-specialized fine-tuning is made or supportable here. Its
+   optional unseeded ×3 repeat (for a per-model error bar matching mistral:7b/llama3.1:8b, §3a)
+   failed to OS-level low-memory kills 3 times running and was abandoned per this audit's
+   standing retry limit — this model's single point carries no model-specific variance estimate.
 
 `docs/ERRATA.md` — 5 items — should accompany any future Zenodo update alongside this document,
 per the earlier decision to batch corrections into one revision rather than issue several.

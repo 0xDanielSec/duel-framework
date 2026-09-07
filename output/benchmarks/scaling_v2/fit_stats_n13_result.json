@@ -1,0 +1,123 @@
+{
+  "fit_n12": {
+    "n": 12,
+    "a": 47.083840084165885,
+    "b": 0.08022454780973513,
+    "r2_log": 0.33130155218386176,
+    "r2_linear": 0.31025267770476905,
+    "p": 0.050194091777020014,
+    "stderr": 0.03604215085695469,
+    "ci95": [
+      -8.236882379600297e-05,
+      0.16053146444326627
+    ]
+  },
+  "fit_n13": {
+    "n": 13,
+    "a": 46.339520462347664,
+    "b": 0.0796664236581625,
+    "r2_log": 0.28974700419902094,
+    "r2_linear": 0.27543992633696823,
+    "p": 0.057734241998750505,
+    "stderr": 0.03760763635903807,
+    "ci95": [
+      -0.0031074258742030403,
+      0.16244027319052803
+    ]
+  },
+  "residuals_n12_general_models": [
+    {
+      "model": "llama3.2:1b",
+      "params_b": 1.23,
+      "observed": 36.52,
+      "predicted_n12_fit": 47.87,
+      "residual": -11.35
+    },
+    {
+      "model": "gemma2:2b",
+      "params_b": 2.0,
+      "observed": 61.03,
+      "predicted_n12_fit": 49.78,
+      "residual": 11.25
+    },
+    {
+      "model": "qwen2.5:3b",
+      "params_b": 3.09,
+      "observed": 49.53,
+      "predicted_n12_fit": 51.54,
+      "residual": -2.01
+    },
+    {
+      "model": "llama3.2:3b",
+      "params_b": 3.21,
+      "observed": 63.76,
+      "predicted_n12_fit": 51.7,
+      "residual": 12.06
+    },
+    {
+      "model": "phi3.5:latest",
+      "params_b": 3.8,
+      "observed": 47.5,
+      "predicted_n12_fit": 52.41,
+      "residual": -4.91
+    },
+    {
+      "model": "mistral:7b",
+      "params_b": 7.0,
+      "observed": 52.63,
+      "predicted_n12_fit": 55.04,
+      "residual": -2.41
+    },
+    {
+      "model": "qwen2.5:7b",
+      "params_b": 7.61,
+      "observed": 62.42,
+      "predicted_n12_fit": 55.41,
+      "residual": 7.01
+    },
+    {
+      "model": "llama3.1:8b",
+      "params_b": 8.0,
+      "observed": 55.26,
+      "predicted_n12_fit": 55.63,
+      "residual": -0.37
+    },
+    {
+      "model": "qwen2.5:14b",
+      "params_b": 14.7,
+      "observed": 59.96,
+      "predicted_n12_fit": 58.41,
+      "residual": 1.55
+    },
+    {
+      "model": "gpt-oss:latest",
+      "params_b": 21.0,
+      "observed": 51.16,
+      "predicted_n12_fit": 60.11,
+      "residual": -8.95
+    },
+    {
+      "model": "qwen/qwen3.8-27b",
+      "params_b": 27.0,
+      "observed": 69.0,
+      "predicted_n12_fit": 61.33,
+      "residual": 7.67
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "params_b": 117.0,
+      "observed": 65.3,
+      "predicted_n12_fit": 68.99,
+      "residual": -3.69
+    }
+  ],
+  "foundation_sec_8b_residual": {
+    "model": "foundation-sec-8b:instruct-q8_0",
+    "params_b": 8.0,
+    "domain": "security",
+    "observed": 44.56,
+    "predicted_n12_fit": 55.63,
+    "residual": -11.07
+  },
+  "note": "n=13 = n=12 grid (docs/scaling_v2_results.md section 3) + foundation-sec-8b:instruct-q8_0 (section 7). Same method as fit_stats_script.py (section 4a)."
+}
