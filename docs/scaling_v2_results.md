@@ -676,6 +676,22 @@ edge case, not a platform-specific bug.
   6 nominal components — consistent within this document, but the "10% weight" and "8%+8%
   weight" figures in the weight-profile definitions are partly theoretical for any run that
   doesn't also exercise the meta/swarm battle modes.
+- **Single-run variance (§3a) is per-model, not a shared value — treat it as an individual
+  error bar, not a fleet-wide one.** mistral:7b's unseeded SD (5.07) and llama3.1:8b's (1.95)
+  differ by a factor of ~2.6; no third model's variance was measured to know where either
+  falls in a wider distribution. Every §3/§4 single-run DABS value should be read with *that
+  specific model's* measured spread where available (mistral, llama3.1:8b) and as
+  **unknown-but-plausibly-in-that-range** for the other 10 grid models, not as if 0 variance
+  applied uniformly across the grid — §4b's neighbor-gap comparison already uses both SDs
+  separately for this reason, not a pooled or averaged one.
+- **`llama3.2:1b` is a Cook's-distance outlier the n=12/n=11 fits are both straining to
+  accommodate (§4a: 0.815 at n=12, 1.035 at n=11, both past the 4/n flag), and it sits at the
+  small-parameter end where no other grid point is close in size** (next smallest is
+  gemma2:2b at 2.0B, then qwen2.5:3b/llama3.2:3b/phi3.5 clustered 3.0-3.8B) — the fit's
+  behavior below ~3B rests on a single point, not a locally dense sample the way 7-14.7B is.
+  Removing it entirely (not attempted as a formal sensitivity check in this document, unlike
+  the gpt-oss-120b removal in §4a) would be a reasonable follow-up before trusting the fit's
+  shape at the low-parameter end specifically.
 
 ---
 
