@@ -114,3 +114,28 @@ unseeded, 3 independent runs, see `docs/scaling_v2_results.md`) is queued to che
 removing the seed alone accounts for the gap.
 
 Dated 2026-09-05.
+
+---
+
+## Addendum — Replication results (v1.1 Zenodo update)
+
+Dated 2026-09-07.
+
+The isolation test and full replication queued above are complete; see
+`docs/scaling_v2_results.md` (commit `98d5fe9`) for full detail. Summary:
+
+Re-running the original five models under a seeded, network-isolated pipeline did not
+reproduce Table 1 (deviations of 7-33% per model, model ranking scrambled), consistent with
+the original single unseeded runs measuring run-to-run noise rather than a stable model
+property. Expanding the grid to n=13 models (1.2B-117B total parameters, including a
+domain-specific security model, Foundation-Sec-8B) and refitting under this corrected
+protocol yields R²=0.28 (p=0.058) — a numerically positive but statistically non-significant
+trend (the n=12 subgrid alone, before adding the security model, reaches R²=0.31, p=0.050 —
+also non-significant, and adding the 13th model moves the fit slightly further from
+significance, not closer). The original paper's central claim ("scaling laws do not predict
+adversarial robustness") is treated as not surviving replication: the true result is that a
+single unseeded run of this size and design cannot support a claim in either direction.
+
+This is published as a version update (Zenodo v1.1) rather than a retraction — the
+reproducible experimental artifact and its capacity for self-correction are more valuable to
+the research community than the original numerical claim.
