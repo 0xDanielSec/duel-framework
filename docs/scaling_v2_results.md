@@ -439,38 +439,120 @@ stated here rather than left implicit. Using the Groq leg instead (52.59) or the
 (51.88) changes R² by at most ~0.01 in informal spot checks — the conclusion below does not
 hinge on this choice.
 
-> ### The central finding of v2: n=12 shows a real positive trend the n=5 paper result did not
+### 4a. Significance, confidence interval, and leverage (n=12 dabs_v1 fit)
+
+Not produced by `engine/scaling_laws.py` — that module reports `r2` only, no inferential
+statistics. Computed separately (`scipy.stats.linregress` on the same `log(P)`/`log(DABS)`
+pair `_fit_power_law` already builds, `scipy==1.18.1`/`numpy==2.5.3`, installed this session —
+were not previously in the environment) and not merged into the codebase; this is a one-off
+analysis for this document, reproducible from the 12 `(params_b, dabs_v1)` pairs in §3.
+
+| Fit | n | Exponent b | Std err | 95% CI for b | p (H0: b=0) | R² (log-space) | R² (linear-space, matches §4 table) |
+|---|---|---|---|---|---|---|---|
+| Full grid | 12 | +0.0802 | 0.0360 | **[−0.0001, +0.1605]** | **0.0502** | 0.3313 | 0.3103 |
+| Without `openai/gpt-oss-120b` | 11 | +0.0974 | 0.0510 | [−0.0180, +0.2127] | 0.0886 | 0.2882 | (not recomputed in linear space) |
+
+**Note on the two R² numbers**: `linregress` fits and scores in log-log space (R²=0.3313);
+`engine/scaling_laws.py::_fit_power_law` fits the same log-linearization but scores R² in
+*linear* space against the back-transformed curve (R²=0.3103, the number carried in the §4
+table above). Both use the identical `a`/`b` — the 0.021 gap is a scoring-convention
+difference, not a different fit. p-value and CI below come from the standard log-log OLS
+frame (`linregress`), the one inferential statistics are actually defined for here.
+
+**The full-grid result does not clear conventional significance.** p=0.0502 for the n=12
+exponent is on the wrong side of the usual α=0.05 line — one two-thousandths over — and the
+95% CI for b, **[−0.0001, +0.1605]**, includes zero. A CI that touches zero and a p-value
+just above 0.05 describe the same fact two ways: this dataset cannot reject "no relationship
+between parameter count and DABS" at conventional confidence. Dropping the single largest
+model drops it further from significance, not closer: n=11 without `gpt-oss-120b` gives
+p=0.0886, CI **[−0.0180, +0.2127]** — wider and now comfortably straddling zero.
+
+**Leverage and Cook's distance identify why.** `openai/gpt-oss-120b` (117B, the largest point
+by a factor of >4) has leverage 0.505 — more than the 2p/n=0.333 rule-of-thumb threshold for
+"high leverage" (p=2 parameters, n=12) — meaning this single point has outsized ability to
+pull the fitted line toward it purely by its extreme x-position, independent of whether its y
+value is unusual. Its Cook's distance (0.135) stays under the 4/n=0.333 flag, so it is not
+also an outlier relative to the fit — a high-leverage point that the fit *isn't* fighting, but
+one whose removal (as the n=11 refit shows) still visibly widens the CI and raises the
+p-value, because the fit loses its longest lever arm for pinning down the slope.
+`llama3.2:1b` (1.23B, the smallest point) is the opposite pattern — Cook's distance 0.815 (n=12)
+/ 1.035 (n=11), both far past 4/n, flagging it as a real outlier the fit is straining to
+accommodate (its DABS=36.52 is the lowest in the grid, well below its neighbors), while its
+leverage (0.271) sits below the high-leverage threshold. Full per-point table:
+`output/benchmarks/scaling_v2/fit_stats_result.json`.
+
+**Reading the two flagged points together**: the n=12 fit's positive slope is not an artifact
+of one single point in the way a p-hacked or cherry-picked result would be — no point has
+*both* high leverage and high Cook's distance — but it is close enough to the p=0.05 line that
+the largest and smallest models in the grid each measurably move the result in opposite
+directions when perturbed. This is consistent with n=12 being **too small to settle the
+question**, not with the trend being fabricated.
+
+Scatter plot (both fits overlaid, log-x): `docs/figures/scaling_v2_n12_scatter.png`.
+
+### 4b. Does single-run variance (§3a) explain the grid's model-to-model gaps?
+
+The two unseeded-triplicate SDs from §3a — mistral:7b SD=5.07, llama3.1:8b SD=1.95 — compare
+against the DABS gap between each model and its nearest neighbor by parameter count in the
+n=12 grid (sorted by params, `output/benchmarks/scaling_v2/fit_stats_result.json`): gaps range
+from **3.70** (qwen/qwen3.8-27b → openai/gpt-oss-120b) to **24.51** (llama3.2:1b → gemma2:2b),
+median **9.79**, mean **11.24**. Both measured SDs (1.95, 5.07) sit below the median gap and
+below all but the single smallest gap (3.70, which mistral's own 5.07 SD already exceeds).
+
+**One sentence, as asked: a single unseeded run is not reliable enough to distinguish most
+neighboring models in this grid** — with SD in the 2-5 point range and most neighbor-gaps at
+7-25 points, single-run noise could flip an adjacent pair's rank order only near the grid's
+tightest gaps (qwen/qwen3.8-27b vs. gpt-oss-120b at 3.70, llama3.1:8b vs. qwen2.5:14b at 4.70),
+not across the grid generally — but every §3 value in this document is still a single run, so
+this is a bound on how much confidence the ranking deserves, not a demonstrated failure of it.
+
+> ### n=12 shows a positive trend the n=5 paper result did not — but it does not reach
+> ### conventional statistical significance
 >
 > The paper's headline claim — "scaling laws do not predict adversarial robustness," R²=0.055
-> — does not survive this expansion. **R² rises from 0.053-0.056 at n=5 to 0.31 at n=12**
-> (dabs_v1; dabs_v2 is materially the same, 0.306), and the fitted exponent **flips sign**,
-> from slightly negative (P^-0.08, larger models trending *worse*) to positive (P^+0.08,
-> larger models trending *better*). The MoE active-params sensitivity check makes the positive
-> trend *stronger* (R²=0.376), not weaker — this is not an artifact of one debatable parameter
-> count.
+> — does not survive unchanged at this expansion, but the replacement claim is weaker than
+> "a real trend" and must be stated at that strength. **R² rises from 0.053-0.056 at n=5 to
+> 0.31 at n=12** (dabs_v1; dabs_v2 is materially the same, 0.306), and the fitted exponent
+> **flips sign**, from slightly negative (P^-0.08) to positive (P^+0.08). But per §4a, that
+> exponent's 95% CI is **[−0.0001, +0.1605]** and its p-value is **0.0502** — a hair over the
+> conventional 0.05 line, with a CI that touches zero. **This dataset cannot reject "no
+> relationship" at conventional confidence, and dropping the single highest-leverage point
+> (`openai/gpt-oss-120b`) moves the fit further from significance (n=11, p=0.0886), not closer.**
+> The MoE active-params sensitivity check raises the linear-space R² to 0.376, but no p-value/CI
+> was computed for that variant in this document — it should not be read as stronger evidence
+> of significance than the total-params fit until it is.
 >
-> **This is not solely an effect of adding new models.** Re-fitting the *original 5 models at
-> their original positions*, under only the current pipeline (seed=42, §2 table, no new models
-> added at all), already gives R²=0.5653 — a strong positive relationship the paper's own
-> n=5 fit (R²=0.053-0.056) did not show, using the exact same 5 model sizes. Combined with §2's
-> finding that 3 of these 5 models reproduce meaningfully higher than their Table 1 values and
-> 2 reproduce lower (mixed direction, not a uniform shift), the most defensible reading is:
-> **the paper's original n=5 dataset was not merely small, it was noisy in a way that happened
-> to erase a real trend** — most plausibly because those runs were unseeded single draws
-> (ERRATA item 5) from a noisy underlying process, not because no relationship exists.
+> **This is not solely an effect of adding new models, though the same caveat applies.**
+> Re-fitting the *original 5 models at their original positions*, under only the current
+> pipeline (seed=42, §2 table, no new models added at all), gives R²=0.5653 — visibly higher
+> than the paper's own n=5 fit (R²=0.053-0.056) at the exact same 5 sizes. No p-value/CI was
+> computed for this n=5 refit in this document; at n=5, 3 degrees of freedom, a formal
+> significance test would need to accompany any claim stronger than "descriptively higher R²"
+> before it could be called anything but suggestive. Combined with §2's finding that 3 of these
+> 5 models reproduce meaningfully higher than their Table 1 values and 2 reproduce lower
+> (mixed direction, not a uniform shift), the most defensible reading available from what has
+> actually been tested is: **the paper's original n=5 dataset was noisy** (most plausibly
+> because those runs were unseeded single draws, ERRATA item 5) **in a way that changed what a
+> fit to it shows — not proof of a real relationship, since neither the n=5 nor the n=12 fit
+> clears significance at conventional confidence.**
 >
-> **What this does and does not establish.** It does not vindicate a clean scaling law —
-> R²=0.31-0.38 at n=12 is a real, moderate, positive trend, not the R²>0.8 that would be needed
-> to call parameter count a strong predictor, and 12 points is still a small sample for a
-> power-law fit (`docs/paper.md` §6.2's own "≥15 techniques for medium confidence" bar is about
-> technique count, not model count, but the spirit — this sample is still small — applies
-> equally here). It also does not mean the paper's authors were wrong to report what their data
-> showed; R²=0.055 on 5 unseeded single-draw points was an honest description of what those 5
-> points looked like. What changed is the data, not just the conclusion drawn from it. **The
-> honest summary is: the original claim of "no relationship" was an artifact of n=5 and lack of
-> seeding, not a property of the underlying phenomenon — a positive, moderate scaling
-> relationship is visible once more models and seeded reproducibility are used, but it is not
-> yet strong enough to make confident predictions from parameter count alone.**
+> **What this does and does not establish — restated at the correct strength.** It does not
+> vindicate a clean scaling law — R²=0.29-0.38 across the n=11/n=12/active-params variants is,
+> at best, a weak-to-moderate positive association in the data actually collected, and it does
+> not clear p<0.05 in the one variant (n=12, total params) where significance was formally
+> tested. 12 points is a small sample for a power-law fit (`docs/paper.md` §6.2's own "≥15
+> techniques for medium confidence" bar is about technique count, not model count, but the
+> spirit applies equally here) — and this analysis independently shows *why* it's too small:
+> two individual points (the largest, by leverage; the smallest, by Cook's distance, §4a) each
+> measurably move the result. It also does not mean the paper's authors were wrong to report
+> what their data showed; R²=0.055 on 5 unseeded single-draw points was an honest description
+> of what those 5 points looked like. **The defensible summary, stated without inflation: the
+> paper's n=5, unseeded "no relationship" finding does not survive as stated — the same
+> methodology at n=12 with a fixed seed produces a numerically positive exponent and a higher
+> R² — but that positive result is itself not statistically significant at conventional
+> thresholds (p=0.0502, 95% CI for the exponent includes zero). The honest state of the
+> evidence is "inconclusive, trending positive, too small a sample either way," not "the
+> original claim was wrong" and not "the original claim is confirmed."**
 
 **`pipeline_version` and comparability.** Every result JSON now records `pipeline_version`
 (`<short-commit-hash>[-dirty]@<date>`, `engine/dabs_scorer.py::get_pipeline_version()`, added
@@ -599,17 +681,25 @@ edge case, not a platform-specific bug.
 
 ## Summary
 
-1. **The paper's conclusion does not hold as stated.** "Scaling laws do not predict adversarial
-   robustness" (R²=0.055, n=5) was an artifact of a small, unseeded, single-draw sample — not a
-   property of the underlying phenomenon. At n=12, with a fixed seed and corrected parameter
-   counts, R² rises to **0.31** (dabs_v1) / **0.31** (dabs_v2), and the fitted trend **flips
-   from negative to positive** (larger models now trend toward *better* Defender performance,
-   not worse or flat). A sensitivity check using active (not total) parameters for the two MoE
-   models makes the trend *stronger* (R²=0.38), not weaker.
-2. **This is not just "more models changed the answer."** Re-running the *original 5 model
-   positions alone*, under the current pipeline, already gives R²=0.57 — a strong positive
-   relationship the paper's own 5 points did not show at the same 5 sizes. The paper's dataset
-   itself, not just its size, produced the "no relationship" finding.
+1. **The paper's n=5, unseeded result does not hold as originally stated, but the correct
+   replacement is "inconclusive," not "a real trend."** At n=12, with a fixed seed and
+   corrected parameter counts, R² rises from 0.053-0.056 to **0.31** (dabs_v1) / **0.31**
+   (dabs_v2), and the fitted exponent **flips sign** from negative to positive. Tested formally
+   (§4a): p=**0.0502** for that exponent, 95% CI **[−0.0001, +0.1605]** — a hair over the
+   conventional significance line, with a CI that includes zero. Removing the single
+   highest-leverage point (`openai/gpt-oss-120b`, leverage 0.505, §4a) moves the fit *further*
+   from significance (n=11, p=0.0886), not closer. The active-params MoE sensitivity variant
+   raises R² to 0.38, but no significance test was run for that variant, so it cannot be cited
+   as stronger evidence than the tested one. **No claim of "a real positive trend" is made in
+   this document at n=12 — p>0.05 on the only variant formally tested.**
+2. **This is not solely an effect of adding new models, though the same caveat applies here
+   too.** Re-running the *original 5 model positions alone*, under the current pipeline, gives
+   R²=0.57 — descriptively higher than the paper's own n=5 fit (R²=0.053-0.056) at the same 5
+   sizes — but no p-value/CI was computed for this n=5 refit (3 degrees of freedom); it is
+   reported as a descriptive contrast, not a significance result. The paper's original dataset
+   being noisy (most plausibly unseeded single draws, ERRATA item 5) is the leading candidate
+   explanation for why a fit to it looks different from a fit to the seeded reproduction — not
+   proof that a relationship exists, since neither fit clears p<0.05 where that was tested.
 3. **The original 5-model reproduction split in both directions**: phi3.5 and mistral scored
    *lower* than Table 1 (ratio ~0.79), qwen2.5:7b, llama3.1:8b, and qwen2.5:14b scored *higher*
    (ratio 1.07-1.33) — mixed-direction, not a uniform bias, consistent with the leading
@@ -636,13 +726,23 @@ edge case, not a platform-specific bug.
    methodological claim in `docs/` to be checked against the cited commit before being written
    — used, and it caught one real gap in this document (§5's `reasoning_effort` field) before
    publication.
-7. **What is still weak, stated plainly:** n=12 is a small sample for a power-law fit; the
-   technique count (5 of 38) is unchanged from the paper and still below its own bar for
-   medium confidence; the two largest grid points (27B, 117B) are Groq-only with no local
-   cross-check; and R²=0.31-0.38 is a real trend, not a strong one — it does not license
-   confident predictions of Defender robustness from parameter count alone. **The honest
-   revision is "the paper measured a real effect too small a sample to see," not "the paper
-   was wrong that a stronger prediction isn't yet possible."**
+7. **Single-run variance (§3a) vs. the grid's own model-to-model gaps (§4b):** the two
+   unseeded-triplicate SDs measured (mistral:7b 5.07, llama3.1:8b 1.95) sit below the median
+   neighboring-model DABS gap in the n=12 grid (9.79) and below all but its smallest gap
+   (3.70). **A single unseeded run is not reliable enough to distinguish most neighboring
+   models in this grid**, but the grid's typical gaps are wide enough that single-run noise
+   would only plausibly flip rank order at its two or three tightest adjacent pairs, not
+   throughout — a bound on confidence, not a demonstrated failure of the ranking.
+8. **What is still weak, stated plainly:** n=12 is a small sample for a power-law fit and,
+   per §4a, demonstrably too small to reach conventional significance (p=0.0502, CI includes
+   zero) or to be robust to removing its single highest-leverage point (p rises to 0.0886
+   without it); the technique count (5 of 38) is unchanged from the paper and still below its
+   own bar for medium confidence; the two largest grid points (27B, 117B) are Groq-only with no
+   local cross-check. **The defensible revision is "the paper's n=5 unseeded result does not
+   survive as stated, and a numerically positive, non-significant trend is visible at n=12" —
+   not "the paper was wrong," and not "a real scaling relationship is now established."** More
+   models, more seeded repeats, or more techniques — not a different fit method — are what
+   would resolve p=0.05 in either direction.
 
 `docs/ERRATA.md` — 5 items — should accompany any future Zenodo update alongside this document,
 per the earlier decision to batch corrections into one revision rather than issue several.
