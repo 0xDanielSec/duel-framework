@@ -116,6 +116,18 @@
     #nav-links a.active.nav-scaling   { color: var(--cyan);   border-color: rgba(6,182,212,.4); }
 
     /* ── Controls bar ────────────────────────────────────────────────────── */
+    #coverage-notice {
+      flex-shrink: 0;
+      padding: 7px 20px;
+      background: rgba(255,140,66,0.08);
+      border-bottom: 1px solid rgba(255,140,66,0.3);
+      color: #f97316;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    #coverage-notice strong { color: var(--yellow); }
+    #coverage-notice p + p { margin-top: 4px; }
+
     #controls {
       flex-shrink: 0;
       display: flex;
@@ -358,6 +370,14 @@
     <a href="/benchmark" class="nav-dabs">⭐ DABS</a>
     <a href="/scaling"   class="nav-scaling">📈 SCALING</a>
   </nav>
+</div>
+
+<div id="coverage-notice">
+  <p><strong>Coverage:</strong> this page reads standard Attacker/Defender battle logs only
+  (<code>output/full_battle_log_*.json</code>, via <code>engine/historical_analysis.py</code>).</p>
+  <p><strong>Constitutional, Swarm (multi-attacker), and Meta-attacker modes are not covered</strong>
+  — not aggregated separately, not excluded either, so a mode that ever writes into the same
+  files would show up mixed in indistinguishably. No new mode support was added here.</p>
 </div>
 
 <div id="controls">

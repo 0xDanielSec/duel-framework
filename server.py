@@ -179,6 +179,23 @@ async def api_dabs():
     return JSONResponse({"models": models})
 
 
+@app.get("/api/scaling_v2")
+@app.get("/api/dabs_v2")
+async def api_scaling_v2():
+    """
+    Return the Scaling Laws v2 grid — reads output/benchmarks/scaling_v2/ and
+    output/benchmarks/groq_grid/ directly (the current dabs_v1/dabs_v2 nested
+    schema), unlike /api/scaling and /api/dabs which still glob the older
+    output/dabs_*.json top-level schema (see docs/scaling_v2_results.md §4,
+    "found stale"). Same payload backs both routes: /api/dabs_v2 is the model
+    table, /api/scaling_v2 is the fit — kept as one alias since both are the
+    same output/benchmarks/ join under the hood.
+    """
+    from scripts.scaling_v2_data import load_scaling_v2
+    data = await _in_thread(load_scaling_v2)
+    return JSONResponse(content=data)
+
+
 @app.get("/api/dna")
 async def api_dna():
     from engine.attacker_dna import DNAAnalyzer

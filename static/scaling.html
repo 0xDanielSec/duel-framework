@@ -318,6 +318,20 @@
       letter-spacing: 1px;
     }
 
+    /* ── Provenance badges (weight_profile/pipeline_version/platform/etc.) ────── */
+    .prov-badge {
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 4px;
+    }
+    .prov-badge.excluded { background: rgba(74,85,104,0.25); color: var(--dim); }
+    .prov-badge.inferred { background: rgba(255,215,0,0.12); color: #e5c043; }
+    .prov-badge.legacy   { background: rgba(255,60,60,0.12); color: var(--red); }
+    tr.excluded-row { opacity: 0.55; }
+    tr.legacy-row   { opacity: 0.45; }
+    #sig-note { font-size: 10px; color: var(--dim); margin: -6px 0 14px; line-height: 1.6; }
+
     /* ── Predicted row ───────────────────────────────────────────────────────── */
     .predicted-row td {
       color: var(--muted);
@@ -400,14 +414,21 @@
     <!-- Model data table -->
     <div class="panel">
       <div class="panel-title">Model Benchmark Data</div>
+      <div id="sig-note"></div>
       <table id="model-table">
         <thead>
           <tr>
             <th>MODEL</th>
             <th>PARAMS</th>
-            <th>DABS</th>
+            <th>DABS (v1)</th>
             <th>TIER</th>
             <th>TECHNIQUES</th>
+            <th>PLATFORM</th>
+            <th>ARCH</th>
+            <th>DOMAIN</th>
+            <th>PIPELINE VERSION</th>
+            <th>WEIGHT PROFILE</th>
+            <th>THREAT INTEL</th>
           </tr>
         </thead>
         <tbody id="model-tbody"></tbody>
@@ -599,19 +620,32 @@ function buildFindings(data) {
     }
   }
 
-  if (data.inflection_point_b != null) {
+  if (data.significance) {
+    const s = data.significance;
     el.innerHTML += `
       <div class="finding-card">
-        <div class="finding-label">Diminishing Returns After</div>
-        <div class="finding-value cyan" style="color:var(--cyan)">${data.inflection_point_b}B parameters</div>
-        <div class="finding-sub">80% of 70B performance reached here</div>
+        <div class="finding-label">p-value (H₀: exponent b=0)</div>
+        <div class="finding-value ${s.significant ? 'green' : 'orange'}">${s.p_value.toFixed(4)}</div>
+        <div class="finding-sub">${s.significant ? 'significant at α=0.05' : 'NOT significant at α=0.05'}</div>
+      </div>
+      <div class="finding-card">
+        <div class="finding-label">95% CI for exponent b</div>
+        <div class="finding-value" style="color:var(--orange);font-size:16px">[${s.ci95_lo.toFixed(4)}, ${s.ci95_hi.toFixed(4)}]</div>
+        <div class="finding-sub">${(s.ci95_lo <= 0 && s.ci95_hi >= 0) ? 'includes zero' : 'excludes zero'}</div>
       </div>`;
   }
+
+  const pts = data.data_points || [];
+  const inFit = pts.filter(d => d.included_in_fit !== false).length;
+  const excluded = pts.length - inFit;
+  const modelsSub = excluded > 0
+    ? `${pts.length} benchmarked · ${inFit} in fit (${excluded} excluded — cross-platform control)`
+    : `${pts.length} benchmarked`;
 
   el.innerHTML += `
     <div class="finding-card">
       <div class="finding-label">Models Analyzed</div>
-      <div class="finding-value yellow">${data.models_analyzed}</div>
+      <div class="finding-value yellow" style="font-size:16px">${modelsSub}</div>
       <div class="finding-sub">Run more models for a tighter fit</div>
     </div>`;
 }
@@ -623,27 +657,27 @@ function buildModelTable(data) {
 
   (data.data_points || []).forEach(dp => {
     const color = tierColor(dp.tier, dp.tier_color);
+    const excluded = dp.included_in_fit === false;
     tbody.innerHTML += `
-      <tr>
-        <td>${dp.model}</td>
+      <tr class="${excluded ? 'excluded-row' : ''}">
+        <td>${dp.model}${excluded ? ' <span class="prov-badge excluded">excluded from fit</span>' : ''}</td>
         <td>${dp.params_b}B</td>
         <td style="color:${color};font-weight:bold">${dp.dabs_score.toFixed(1)}</td>
         <td><span class="tier-badge" style="color:${color};border:1px solid ${color}33;background:${color}11">${dp.tier}</span></td>
         <td>${dp.techniques_benchmarked}</td>
+        <td>${dp.platform || "—"}</td>
+        <td>${dp.arch || "—"}${dp.arch_confidence === "inferred" ? ' <span class="prov-badge inferred">inferred</span>' : ""}</td>
+        <td>${dp.domain || "—"}</td>
+        <td>${dp.pipeline_version || "—"}</td>
+        <td>${dp.weight_profile || "—"}</td>
+        <td>${dp.threat_intel_mode || "—"}</td>
       </tr>`;
   });
 
-  // Predicted rows
-  const preds = data.predictions || {};
-  [["32b", "32B"], ["70b", "70B"]].forEach(([key, label]) => {
-    if (preds[key] == null) return;
+  (data.legacy_files || []).forEach(f => {
     tbody.innerHTML += `
-      <tr class="predicted-row">
-        <td><em>(predicted)</em><span class="predicted-tag">dashed ▲</span></td>
-        <td>${label}</td>
-        <td style="color:#718096">${preds[key].toFixed(1)}</td>
-        <td><span style="color:#4a5568;font-size:10px">extrapolated</span></td>
-        <td>—</td>
+      <tr class="legacy-row">
+        <td colspan="11"><span class="prov-badge legacy">legacy — não comparável</span> ${f} (pre-v2 top-level dabs_score schema)</td>
       </tr>`;
   });
 }
@@ -655,6 +689,14 @@ function buildTacticCharts(data) {
 
   const tactics = data.per_tactic || {};
   Object.keys(tacticCharts).forEach(k => { try { tacticCharts[k].destroy(); } catch (_) {} });
+
+  if (Object.keys(tactics).length === 0) {
+    grid.innerHTML = `<div style="color:var(--muted);font-size:11px;padding:12px 4px">
+      Not computed for the v2 grid — scripts/scaling_v2_data.py extracts only the aggregate
+      dabs_v1/dabs_v2 score per model, not a per-tactic breakdown.
+    </div>`;
+    return;
+  }
 
   Object.entries(tactics).forEach(([tactic, info], idx) => {
     const canvasId = `tactic-chart-${idx}`;
@@ -726,6 +768,61 @@ function buildTacticCharts(data) {
   });
 }
 
+/* ── Adapter: /api/scaling_v2's payload → the shape buildMainChart/
+   buildFindings/buildModelTable already expect (unchanged from the old
+   /api/scaling route) ────────────────────────────────────────────────── */
+function adaptScalingV2(v2) {
+  const fit = (v2.fit && v2.fit.dabs_v1) || { status: "insufficient_data" };
+  const points = v2.points || [];
+
+  const data_points = points.map(p => ({
+    model: p.model,
+    params_b: p.params_total_b,
+    dabs_score: p.dabs_v1,
+    tier: p.tier || "—",
+    tier_color: null,
+    techniques_benchmarked: 5, // fixed 5-technique subset for every v2 run — see docs/scaling_v2_results.md §2
+    platform: p.platform,
+    arch: p.arch,
+    arch_confidence: p.arch_confidence,
+    domain: p.domain,
+    pipeline_version: p.pipeline_version,
+    weight_profile: p.weight_profile,
+    threat_intel_mode: p.threat_intel_mode,
+    included_in_fit: p.included_in_fit,
+  })).filter(dp => dp.params_b != null && dp.dabs_score != null);
+
+  // Fitted curve — only across the observed range. v2 deliberately does not
+  // extrapolate to 32B/70B (the fit is not statistically significant, §4a).
+  const curve_points = [];
+  if (fit.status === "ok") {
+    const xs = data_points.map(d => d.params_b);
+    let x = Math.min(...xs) * 0.9;
+    const xMax = Math.max(...xs) * 1.1;
+    while (x <= xMax) {
+      curve_points.push({ params_b: parseFloat(x.toFixed(2)), predicted_dabs: Math.min(100, fit.a * Math.pow(x, fit.b)) });
+      x *= 1.15;
+    }
+  }
+
+  return {
+    status: fit.status === "ok" ? "ok" : "insufficient_data",
+    message: fit.status === "ok" ? null : "Insufficient scaling_v2 data — need at least 3 model points.",
+    data_points,
+    power_law: fit.status === "ok" ? { equation: fit.equation, r2: fit.r2_linear, a: fit.a, b: fit.b } : null,
+    predictions: {}, // deliberately empty — see curve_points comment above
+    inflection_point_b: null,
+    curve_points,
+    per_tactic: {}, // not computed by scripts/scaling_v2_data.py — see note rendered below
+    models_analyzed: data_points.length,
+    legacy_files: v2.legacy_files || [],
+    significance: fit.status === "ok" ? {
+      p_value: fit.p_value, ci95_lo: fit.ci95_lo, ci95_hi: fit.ci95_hi,
+      significant: fit["significant_at_0.05"],
+    } : null,
+  };
+}
+
 /* ── Main load ────────────────────────────────────────────────────────────── */
 async function load() {
   $("loading").style.display = "block";
@@ -733,9 +830,10 @@ async function load() {
   $("main-section").style.display = "none";
 
   try {
-    const res = await fetch("/api/scaling");
+    const res = await fetch("/api/scaling_v2");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const raw = await res.json();
+    const data = adaptScalingV2(raw);
 
     $("loading").style.display = "none";
 
@@ -750,6 +848,14 @@ async function load() {
     buildFindings(data);
     buildModelTable(data);
     buildTacticCharts(data);
+    $("sig-note").textContent =
+      "Source: output/benchmarks/scaling_v2/*.json + output/benchmarks/groq_grid/*.json, joined with " +
+      "engine/scaling_laws.py::MODEL_REGISTRY. p-value/95% CI read from fit_stats_result.json (§4a's " +
+      "one-off analysis), not recomputed here. pipeline_version marked \"(reconstructed)\" is the " +
+      "main-branch commit that was HEAD at that run's saved timestamp, not a value the run itself " +
+      "recorded — those 4 result JSONs predate pipeline_version existing. Per-tactic small multiples " +
+      "below are not computed for the v2 grid (scripts/scaling_v2_data.py extracts only the aggregate " +
+      "dabs_v1/dabs_v2 score per model).";
 
   } catch (err) {
     $("loading").style.display = "none";

@@ -1,464 +1,798 @@
 {
-  "generated_at": "2026-08-31",
-  "summary": {
-    "techniques_tested": 8,
-    "techniques_total": 38,
-    "avg_evasion_rate": 0.0,
-    "total_rounds": 24,
-    "total_battles": 8,
-    "attacker_wins": 0,
-    "defender_wins": 0,
-    "draws": 8
+  "generated_at": "2026-09-07",
+  "weekly": {
+    "status": "paused",
+    "notice": "Weekly automated battle: paused (2026-09-05) — see docs/ERRATA.md item 3. The previously published numbers on this page (8 techniques, 0.0% evasion, 8 draws) were an artifact of decommissioned Groq model IDs where every Defender call failed and every technique recorded zero rounds; they have been removed, not republished. This section will resume once a healthy weekly run produces real per-technique battle logs.",
+    "summary": null,
+    "mitre_techniques": [],
+    "llm_techniques": [],
+    "top_kql_rules": []
   },
-  "mitre_techniques": [
-    {
-      "id": "T1114.002",
-      "name": "Email Collection: Remote Email Collection",
-      "tactic": "Collection",
-      "sentinel_table": "OfficeActivity",
-      "tested": true,
-      "rounds": 3,
-      "evasion_rate": 0.0,
-      "winner": "Draw",
-      "best_detection_rate": 0.0,
-      "best_kql": null
+  "scaling_v2": {
+    "status": "ok",
+    "sources": [
+      "output/benchmarks/scaling_v2/*.json",
+      "output/benchmarks/groq_grid/*.json",
+      "engine/scaling_laws.py::MODEL_REGISTRY (params_total_b/params_active_b/arch — not present in the result JSON itself, read not duplicated)"
+    ],
+    "points": [
+      {
+        "model": "foundation-sec-8b:instruct-q8_0",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "7303d61-dirty@2026-09-07",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-07T03:32:42.793850+00:00",
+        "dabs_v1": 44.56,
+        "dabs_v2": 44.69,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Moderate Defender",
+        "params_total_b": 8.0,
+        "params_active_b": 8.0,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/fdtn-ai/Foundation-Sec-8B-Instruct-Q8_0-GGUF",
+        "registry_match": true,
+        "domain": "security",
+        "source_file": "output/benchmarks/scaling_v2/dabs_foundation-sec-8b_instruct-q8_0_20260907_033242.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "gemma2:2b",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "2029cd4-dirty@2026-09-05",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-05T23:41:26.460946+00:00",
+        "dabs_v1": 61.03,
+        "dabs_v2": 61.18,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Strong Defender",
+        "params_total_b": 2.0,
+        "params_active_b": 2.0,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/google/gemma-2-2b",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_gemma2_2b_20260905_234126.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "gpt-oss:latest",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "2029cd4-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-06T00:23:24.534303+00:00",
+        "dabs_v1": 51.16,
+        "dabs_v2": 51.23,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Moderate Defender",
+        "params_total_b": 21.0,
+        "params_active_b": 3.6,
+        "arch": "moe",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/openai/gpt-oss-20b",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_gpt-oss_latest_20260906_002324.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "llama3.1:8b",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "00c42bc (reconstructed)",
+        "pipeline_version_reconstructed": true,
+        "seed": 42,
+        "timestamp": "2026-09-05T14:59:22.692757+00:00",
+        "dabs_v1": 55.26,
+        "dabs_v2": 55.31,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Moderate Defender",
+        "params_total_b": 8.0,
+        "params_active_b": 8.0,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/meta-llama/Llama-3.1-8B",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_llama3.1_8b_20260905_145922.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "llama3.2:1b",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "2029cd4-dirty@2026-09-05",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-05T22:26:29.440683+00:00",
+        "dabs_v1": 36.52,
+        "dabs_v2": 36.71,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Weak Defender",
+        "params_total_b": 1.23,
+        "params_active_b": 1.23,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/meta-llama/Llama-3.2-1B",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_llama3.2_1b_20260905_222629.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "llama3.2:3b",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "2029cd4-dirty@2026-09-05",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-05T22:51:32.106583+00:00",
+        "dabs_v1": 63.76,
+        "dabs_v2": 63.89,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Strong Defender",
+        "params_total_b": 3.21,
+        "params_active_b": 3.21,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/meta-llama/Llama-3.2-3B",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_llama3.2_3b_20260905_225132.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "mistral:7b",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "47c0fb9 (reconstructed)",
+        "pipeline_version_reconstructed": true,
+        "seed": 42,
+        "timestamp": "2026-09-05T14:04:47.812944+00:00",
+        "dabs_v1": 52.63,
+        "dabs_v2": 52.78,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Moderate Defender",
+        "params_total_b": 7.0,
+        "params_active_b": 7.0,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://ollama.com/library/mistral:7b",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_mistral_7b_20260905_140447.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "phi3.5:latest",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "02ef8e7 (reconstructed)",
+        "pipeline_version_reconstructed": true,
+        "seed": 42,
+        "timestamp": "2026-09-05T13:36:08.623480+00:00",
+        "dabs_v1": 47.5,
+        "dabs_v2": 47.64,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Moderate Defender",
+        "params_total_b": 3.8,
+        "params_active_b": 3.8,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/microsoft/Phi-3.5-mini-instruct",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_phi3.5_latest_20260905_133608.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "qwen2.5:14b",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "fb5e4a8-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-06T02:12:41.429539+00:00",
+        "dabs_v1": 59.96,
+        "dabs_v2": 60.01,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Moderate Defender",
+        "params_total_b": 14.7,
+        "params_active_b": 14.7,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/Qwen/Qwen2.5-14B",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_qwen2.5_14b_20260906_021241.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "qwen2.5:3b",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "2029cd4-dirty@2026-09-05",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-05T23:16:19.087592+00:00",
+        "dabs_v1": 49.53,
+        "dabs_v2": 49.64,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Moderate Defender",
+        "params_total_b": 3.09,
+        "params_active_b": 3.09,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/Qwen/Qwen2.5-3B",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_qwen2.5_3b_20260905_231619.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "qwen2.5:7b",
+        "platform": "ollama",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "40f9da8 (reconstructed)",
+        "pipeline_version_reconstructed": true,
+        "seed": 42,
+        "timestamp": "2026-09-05T14:33:15.720130+00:00",
+        "dabs_v1": 62.42,
+        "dabs_v2": 62.57,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Strong Defender",
+        "params_total_b": 7.61,
+        "params_active_b": 7.61,
+        "arch": "dense",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/Qwen/Qwen2.5-7B",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/scaling_v2/dabs_qwen2.5_7b_20260905_143315.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "openai/gpt-oss-120b",
+        "platform": "groq",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "60a8765-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-06T01:12:52.503018+00:00",
+        "dabs_v1": 65.3,
+        "dabs_v2": 65.28,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Strong Defender",
+        "params_total_b": 117.0,
+        "params_active_b": 5.1,
+        "arch": "moe",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/openai/gpt-oss-120b",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/groq_grid/dabs_openai_gpt-oss-120b_groq_20260906_011252.json",
+        "included_in_fit": true
+      },
+      {
+        "model": "openai/gpt-oss-20b",
+        "platform": "groq",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "60a8765-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-06T00:48:19.889043+00:00",
+        "dabs_v1": 52.59,
+        "dabs_v2": 52.68,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Moderate Defender",
+        "params_total_b": 21.0,
+        "params_active_b": 3.6,
+        "arch": "moe",
+        "arch_confidence": "confirmed",
+        "source_url": "https://huggingface.co/openai/gpt-oss-20b",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/groq_grid/dabs_openai_gpt-oss-20b_groq_20260906_004819.json",
+        "included_in_fit": false
+      },
+      {
+        "model": "qwen/qwen3.8-27b",
+        "platform": "groq",
+        "attacker_model": "llama3.1:8b",
+        "threat_intel_mode": "off",
+        "pipeline_version": "60a8765-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
+        "seed": 42,
+        "timestamp": "2026-09-06T01:35:09.320662+00:00",
+        "dabs_v1": 69.0,
+        "dabs_v2": 68.98,
+        "weight_profile": "dabs_v1",
+        "excluded_components": {
+          "swarm_resilience": "explicitly excluded for this experiment (see CLAUDE.md / run config)",
+          "meta_resilience": "no meta-resilience data supplied for this run"
+        },
+        "tier": "Strong Defender",
+        "params_total_b": 27.0,
+        "params_active_b": 27.0,
+        "arch": "dense",
+        "arch_confidence": "inferred",
+        "source_url": "https://huggingface.co/Qwen/Qwen3.8-27B",
+        "registry_match": true,
+        "domain": "general",
+        "source_file": "output/benchmarks/groq_grid/dabs_qwen_qwen3.8-27b_groq_20260906_013509.json",
+        "included_in_fit": true
+      }
+    ],
+    "variance": {
+      "llama3.1:8b": {
+        "unseeded": {
+          "runs": [
+            {
+              "run_index": 1,
+              "seed": null,
+              "dabs_v1": 59.63,
+              "source_file": "output/benchmarks/scaling_v2/dabs_llama3.1_8b_run1_20260905_183233.json"
+            },
+            {
+              "run_index": 2,
+              "seed": null,
+              "dabs_v1": 60.62,
+              "source_file": "output/benchmarks/scaling_v2/dabs_llama3.1_8b_run2_20260905_185726.json"
+            },
+            {
+              "run_index": 3,
+              "seed": null,
+              "dabs_v1": 63.39,
+              "source_file": "output/benchmarks/scaling_v2/dabs_llama3.1_8b_run3_20260905_192246.json"
+            }
+          ],
+          "n": 3,
+          "mean": 61.21,
+          "sd": 1.95
+        }
+      },
+      "mistral:7b": {
+        "seed42": {
+          "runs": [
+            {
+              "run_index": 1,
+              "seed": 42,
+              "dabs_v1": 52.63,
+              "source_file": "output/benchmarks/scaling_v2/dabs_mistral_7b_run1_20260905_162740.json"
+            },
+            {
+              "run_index": 2,
+              "seed": 42,
+              "dabs_v1": 52.63,
+              "source_file": "output/benchmarks/scaling_v2/dabs_mistral_7b_run2_20260905_165245.json"
+            }
+          ],
+          "n": 2,
+          "mean": 52.63,
+          "sd": 0.0
+        },
+        "unseeded": {
+          "runs": [
+            {
+              "run_index": 1,
+              "seed": null,
+              "dabs_v1": 47.9,
+              "source_file": "output/benchmarks/scaling_v2/dabs_mistral_7b_run1_20260905_171742.json"
+            },
+            {
+              "run_index": 2,
+              "seed": null,
+              "dabs_v1": 57.85,
+              "source_file": "output/benchmarks/scaling_v2/dabs_mistral_7b_run2_20260905_174143.json"
+            },
+            {
+              "run_index": 3,
+              "seed": null,
+              "dabs_v1": 51.14,
+              "source_file": "output/benchmarks/scaling_v2/dabs_mistral_7b_run3_20260905_180612.json"
+            }
+          ],
+          "n": 3,
+          "mean": 52.3,
+          "sd": 5.07
+        }
+      }
     },
-    {
-      "id": "T1530",
-      "name": "Data from Cloud Storage",
-      "tactic": "Collection",
-      "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1040",
-      "name": "Network Sniffing",
-      "tactic": "Credential Access",
-      "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1110.003",
-      "name": "Brute Force: Password Spraying",
-      "tactic": "Credential Access",
-      "sentinel_table": "SigninLogs",
-      "tested": true,
-      "rounds": 3,
-      "evasion_rate": 0.0,
-      "winner": "Draw",
-      "best_detection_rate": 0.0,
-      "best_kql": null
-    },
-    {
-      "id": "T1528",
-      "name": "Steal Application Access Token",
-      "tactic": "Credential Access",
-      "sentinel_table": "SigninLogs",
-      "tested": true,
-      "rounds": 3,
-      "evasion_rate": 0.0,
-      "winner": "Draw",
-      "best_detection_rate": 0.0,
-      "best_kql": null
-    },
-    {
-      "id": "T1556.006",
-      "name": "Modify Authentication Process: Multi-Factor Authentication",
-      "tactic": "Credential Access",
-      "sentinel_table": "SigninLogs",
-      "tested": true,
-      "rounds": 3,
-      "evasion_rate": 0.0,
-      "winner": "Draw",
-      "best_detection_rate": 0.0,
-      "best_kql": null
-    },
-    {
-      "id": "T1606.002",
-      "name": "Forge Web Credentials: SAML Tokens",
-      "tactic": "Credential Access",
-      "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1621",
-      "name": "Multi-Factor Authentication Request Generation",
-      "tactic": "Credential Access",
-      "sentinel_table": "SigninLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1078.001",
-      "name": "Valid Accounts: Default Accounts",
-      "tactic": "Defense Evasion",
-      "sentinel_table": "SigninLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1078.004",
-      "name": "Valid Accounts: Cloud Accounts",
-      "tactic": "Defense Evasion",
-      "sentinel_table": "SigninLogs",
-      "tested": true,
-      "rounds": 3,
-      "evasion_rate": 0.0,
-      "winner": "Draw",
-      "best_detection_rate": 0.0,
-      "best_kql": null
-    },
-    {
-      "id": "T1550.001",
-      "name": "Use Alternate Authentication Material: Application Access Token",
-      "tactic": "Defense Evasion",
-      "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1562.001",
-      "name": "Impair Defenses: Disable or Modify Tools",
-      "tactic": "Defense Evasion",
-      "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1018",
-      "name": "Remote System Discovery",
-      "tactic": "Discovery",
-      "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1069.003",
-      "name": "Permission Groups Discovery: Cloud Groups",
-      "tactic": "Discovery",
-      "sentinel_table": "AuditLogs",
-      "tested": true,
-      "rounds": 3,
-      "evasion_rate": 0.0,
-      "winner": "Draw",
-      "best_detection_rate": 0.0,
-      "best_kql": null
-    },
-    {
-      "id": "T1087.004",
-      "name": "Account Discovery: Cloud Account",
-      "tactic": "Discovery",
-      "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1526",
-      "name": "Cloud Service Discovery",
-      "tactic": "Discovery",
-      "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1648",
-      "name": "Serverless Execution",
-      "tactic": "Execution",
-      "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1537",
-      "name": "Transfer Data to Cloud Account",
-      "tactic": "Exfiltration",
-      "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1567.002",
-      "name": "Exfiltration Over Web Service: Exfiltration to Cloud Storage",
-      "tactic": "Exfiltration",
-      "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1485",
-      "name": "Data Destruction",
-      "tactic": "Impact",
-      "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1486",
-      "name": "Data Encrypted for Impact",
-      "tactic": "Impact",
-      "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1133",
-      "name": "External Remote Services",
-      "tactic": "Initial Access",
-      "sentinel_table": "SigninLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1190",
-      "name": "Exploit Public-Facing Application",
-      "tactic": "Initial Access",
-      "sentinel_table": "AzureActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1199",
-      "name": "Trusted Relationship",
-      "tactic": "Initial Access",
-      "sentinel_table": "AuditLogs",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1566.001",
-      "name": "Phishing: Spearphishing Attachment",
-      "tactic": "Initial Access",
-      "sentinel_table": "OfficeActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1566.002",
-      "name": "Phishing: Spearphishing Link",
-      "tactic": "Initial Access",
-      "sentinel_table": "OfficeActivity",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "T1098.001",
-      "name": "Account Manipulation: Additional Cloud Credentials",
-      "tactic": "Persistence",
-      "sentinel_table": "AuditLogs",
-      "tested": true,
-      "rounds": 3,
-      "evasion_rate": 0.0,
-      "winner": "Draw",
-      "best_detection_rate": 0.0,
-      "best_kql": null
-    },
-    {
-      "id": "T1136.003",
-      "name": "Create Account: Cloud Account",
-      "tactic": "Persistence",
-      "sentinel_table": "AuditLogs",
-      "tested": true,
-      "rounds": 3,
-      "evasion_rate": 0.0,
-      "winner": "Draw",
-      "best_detection_rate": 0.0,
-      "best_kql": null
+    "legacy_files": [],
+    "fit": {
+      "dabs_v1": {
+        "status": "ok",
+        "n": 13,
+        "a": 46.3395,
+        "b": 0.0797,
+        "equation": "DABS = 46.34 × P^+0.080",
+        "r2_linear": 0.2754,
+        "significance": {
+          "status": "ok",
+          "p_value": 0.0577,
+          "stderr": 0.0376,
+          "ci95_lo": -0.0031,
+          "ci95_hi": 0.1624,
+          "r2_log": 0.2897,
+          "significant_at_0.05": false,
+          "source": "output/benchmarks/scaling_v2/fit_stats_result.json"
+        },
+        "points": [
+          {
+            "model": "foundation-sec-8b:instruct-q8_0",
+            "params_b": 8.0,
+            "dabs": 44.56
+          },
+          {
+            "model": "gemma2:2b",
+            "params_b": 2.0,
+            "dabs": 61.03
+          },
+          {
+            "model": "gpt-oss:latest",
+            "params_b": 21.0,
+            "dabs": 51.16
+          },
+          {
+            "model": "llama3.1:8b",
+            "params_b": 8.0,
+            "dabs": 55.26
+          },
+          {
+            "model": "llama3.2:1b",
+            "params_b": 1.23,
+            "dabs": 36.52
+          },
+          {
+            "model": "llama3.2:3b",
+            "params_b": 3.21,
+            "dabs": 63.76
+          },
+          {
+            "model": "mistral:7b",
+            "params_b": 7.0,
+            "dabs": 52.63
+          },
+          {
+            "model": "phi3.5:latest",
+            "params_b": 3.8,
+            "dabs": 47.5
+          },
+          {
+            "model": "qwen2.5:14b",
+            "params_b": 14.7,
+            "dabs": 59.96
+          },
+          {
+            "model": "qwen2.5:3b",
+            "params_b": 3.09,
+            "dabs": 49.53
+          },
+          {
+            "model": "qwen2.5:7b",
+            "params_b": 7.61,
+            "dabs": 62.42
+          },
+          {
+            "model": "openai/gpt-oss-120b",
+            "params_b": 117.0,
+            "dabs": 65.3
+          },
+          {
+            "model": "qwen/qwen3.8-27b",
+            "params_b": 27.0,
+            "dabs": 69.0
+          }
+        ],
+        "p_value": 0.0577,
+        "ci95_lo": -0.0031,
+        "ci95_hi": 0.1624,
+        "r2_log": 0.2897,
+        "significant_at_0.05": false
+      },
+      "dabs_v2": {
+        "status": "ok",
+        "n": 13,
+        "a": 46.5267,
+        "b": 0.0786,
+        "equation": "DABS = 46.53 × P^+0.079",
+        "r2_linear": 0.2714,
+        "significance": {
+          "status": "unavailable"
+        },
+        "points": [
+          {
+            "model": "foundation-sec-8b:instruct-q8_0",
+            "params_b": 8.0,
+            "dabs": 44.69
+          },
+          {
+            "model": "gemma2:2b",
+            "params_b": 2.0,
+            "dabs": 61.18
+          },
+          {
+            "model": "gpt-oss:latest",
+            "params_b": 21.0,
+            "dabs": 51.23
+          },
+          {
+            "model": "llama3.1:8b",
+            "params_b": 8.0,
+            "dabs": 55.31
+          },
+          {
+            "model": "llama3.2:1b",
+            "params_b": 1.23,
+            "dabs": 36.71
+          },
+          {
+            "model": "llama3.2:3b",
+            "params_b": 3.21,
+            "dabs": 63.89
+          },
+          {
+            "model": "mistral:7b",
+            "params_b": 7.0,
+            "dabs": 52.78
+          },
+          {
+            "model": "phi3.5:latest",
+            "params_b": 3.8,
+            "dabs": 47.64
+          },
+          {
+            "model": "qwen2.5:14b",
+            "params_b": 14.7,
+            "dabs": 60.01
+          },
+          {
+            "model": "qwen2.5:3b",
+            "params_b": 3.09,
+            "dabs": 49.64
+          },
+          {
+            "model": "qwen2.5:7b",
+            "params_b": 7.61,
+            "dabs": 62.57
+          },
+          {
+            "model": "openai/gpt-oss-120b",
+            "params_b": 117.0,
+            "dabs": 65.28
+          },
+          {
+            "model": "qwen/qwen3.8-27b",
+            "params_b": 27.0,
+            "dabs": 68.98
+          }
+        ]
+      },
+      "dabs_v1_active_params": {
+        "status": "ok",
+        "n": 13,
+        "a": 44.8514,
+        "b": 0.1174,
+        "equation": "DABS = 44.85 × P^+0.117",
+        "r2_linear": 0.2733,
+        "significance": {
+          "status": "unavailable"
+        },
+        "points": [
+          {
+            "model": "foundation-sec-8b:instruct-q8_0",
+            "params_b": 8.0,
+            "dabs": 44.56
+          },
+          {
+            "model": "gemma2:2b",
+            "params_b": 2.0,
+            "dabs": 61.03
+          },
+          {
+            "model": "gpt-oss:latest",
+            "params_b": 3.6,
+            "dabs": 51.16
+          },
+          {
+            "model": "llama3.1:8b",
+            "params_b": 8.0,
+            "dabs": 55.26
+          },
+          {
+            "model": "llama3.2:1b",
+            "params_b": 1.23,
+            "dabs": 36.52
+          },
+          {
+            "model": "llama3.2:3b",
+            "params_b": 3.21,
+            "dabs": 63.76
+          },
+          {
+            "model": "mistral:7b",
+            "params_b": 7.0,
+            "dabs": 52.63
+          },
+          {
+            "model": "phi3.5:latest",
+            "params_b": 3.8,
+            "dabs": 47.5
+          },
+          {
+            "model": "qwen2.5:14b",
+            "params_b": 14.7,
+            "dabs": 59.96
+          },
+          {
+            "model": "qwen2.5:3b",
+            "params_b": 3.09,
+            "dabs": 49.53
+          },
+          {
+            "model": "qwen2.5:7b",
+            "params_b": 7.61,
+            "dabs": 62.42
+          },
+          {
+            "model": "openai/gpt-oss-120b",
+            "params_b": 5.1,
+            "dabs": 65.3
+          },
+          {
+            "model": "qwen/qwen3.8-27b",
+            "params_b": 27.0,
+            "dabs": 69.0
+          }
+        ]
+      },
+      "dabs_v1_no_highest_leverage": {
+        "status": "ok",
+        "n": 12,
+        "a": 45.5522,
+        "b": 0.0908,
+        "equation": "DABS = 45.55 × P^+0.091",
+        "r2_linear": 0.2002,
+        "significance": {
+          "status": "stale",
+          "reason": "output/benchmarks/scaling_v2/fit_stats_result.json was computed for a different model set (n=11) than the current grid (n=12) — re-run the §4a significance analysis and regenerate that file."
+        },
+        "points": [
+          {
+            "model": "foundation-sec-8b:instruct-q8_0",
+            "params_b": 8.0,
+            "dabs": 44.56
+          },
+          {
+            "model": "gemma2:2b",
+            "params_b": 2.0,
+            "dabs": 61.03
+          },
+          {
+            "model": "gpt-oss:latest",
+            "params_b": 21.0,
+            "dabs": 51.16
+          },
+          {
+            "model": "llama3.1:8b",
+            "params_b": 8.0,
+            "dabs": 55.26
+          },
+          {
+            "model": "llama3.2:1b",
+            "params_b": 1.23,
+            "dabs": 36.52
+          },
+          {
+            "model": "llama3.2:3b",
+            "params_b": 3.21,
+            "dabs": 63.76
+          },
+          {
+            "model": "mistral:7b",
+            "params_b": 7.0,
+            "dabs": 52.63
+          },
+          {
+            "model": "phi3.5:latest",
+            "params_b": 3.8,
+            "dabs": 47.5
+          },
+          {
+            "model": "qwen2.5:14b",
+            "params_b": 14.7,
+            "dabs": 59.96
+          },
+          {
+            "model": "qwen2.5:3b",
+            "params_b": 3.09,
+            "dabs": 49.53
+          },
+          {
+            "model": "qwen2.5:7b",
+            "params_b": 7.61,
+            "dabs": 62.42
+          },
+          {
+            "model": "qwen/qwen3.8-27b",
+            "params_b": 27.0,
+            "dabs": 69.0
+          }
+        ],
+        "excluded_model": "openai/gpt-oss-120b"
+      }
     }
-  ],
-  "llm_techniques": [
-    {
-      "id": "LLM01",
-      "name": "Prompt Injection",
-      "risk_level": "Critical",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "LLM02",
-      "name": "Insecure Output Handling",
-      "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "LLM03",
-      "name": "Training Data Poisoning",
-      "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "LLM04",
-      "name": "Model Denial of Service",
-      "risk_level": "Medium",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "LLM05",
-      "name": "Supply Chain Vulnerabilities",
-      "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "LLM06",
-      "name": "Sensitive Information Disclosure",
-      "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "LLM07",
-      "name": "Insecure Plugin Design",
-      "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "LLM08",
-      "name": "Excessive Agency",
-      "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "LLM09",
-      "name": "Overreliance",
-      "risk_level": "Medium",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    },
-    {
-      "id": "LLM10",
-      "name": "Model Theft",
-      "risk_level": "High",
-      "tested": false,
-      "rounds": 0,
-      "evasion_rate": null,
-      "winner": null,
-      "best_detection_rate": null,
-      "best_kql": null
-    }
-  ],
-  "top_kql_rules": []
+  }
 }
