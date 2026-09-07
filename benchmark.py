@@ -172,10 +172,13 @@ def _execute_dry_run(attacker_model: str, defender_model: str, technique_id: str
     technique = _load_technique(technique_id)
     console.print(f"  [dim]technique:[/dim] {technique_id}   [dim]mode:[/dim] meta (forced)")
 
-    # Not calling the module-level _battle() here: it hardcodes
-    # DefenderAgent(model=defender_model, seed=seed) with no threat_intel_mode,
-    # which defaults to "live" (agents/defender.py) -- a real network call this
-    # dry-run must never make. Same battle logic, threat_intel_mode="off" pinned.
+    # Not calling the module-level _battle() here: at the time this was written
+    # it hardcoded DefenderAgent(model=defender_model, seed=seed) with no
+    # threat_intel_mode, which defaulted to "live" -- a real network call this
+    # dry-run made once (SSL/URLhaus error) before the fix. DefenderAgent's
+    # default is now "off" (see agents/defender.py, docs/ERRATA.md item 4), so
+    # _battle() itself is safe today too, but threat_intel_mode="off" is kept
+    # explicit here rather than relying on the default staying that way.
     from engine.meta_attacker import MetaAttacker
     attacker = MetaAttacker(model=attacker_model, num_logs=10)
     defender = DefenderAgent(model=defender_model, seed=42, threat_intel_mode="off")

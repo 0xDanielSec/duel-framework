@@ -234,7 +234,7 @@ class DefenderAgent:
         model: str = "mistral:7b",
         seed: int | None = 42,
         constitutional_mode: bool = False,
-        threat_intel_mode: str = "live",
+        threat_intel_mode: str = "off",
         threat_intel_snapshot_path: str | None = None,
         platform: str | None = None,
     ):
@@ -245,12 +245,16 @@ class DefenderAgent:
         deterministic behaviour.
 
         threat_intel_mode:
-          "live"     — fetch from URLhaus/Feodo/OTX (default; unchanged app behaviour).
+          "off"      — no threat intel at all; self.threat_intel stays None (DEFAULT).
           "snapshot" — load a fixed, versioned JSON file; never touches the network.
-          "off"      — no threat intel at all; self.threat_intel stays None.
-        Unattended/benchmark runs should use "off" or "snapshot" — a live fetch
-        is an uncontrolled external dependency that also breaks reproducibility
-        (the IOC list changes over time even with a fixed seed).
+          "live"     — fetch from URLhaus/Feodo/OTX. Opt-in only — must be
+                       requested explicitly via a CLI flag, never the default a
+                       call site falls back to. See docs/ERRATA.md item 4: the
+                       original paper's runs used live enrichment undisclosed,
+                       and it is an uncontrolled external dependency that also
+                       breaks reproducibility (the IOC list changes over time
+                       even with a fixed seed). agents/test_defender.py pins
+                       this default and scans for hardcoded "live" call sites.
         """
         self.model = model
         self.seed = seed
