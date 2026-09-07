@@ -112,5 +112,62 @@
     8.800000000000004,
     17.840000000000003,
     3.700000000000003
-  ]
+  ],
+  "full_n13": {
+    "a": 46.339520462347664,
+    "b": 0.0796664236581625,
+    "r2": 0.28974700419902094,
+    "r2_linear": 0.27543992633696823,
+    "p": 0.057734241998750505,
+    "stderr": 0.03760763635903807,
+    "ci_lo": -0.0031074258742030403,
+    "ci_hi": 0.16244027319052803,
+    "n": 13,
+    "names": [
+      "llama3.2:1b",
+      "gemma2:2b",
+      "qwen2.5:3b",
+      "llama3.2:3b",
+      "phi3.5:latest",
+      "mistral:7b",
+      "qwen2.5:7b",
+      "llama3.1:8b",
+      "qwen2.5:14b",
+      "gpt-oss:latest",
+      "qwen/qwen3.8-27b",
+      "openai/gpt-oss-120b",
+      "foundation-sec-8b:instruct-q8_0"
+    ],
+    "x": [
+      1.23,
+      2.0,
+      3.09,
+      3.21,
+      3.8,
+      7.0,
+      7.61,
+      8.0,
+      14.7,
+      21.0,
+      27.0,
+      117.0,
+      8.0
+    ],
+    "y": [
+      36.52,
+      61.03,
+      49.53,
+      63.76,
+      47.5,
+      52.63,
+      62.42,
+      55.26,
+      59.96,
+      51.16,
+      69.0,
+      65.3,
+      44.56
+    ],
+    "note": "n=12 full + foundation-sec-8b:instruct-q8_0 (docs/scaling_v2_results.md section 7). r2 here matches the log-space convention the other keys in this file use; r2_linear added alongside for the value docs/scaling_v2_results.md section 7 actually cites."
+  }
 }

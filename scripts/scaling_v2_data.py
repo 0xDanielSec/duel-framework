@@ -48,23 +48,23 @@ FIT_STATS_FILE = SCALING_V2_DIR / "fit_stats_result.json"  # one-off §4a analys
 # excluded from the regression to avoid double-weighting one model.
 FIT_EXCLUDED_MODELS = {"openai/gpt-oss-20b"}
 
-# "domain" — general-purpose vs. specialized fine-tune. Sourced from the
-# MODEL_REGISTRY's own inline notes (docs/scaling_v2_results.md §1), not
-# inferred: only the two entries the codebase already documents as
-# specialized get a non-default label. Everything else in the current grid
-# is a general-purpose chat model per the same source. A model not found
-# here (e.g. a future domain-tuned entry not yet in MODEL_REGISTRY) is
-# reported as "unclassified", never guessed.
-SPECIALIZED_DOMAIN_NOTES = {
-    "allam-2-7b": "bilingual Arabic-English specialist (excluded from grid)",
-    "openai/gpt-oss-safeguard-20b": "safety/moderation fine-tune (excluded from grid)",
-}
-
-
-def _domain(model: str, registry_match: bool) -> str:
-    if not registry_match:
+# "domain" — general vs. security-domain fine-tune. Read directly from
+# MODEL_REGISTRY[model]["domain"] (engine/scaling_laws.py), the field added
+# alongside foundation-sec-8b:instruct-q8_0 (docs/scaling_v2_results.md §7) —
+# every registry entry sets it explicitly ("general" or "security"), so this
+# is no longer inferred or hardcoded here. A model not found in the registry
+# at all is reported as "unclassified", never guessed.
+#
+# Previously this module kept its own separate SPECIALIZED_DOMAIN_NOTES dict
+# (allam-2-7b, gpt-oss-safeguard-20b) predating MODEL_REGISTRY's own `domain`
+# field — that duplicated, and had drifted from, the registry's own data
+# (it had no entry for foundation-sec-8b at all, so every point silently
+# read back "general-purpose"). Removed in favor of the single source of
+# truth now that one exists.
+def _domain(reg: dict | None) -> str:
+    if reg is None:
         return "unclassified"
-    return SPECIALIZED_DOMAIN_NOTES.get(model, "general-purpose")
+    return reg.get("domain", "unclassified")
 
 
 def _rel(p: Path) -> str:
@@ -140,7 +140,7 @@ def _load_canonical_points() -> list[dict]:
                 "arch_confidence":     reg["arch_confidence"] if reg else None,
                 "source_url":          reg["source_url"] if reg else None,
                 "registry_match":      reg is not None,
-                "domain":              _domain(model, reg is not None),
+                "domain":              _domain(reg),
                 "source_file":         _rel(p),
                 "included_in_fit":     reg is not None and model not in FIT_EXCLUDED_MODELS,
             })
@@ -207,9 +207,10 @@ def _load_fit_stats() -> dict | None:
 def _significance_from_file(stats_key: str | None, current_names: set[str]) -> dict:
     """
     Reads the p-value/95% CI for one fit variant from fit_stats_result.json
-    (§4a's one-off scipy.stats.linregress analysis — not recomputed here).
-    stats_key is "full" (n=12, all fit points) or "no120b" (the highest-
-    leverage-point-removed sensitivity check) — the only two variants that
+    (§4a/§7's one-off scipy.stats.linregress analysis — not recomputed here).
+    stats_key is "full" (n=12, all fit points), "no120b" (the highest-
+    leverage-point-removed sensitivity check), or "full_n13" (n=12 + the
+    foundation-sec-8b:instruct-q8_0 point, §7) — the only three variants that
     file covers; dabs_v2 and active-params fits get "unavailable", same as
     docs/scaling_v2_results.md §4a says explicitly for those variants.
     """
@@ -281,7 +282,7 @@ def load_scaling_v2() -> dict:
     variance = _load_variance_points()
     legacy = _legacy_files()
 
-    fit_v1        = _fit(points, "dabs_v1", "params_total_b", stats_key="full")
+    fit_v1        = _fit(points, "dabs_v1", "params_total_b", stats_key="full_n13")
     fit_v2        = _fit(points, "dabs_v2", "params_total_b")  # no §4a significance computed for dabs_v2
     fit_v1_active = _fit(points, "dabs_v1", "params_active_b")  # none for active-params either
 
