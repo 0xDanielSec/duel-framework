@@ -488,9 +488,30 @@
 
   <!-- ── Left pane ─────────────────────────────────────────────────────── -->
   <div id="left-pane">
+    <!-- Scaling v2 grid — output/benchmarks/, the current comparable dataset -->
+    <div class="pane-hdr" style="cursor:pointer" onclick="toggleSv2Panel()">
+      📈 SCALING V2 GRID
+      <span class="sub">output/benchmarks/ — n=<span id="sv2-count">—</span> models</span>
+      <span id="sv2-toggle-icon" style="margin-left:auto">▾</span>
+    </div>
+    <div id="sv2-panel" style="max-height:220px;overflow:auto;border-bottom:1px solid var(--border)">
+      <table id="sv2-table" style="font-size:11px">
+        <thead>
+          <tr>
+            <th>MODEL</th><th>PLATFORM</th><th class="center">DABS v1</th><th class="center">DABS v2</th>
+            <th>PIPELINE</th><th>WEIGHTS</th><th>THREAT INTEL</th>
+          </tr>
+        </thead>
+        <tbody id="sv2-body"></tbody>
+      </table>
+      <div id="sv2-footnote" style="padding:6px 10px;font-size:9px;color:var(--dim);line-height:1.6"></div>
+    </div>
+
     <div class="pane-hdr">
-      ⭐ LEADERBOARD
-      <span class="sub" id="lb-count"></span>
+      ⭐ LIVE LEADERBOARD
+      <span class="sub" title="output/dabs_*.json — written by this page's own WebSocket run, or the legacy CLI. Not comparable to the Scaling v2 grid above (different weight/pipeline provenance).">
+        output/dabs_*.json (legacy schema) · <span id="lb-count"></span>
+      </span>
     </div>
 
     <div id="lb-wrap">
@@ -591,6 +612,47 @@
 
   // ── Boot ───────────────────────────────────────────────────────────────
   loadDabs();
+  loadSv2Grid();
+
+  // ── Scaling v2 grid (output/benchmarks/) ─────────────────────────────────
+  function toggleSv2Panel() {
+    const panel = document.getElementById('sv2-panel');
+    const icon  = document.getElementById('sv2-toggle-icon');
+    const hidden = panel.style.display === 'none';
+    panel.style.display = hidden ? 'block' : 'none';
+    icon.textContent = hidden ? '▾' : '▸';
+  }
+
+  async function loadSv2Grid() {
+    try {
+      const r = await fetch('/api/dabs_v2');
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      const points = (data.points || []).slice().sort((a, b) => (a.params_total_b || 0) - (b.params_total_b || 0));
+      document.getElementById('sv2-count').textContent = (data.fit && data.fit.dabs_v1 && data.fit.dabs_v1.n) || points.length;
+
+      const rows = points.map(p => {
+        const excluded = !p.included_in_fit;
+        return `<tr style="${excluded ? 'opacity:.5' : ''}">
+          <td class="model-cell" style="font-size:12px">${escHtml(p.model)}${excluded ? ' <span style="font-size:9px;color:var(--dim)">(excluded from fit)</span>' : ''}</td>
+          <td>${p.platform}</td>
+          <td class="center">${p.dabs_v1 ?? '—'}</td>
+          <td class="center">${p.dabs_v2 ?? '—'}</td>
+          <td style="font-size:10px;color:var(--muted)">${p.pipeline_version || '—'}</td>
+          <td style="font-size:10px;color:var(--muted)">${p.weight_profile || '—'}</td>
+          <td style="font-size:10px;color:var(--muted)">${p.threat_intel_mode || '—'}</td>
+        </tr>`;
+      }).join('') + (data.legacy_files || []).map(f => `
+        <tr><td colspan="7" style="opacity:.5"><span style="color:var(--red);font-size:9px">legacy — não comparável</span> ${f}</td></tr>`).join('');
+
+      document.getElementById('sv2-body').innerHTML = rows || `<tr><td colspan="7" style="color:var(--dim)">No scaling_v2 data yet.</td></tr>`;
+      document.getElementById('sv2-footnote').textContent =
+        'Source: output/benchmarks/scaling_v2/*.json + output/benchmarks/groq_grid/*.json, joined with ' +
+        'engine/scaling_laws.py::MODEL_REGISTRY. See the /scaling page for the fitted curve and significance test.';
+    } catch (err) {
+      document.getElementById('sv2-body').innerHTML = `<tr><td colspan="7" style="color:var(--red)">Failed to load: ${escHtml(err.message)}</td></tr>`;
+    }
+  }
 
   async function loadDabs() {
     setStatus('load', 'Loading benchmark results…');
