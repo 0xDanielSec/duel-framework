@@ -126,6 +126,7 @@
       line-height: 1.6;
     }
     #coverage-notice strong { color: var(--yellow); }
+    #coverage-notice p + p { margin-top: 4px; }
 
     #controls {
       flex-shrink: 0;
@@ -372,12 +373,11 @@
 </div>
 
 <div id="coverage-notice">
-  <strong>Coverage:</strong> this page reads standard Attacker/Defender battle logs only
-  (<code>output/full_battle_log_*.json</code>, via <code>engine/historical_analysis.py</code>).
-  <strong>Constitutional, Swarm (multi-attacker), and Meta-attacker modes are not covered</strong>
-  — not aggregated separately, not excluded either: if one of those modes ever writes into the
-  same <code>full_battle_log_*.json</code> files, its rounds are mixed into these charts
-  indistinguishably from a standard battle. No new mode support was added here.
+  <p><strong>Coverage:</strong> this page reads standard Attacker/Defender battle logs only
+  (<code>output/full_battle_log_*.json</code>, via <code>engine/historical_analysis.py</code>).</p>
+  <p><strong>Constitutional, Swarm (multi-attacker), and Meta-attacker modes are not covered</strong>
+  — not aggregated separately, not excluded either, so a mode that ever writes into the same
+  files would show up mixed in indistinguishably. No new mode support was added here.</p>
 </div>
 
 <div id="controls">

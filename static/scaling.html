@@ -635,10 +635,17 @@ function buildFindings(data) {
       </div>`;
   }
 
+  const pts = data.data_points || [];
+  const inFit = pts.filter(d => d.included_in_fit !== false).length;
+  const excluded = pts.length - inFit;
+  const modelsSub = excluded > 0
+    ? `${pts.length} benchmarked · ${inFit} in fit (${excluded} excluded — cross-platform control)`
+    : `${pts.length} benchmarked`;
+
   el.innerHTML += `
     <div class="finding-card">
       <div class="finding-label">Models Analyzed</div>
-      <div class="finding-value yellow">${data.models_analyzed}</div>
+      <div class="finding-value yellow" style="font-size:16px">${modelsSub}</div>
       <div class="finding-sub">Run more models for a tighter fit</div>
     </div>`;
 }
@@ -682,6 +689,14 @@ function buildTacticCharts(data) {
 
   const tactics = data.per_tactic || {};
   Object.keys(tacticCharts).forEach(k => { try { tacticCharts[k].destroy(); } catch (_) {} });
+
+  if (Object.keys(tactics).length === 0) {
+    grid.innerHTML = `<div style="color:var(--muted);font-size:11px;padding:12px 4px">
+      Not computed for the v2 grid — scripts/scaling_v2_data.py extracts only the aggregate
+      dabs_v1/dabs_v2 score per model, not a per-tactic breakdown.
+    </div>`;
+    return;
+  }
 
   Object.entries(tactics).forEach(([tactic, info], idx) => {
     const canvasId = `tactic-chart-${idx}`;
