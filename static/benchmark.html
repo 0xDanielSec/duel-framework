@@ -648,7 +648,8 @@
       document.getElementById('sv2-body').innerHTML = rows || `<tr><td colspan="7" style="color:var(--dim)">No scaling_v2 data yet.</td></tr>`;
       document.getElementById('sv2-footnote').textContent =
         'Source: output/benchmarks/scaling_v2/*.json + output/benchmarks/groq_grid/*.json, joined with ' +
-        'engine/scaling_laws.py::MODEL_REGISTRY. See the /scaling page for the fitted curve and significance test.';
+        'engine/scaling_laws.py::MODEL_REGISTRY. Pipeline versions marked "(reconstructed)" predate that ' +
+        'field existing -- see /scaling for how, plus the fitted curve and significance test.';
     } catch (err) {
       document.getElementById('sv2-body').innerHTML = `<tr><td colspan="7" style="color:var(--red)">Failed to load: ${escHtml(err.message)}</td></tr>`;
     }

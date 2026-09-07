@@ -987,7 +987,11 @@ function renderScalingTable(points, legacyFiles) {
     `output/benchmarks/scaling_v2/*.json and output/benchmarks/groq_grid/*.json (per-model result files). ` +
     `<strong>params_total, params_active, arch, domain</strong> — engine/scaling_laws.py::MODEL_REGISTRY ` +
     `(not present in the result JSON itself). "excluded from fit" = counted in the model table but not ` +
-    `in the regression (cross-platform control, one model on two platforms — see §5 of the v2 results doc).`;
+    `in the regression (cross-platform control, one model on two platforms — see §5 of the v2 results doc). ` +
+    `<strong>pipeline_version marked "(reconstructed)"</strong> — that model's result JSON predates ` +
+    `pipeline_version existing (engine/dabs_scorer.py::get_pipeline_version()); the value shown is the ` +
+    `main-branch commit that was HEAD at the run's own saved timestamp (git log --before &lt;timestamp&gt;), ` +
+    `not a value the run itself recorded — an approximation, not the original artifact.`;
 }
 
 /* ── Weekly render functions ──────────────────────────────────────────── */

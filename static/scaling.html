@@ -835,8 +835,12 @@ async function load() {
     buildTacticCharts(data);
     $("sig-note").textContent =
       "Source: output/benchmarks/scaling_v2/*.json + output/benchmarks/groq_grid/*.json, joined with " +
-      "engine/scaling_laws.py::MODEL_REGISTRY. Per-tactic small multiples below are not computed for the " +
-      "v2 grid (scripts/scaling_v2_data.py extracts only the aggregate dabs_v1/dabs_v2 score per model).";
+      "engine/scaling_laws.py::MODEL_REGISTRY. p-value/95% CI read from fit_stats_result.json (§4a's " +
+      "one-off analysis), not recomputed here. pipeline_version marked \"(reconstructed)\" is the " +
+      "main-branch commit that was HEAD at that run's saved timestamp, not a value the run itself " +
+      "recorded — those 4 result JSONs predate pipeline_version existing. Per-tactic small multiples " +
+      "below are not computed for the v2 grid (scripts/scaling_v2_data.py extracts only the aggregate " +
+      "dabs_v1/dabs_v2 score per model).";
 
   } catch (err) {
     $("loading").style.display = "none";
