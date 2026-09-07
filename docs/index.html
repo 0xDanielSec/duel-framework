@@ -504,6 +504,77 @@
       .tech-card { width: 140px; }
     }
 
+    /* ── Errata banner ───────────────────────────────────────────────── */
+    #errata-banner {
+      background: rgba(255,140,66,0.1);
+      border-bottom: 1px solid rgba(255,140,66,0.35);
+      color: var(--orange);
+      font-size: 12px;
+      text-align: center;
+      padding: 8px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+    #errata-banner a { color: var(--orange); text-decoration: underline; }
+    #errata-banner strong { color: var(--yellow); }
+
+    /* ── Paused / notice panel ───────────────────────────────────────── */
+    .notice-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--orange);
+      border-radius: 6px;
+      padding: 18px 22px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    .notice-panel strong { color: var(--orange); }
+
+    /* ── Scaling v2 section ──────────────────────────────────────────── */
+    #scaling-v2-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .sig-no  { color: var(--orange); }
+    .sig-yes { color: var(--green); }
+
+    #scaling-chart-wrap { background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 16px; margin-bottom: 20px; overflow-x: auto; }
+    #scaling-chart-wrap svg { display: block; }
+    .sv2-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 10px;
+      color: var(--muted); margin-top: 10px; }
+    .sv2-legend-item { display: flex; align-items: center; gap: 5px; }
+    .sv2-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+    .quote-block {
+      background: var(--bg4);
+      border-left: 3px solid var(--yellow);
+      border-radius: 4px;
+      padding: 14px 18px;
+      font-size: 12px;
+      line-height: 1.75;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+    .quote-block cite { display: block; margin-top: 8px; font-size: 10px; color: var(--dim); font-style: normal; }
+
+    #sv2-table-wrap { overflow-x: auto; }
+    table.sv2-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    table.sv2-table th, table.sv2-table td {
+      padding: 7px 10px; border-bottom: 1px solid rgba(26,34,54,0.6); text-align: left; white-space: nowrap;
+    }
+    table.sv2-table th { color: var(--muted); text-transform: uppercase; font-size: 9px; letter-spacing: 1px; }
+    table.sv2-table tr.excluded-from-fit { opacity: 0.55; }
+    table.sv2-table tr.legacy-row { opacity: 0.45; }
+    .badge-excluded { font-size: 9px; padding: 1px 6px; border-radius: 3px; background: rgba(74,85,104,0.25); color: var(--dim); }
+    .badge-legacy   { font-size: 9px; padding: 1px 6px; border-radius: 3px; background: rgba(255,60,60,0.12); color: var(--red); }
+    .badge-inferred { font-size: 9px; padding: 1px 6px; border-radius: 3px; background: rgba(255,215,0,0.12); color: var(--yellow); }
+    #sv2-table-footnote { font-size: 10px; color: var(--dim); margin-top: 10px; line-height: 1.6; }
+
     /* loading state */
     #loading {
       display: flex;
@@ -541,6 +612,14 @@
 </head>
 <body>
 
+<!-- ── Errata banner ────────────────────────────────────────────────────── -->
+<div id="errata-banner">
+  <strong>⚠ Results revised 2026-09-05</strong> — see
+  <a href="https://github.com/0xDanielSec/duel-framework/blob/main/docs/ERRATA.md" target="_blank" rel="noopener">ERRATA</a>
+  and
+  <a href="https://github.com/0xDanielSec/duel-framework/blob/main/docs/scaling_v2_results.md" target="_blank" rel="noopener">v2 results</a>
+</div>
+
 <!-- ── Header ───────────────────────────────────────────────────────────── -->
 <header id="header">
   <div id="header-left">
@@ -563,68 +642,92 @@
 
   <div id="content">
 
-    <!-- Stats bar -->
-    <div id="stats-bar">
-      <div class="stat-card">
-        <div class="stat-label">Techniques Tested</div>
-        <div class="stat-value" id="s-tested">—</div>
-        <div class="stat-sub" id="s-tested-sub"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Avg Evasion Rate</div>
-        <div class="stat-value" id="s-evasion">—</div>
-        <div class="stat-sub">across all tested techniques</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Total Rounds</div>
-        <div class="stat-value" id="s-rounds">—</div>
-        <div class="stat-sub" id="s-rounds-sub"></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Total Battles</div>
-        <div class="stat-value" id="s-battles">—</div>
-        <div class="stat-sub" id="s-battles-sub"></div>
-      </div>
-    </div>
-
-    <!-- MITRE ATT&CK Heatmap -->
+    <!-- Scaling results v2 -->
     <section>
-      <div class="section-title">MITRE ATT&amp;CK Heatmap</div>
-      <div id="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> 0–30% evasion (well detected)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div> 30–60% (moderate gap)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div> 60–80% (high evasion)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> 80–100% (detection failure)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--dim)"></div> Not yet tested</div>
+      <div class="section-title">Scaling Results (v2, 2026-09-05)</div>
+      <div id="scaling-v2-stats"></div>
+      <div id="scaling-v2-quote"></div>
+      <div id="scaling-chart-wrap"></div>
+      <div id="sv2-table-wrap">
+        <table class="sv2-table">
+          <thead>
+            <tr>
+              <th>Model</th><th>Platform</th><th>Params total (B)</th><th>Params active (B)</th>
+              <th>Arch</th><th>Domain</th><th>DABS v1</th><th>DABS v2</th><th>Pipeline version</th>
+              <th>Weight profile</th><th>Threat intel</th>
+            </tr>
+          </thead>
+          <tbody id="sv2-table-body"></tbody>
+        </table>
       </div>
-      <div id="mitre-heatmap"></div>
+      <div id="sv2-table-footnote"></div>
     </section>
 
-    <!-- OWASP LLM Top 10 -->
-    <section>
-      <div class="section-title">OWASP LLM Top 10 — 2025</div>
-      <div id="owasp-grid"></div>
-    </section>
+    <!-- Weekly battle heatmap (MITRE/OWASP + KQL) -->
+    <section id="weekly-section">
+      <div class="section-title">Weekly Battle Coverage</div>
+      <div id="weekly-notice" class="notice-panel" style="display:none;"></div>
 
-    <!-- Rankings -->
-    <section>
-      <div class="section-title">Detection Rankings</div>
-      <div id="rankings">
-        <div class="rank-panel">
-          <div class="rank-header danger">⚠ Hardest to Detect — Top 5</div>
-          <div id="rank-hard"></div>
+      <div id="weekly-live" style="display:none;">
+        <div id="stats-bar">
+          <div class="stat-card">
+            <div class="stat-label">Techniques Tested</div>
+            <div class="stat-value" id="s-tested">—</div>
+            <div class="stat-sub" id="s-tested-sub"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg Evasion Rate</div>
+            <div class="stat-value" id="s-evasion">—</div>
+            <div class="stat-sub">across all tested techniques</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Rounds</div>
+            <div class="stat-value" id="s-rounds">—</div>
+            <div class="stat-sub" id="s-rounds-sub"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Battles</div>
+            <div class="stat-value" id="s-battles">—</div>
+            <div class="stat-sub" id="s-battles-sub"></div>
+          </div>
         </div>
-        <div class="rank-panel">
-          <div class="rank-header safe">✔ Best Detected — Top 5</div>
-          <div id="rank-easy"></div>
+
+        <div style="margin-bottom:40px;">
+          <div class="section-title">MITRE ATT&amp;CK Heatmap</div>
+          <div id="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> 0–30% evasion (well detected)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div> 30–60% (moderate gap)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div> 60–80% (high evasion)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> 80–100% (detection failure)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--dim)"></div> Not yet tested</div>
+          </div>
+          <div id="mitre-heatmap"></div>
+        </div>
+
+        <div style="margin-bottom:40px;">
+          <div class="section-title">OWASP LLM Top 10 — 2025</div>
+          <div id="owasp-grid"></div>
+        </div>
+
+        <div style="margin-bottom:40px;">
+          <div class="section-title">Detection Rankings</div>
+          <div id="rankings">
+            <div class="rank-panel">
+              <div class="rank-header danger">⚠ Hardest to Detect — Top 5</div>
+              <div id="rank-hard"></div>
+            </div>
+            <div class="rank-panel">
+              <div class="rank-header safe">✔ Best Detected — Top 5</div>
+              <div id="rank-easy"></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-title">Surviving KQL Detection Rules</div>
+          <div id="kql-rules"></div>
         </div>
       </div>
-    </section>
-
-    <!-- KQL Rules -->
-    <section>
-      <div class="section-title">Surviving KQL Detection Rules</div>
-      <div id="kql-rules"></div>
     </section>
 
   </div><!-- #content -->
@@ -730,7 +833,164 @@ function detClass(rate) {
   return 'partial';
 }
 
-/* ── Render functions ──────────────────────────────────────────────────── */
+/* ── Scaling v2 render functions ──────────────────────────────────────── */
+function fmtSig(n, d) { return (n === null || n === undefined) ? '—' : Number(n).toFixed(d); }
+
+function renderScalingStats(fit) {
+  const sig = fit.status === 'ok' && fit['significant_at_0.05'];
+  const el = document.getElementById('scaling-v2-stats');
+  if (fit.status !== 'ok') {
+    el.innerHTML = `<div class="notice-panel">Insufficient scaling data (n=${fit.n||0}) — need at least 3 model points.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Fit (dabs_v1)</div>
+      <div class="stat-value" style="font-size:16px;color:var(--blue)">${fit.equation}</div>
+      <div class="stat-sub">n = ${fit.n} models</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">R² (linear space)</div>
+      <div class="stat-value" style="color:var(--yellow)">${fmtSig(fit.r2_linear, 3)}</div>
+      <div class="stat-sub">log-space R² = ${fmtSig(fit.r2_log, 3)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">p-value (H₀: b=0)</div>
+      <div class="stat-value ${sig ? 'sig-yes' : 'sig-no'}">${fmtSig(fit.p_value, 4)}</div>
+      <div class="stat-sub">${sig ? 'significant at α=0.05' : 'NOT significant at α=0.05'}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">95% CI for exponent b</div>
+      <div class="stat-value" style="font-size:16px;color:var(--orange)">[${fmtSig(fit.ci95_lo,4)}, ${fmtSig(fit.ci95_hi,4)}]</div>
+      <div class="stat-sub">${(fit.ci95_lo <= 0 && fit.ci95_hi >= 0) ? 'includes zero' : 'excludes zero'}</div>
+    </div>`;
+}
+
+function renderScalingQuote() {
+  document.getElementById('scaling-v2-quote').innerHTML = `
+    <div class="quote-block">
+      <strong>The paper's n=5, unseeded result does not hold as originally stated, but the
+      correct replacement is "inconclusive," not "a real trend."</strong> At n=12, with a fixed
+      seed and corrected parameter counts, R² rises from 0.053–0.056 to <strong>0.31</strong>
+      (dabs_v1) and the fitted exponent flips sign from negative to positive. Tested formally:
+      p=<strong>0.0502</strong> for that exponent, 95% CI <strong>[−0.0001, +0.1605]</strong> —
+      a hair over the conventional significance line, with a CI that includes zero. Removing the
+      single highest-leverage point (<code>openai/gpt-oss-120b</code>) moves the fit further from
+      significance (n=11, p=0.0886), not closer. <strong>No claim of "a real positive trend" is
+      made at n=12 — p&gt;0.05 on the only variant formally tested.</strong>
+      <cite>Verbatim from docs/scaling_v2_results.md — Summary, item 1.</cite>
+    </div>`;
+}
+
+function renderScalingChart(fit, points, variance) {
+  const W = 760, H = 380, M = { l: 56, r: 20, t: 16, b: 44 };
+  const plotW = W - M.l - M.r, plotH = H - M.t - M.b;
+
+  const fitPts = fit.status === 'ok' ? fit.points : [];
+  const xs = points.map(p => p.params_total_b).filter(x => x != null);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const logMin = Math.log10(minX * 0.8), logMax = Math.log10(maxX * 1.2);
+  const xPix = x => M.l + (Math.log10(x) - logMin) / (logMax - logMin) * plotW;
+  const yPix = y => M.t + (1 - y / 100) * plotH;
+
+  let curve = '';
+  if (fit.status === 'ok') {
+    const steps = 60;
+    let d = '';
+    for (let i = 0; i <= steps; i++) {
+      const logX = logMin + (logMax - logMin) * i / steps;
+      const x = Math.pow(10, logX);
+      const y = Math.min(100, fit.a * Math.pow(x, fit.b));
+      d += (i === 0 ? 'M' : 'L') + xPix(x).toFixed(1) + ',' + yPix(y).toFixed(1) + ' ';
+    }
+    curve = `<path d="${d}" fill="none" stroke="var(--yellow)" stroke-width="2" opacity="0.85"/>`;
+  }
+
+  // Y gridlines
+  let grid = '';
+  for (let y = 0; y <= 100; y += 20) {
+    grid += `<line x1="${M.l}" y1="${yPix(y)}" x2="${W-M.r}" y2="${yPix(y)}" stroke="var(--border)" stroke-width="1"/>
+              <text x="${M.l-8}" y="${yPix(y)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${y}</text>`;
+  }
+  // X ticks at actual data params (log scale)
+  const xTicks = [1, 2, 4, 8, 16, 32, 64, 128].filter(x => x >= minX*0.8 && x <= maxX*1.2);
+  let xAxis = '';
+  xTicks.forEach(x => {
+    xAxis += `<text x="${xPix(x)}" y="${H-M.b+16}" text-anchor="middle" font-size="9" fill="var(--muted)">${x}B</text>`;
+  });
+
+  const fitModelSet = new Set(fitPts.map(p => p.model));
+  const varianceByModel = variance || {};
+
+  let dots = '';
+  points.forEach(p => {
+    if (p.params_total_b == null || p.dabs_v1 == null) return;
+    const cx = xPix(p.params_total_b), cy = yPix(p.dabs_v1);
+    const inFit = fitModelSet.has(p.model);
+    const color = inFit ? 'var(--blue)' : 'var(--dim)';
+    const vEntry = varianceByModel[p.model] && varianceByModel[p.model].unseeded;
+    let errBar = '';
+    if (vEntry) {
+      const sd = vEntry.sd;
+      const yTop = yPix(Math.min(100, p.dabs_v1 + sd));
+      const yBot = yPix(Math.max(0, p.dabs_v1 - sd));
+      errBar = `<line x1="${cx}" y1="${yTop}" x2="${cx}" y2="${yBot}" stroke="var(--purple)" stroke-width="1.5"/>
+                <line x1="${cx-4}" y1="${yTop}" x2="${cx+4}" y2="${yTop}" stroke="var(--purple)" stroke-width="1.5"/>
+                <line x1="${cx-4}" y1="${yBot}" x2="${cx+4}" y2="${yBot}" stroke="var(--purple)" stroke-width="1.5"/>`;
+    }
+    dots += `${errBar}<circle cx="${cx}" cy="${cy}" r="5" fill="${color}" stroke="var(--bg)" stroke-width="1.5">
+      <title>${p.model} (${p.platform}) — ${p.params_total_b}B — DABS ${p.dabs_v1}${inFit ? '' : ' [excluded from fit]'}${vEntry ? ` — ±${vEntry.sd} SD, n=${vEntry.n} unseeded repeats` : ''}</title>
+    </circle>`;
+  });
+
+  document.getElementById('scaling-chart-wrap').innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px">
+      ${grid}${xAxis}${curve}${dots}
+      <line x1="${M.l}" y1="${M.t}" x2="${M.l}" y2="${H-M.b}" stroke="var(--border)"/>
+      <line x1="${M.l}" y1="${H-M.b}" x2="${W-M.r}" y2="${H-M.b}" stroke="var(--border)"/>
+      <text x="${M.l - 40}" y="${M.t - 2}" font-size="9" fill="var(--muted)">DABS</text>
+      <text x="${W - M.r}" y="${H - M.b + 32}" text-anchor="end" font-size="9" fill="var(--muted)">params (B, log scale)</text>
+    </svg>
+    <div class="sv2-legend">
+      <div class="sv2-legend-item"><span class="sv2-dot" style="background:var(--blue)"></span> in fit (n=${fit.n||0})</div>
+      <div class="sv2-legend-item"><span class="sv2-dot" style="background:var(--dim)"></span> excluded (gpt-oss-20b Groq leg — cross-platform control, see §5)</div>
+      <div class="sv2-legend-item"><span class="sv2-dot" style="background:var(--yellow)"></span> fitted power-law curve</div>
+      <div class="sv2-legend-item"><span class="sv2-dot" style="background:var(--purple)"></span> ±1 SD, unseeded repeat runs (§3a) — hover a dot for details</div>
+    </div>`;
+}
+
+function renderScalingTable(points, legacyFiles) {
+  const rows = [...points].sort((a,b) => (a.params_total_b||0) - (b.params_total_b||0));
+  document.getElementById('sv2-table-body').innerHTML = rows.map(p => {
+    const excluded = !p.included_in_fit;
+    const arch = p.arch ? `${p.arch}${p.arch_confidence === 'inferred' ? ' <span class="badge-inferred">inferred</span>' : ''}` : '—';
+    return `<tr class="${excluded ? 'excluded-from-fit' : ''}">
+      <td>${p.model}${excluded ? ' <span class="badge-excluded">excluded from fit</span>' : ''}</td>
+      <td>${p.platform}</td>
+      <td>${p.params_total_b ?? '—'}</td>
+      <td>${p.params_active_b ?? '—'}</td>
+      <td>${arch}</td>
+      <td>${p.domain || '—'}</td>
+      <td>${p.dabs_v1 ?? '—'}</td>
+      <td>${p.dabs_v2 ?? '—'}</td>
+      <td>${p.pipeline_version || '—'}</td>
+      <td>${p.weight_profile || '—'}</td>
+      <td>${p.threat_intel_mode || '—'}</td>
+    </tr>`;
+  }).join('') + (legacyFiles && legacyFiles.length ? legacyFiles.map(f => `
+    <tr class="legacy-row">
+      <td colspan="11"><span class="badge-legacy">legacy — não comparável</span> ${f} (pre-v2 top-level <code>dabs_score</code> schema)</td>
+    </tr>`).join('') : '');
+
+  document.getElementById('sv2-table-footnote').innerHTML =
+    `Columns sourced from: <strong>model, platform, DABS v1/v2, pipeline_version, weight_profile, threat_intel</strong> — ` +
+    `output/benchmarks/scaling_v2/*.json and output/benchmarks/groq_grid/*.json (per-model result files). ` +
+    `<strong>params_total, params_active, arch, domain</strong> — engine/scaling_laws.py::MODEL_REGISTRY ` +
+    `(not present in the result JSON itself). "excluded from fit" = counted in the model table but not ` +
+    `in the regression (cross-platform control, one model on two platforms — see §5 of the v2 results doc).`;
+}
+
+/* ── Weekly render functions ──────────────────────────────────────────── */
 function renderStats(summary) {
   document.getElementById('s-tested').textContent = summary.techniques_tested;
   document.getElementById('s-tested-sub').textContent =
@@ -893,16 +1153,35 @@ tryFetch(primary)
   .then(data => {
     document.getElementById('updated-badge').textContent = 'Updated ' + data.generated_at;
 
-    renderStats(data.summary);
-    renderMitre(data.mitre_techniques);
-    renderOwasp(data.llm_techniques);
+    // ── Scaling v2 (always renders — this is the primary result now) ──
+    const sv2 = data.scaling_v2 || { status: 'insufficient_data', points: [], fit: {}, variance: {} };
+    renderScalingStats(sv2.fit ? sv2.fit.dabs_v1 : { status: 'insufficient_data' });
+    renderScalingQuote();
+    renderScalingChart(sv2.fit ? sv2.fit.dabs_v1 : { status: 'insufficient_data' }, sv2.points || [], sv2.variance || {});
+    renderScalingTable(sv2.points || [], sv2.legacy_files || []);
 
-    const allTested = [
-      ...data.mitre_techniques,
-      ...data.llm_techniques,
-    ].filter(t => t.tested);
-    renderRankings(allTested);
-    renderKQL(data.top_kql_rules);
+    // ── Weekly battle heatmap (only renders when there is real data) ──
+    const weekly = data.weekly || { status: 'paused', notice: 'No weekly battle data.' };
+    if (weekly.status === 'ok') {
+      document.getElementById('weekly-notice').style.display = 'none';
+      document.getElementById('weekly-live').style.display = 'block';
+
+      renderStats(weekly.summary);
+      renderMitre(weekly.mitre_techniques);
+      renderOwasp(weekly.llm_techniques);
+
+      const allTested = [
+        ...weekly.mitre_techniques,
+        ...weekly.llm_techniques,
+      ].filter(t => t.tested);
+      renderRankings(allTested);
+      renderKQL(weekly.top_kql_rules);
+    } else {
+      document.getElementById('weekly-live').style.display = 'none';
+      const notice = document.getElementById('weekly-notice');
+      notice.style.display = 'block';
+      notice.innerHTML = `<strong>⏸ Paused.</strong> ${weekly.notice || 'No weekly battle data available.'}`;
+    }
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
