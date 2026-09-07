@@ -22,6 +22,7 @@
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
         "pipeline_version": "2029cd4-dirty@2026-09-05",
+        "pipeline_version_reconstructed": false,
         "seed": 42,
         "timestamp": "2026-09-05T23:41:26.460946+00:00",
         "dabs_v1": 61.03,
@@ -48,6 +49,7 @@
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
         "pipeline_version": "2029cd4-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
         "seed": 42,
         "timestamp": "2026-09-06T00:23:24.534303+00:00",
         "dabs_v1": 51.16,
@@ -73,7 +75,8 @@
         "platform": "ollama",
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
-        "pipeline_version": null,
+        "pipeline_version": "00c42bc (reconstructed)",
+        "pipeline_version_reconstructed": true,
         "seed": 42,
         "timestamp": "2026-09-05T14:59:22.692757+00:00",
         "dabs_v1": 55.26,
@@ -100,6 +103,7 @@
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
         "pipeline_version": "2029cd4-dirty@2026-09-05",
+        "pipeline_version_reconstructed": false,
         "seed": 42,
         "timestamp": "2026-09-05T22:26:29.440683+00:00",
         "dabs_v1": 36.52,
@@ -126,6 +130,7 @@
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
         "pipeline_version": "2029cd4-dirty@2026-09-05",
+        "pipeline_version_reconstructed": false,
         "seed": 42,
         "timestamp": "2026-09-05T22:51:32.106583+00:00",
         "dabs_v1": 63.76,
@@ -151,7 +156,8 @@
         "platform": "ollama",
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
-        "pipeline_version": null,
+        "pipeline_version": "47c0fb9 (reconstructed)",
+        "pipeline_version_reconstructed": true,
         "seed": 42,
         "timestamp": "2026-09-05T14:04:47.812944+00:00",
         "dabs_v1": 52.63,
@@ -177,7 +183,8 @@
         "platform": "ollama",
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
-        "pipeline_version": null,
+        "pipeline_version": "02ef8e7 (reconstructed)",
+        "pipeline_version_reconstructed": true,
         "seed": 42,
         "timestamp": "2026-09-05T13:36:08.623480+00:00",
         "dabs_v1": 47.5,
@@ -204,6 +211,7 @@
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
         "pipeline_version": "fb5e4a8-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
         "seed": 42,
         "timestamp": "2026-09-06T02:12:41.429539+00:00",
         "dabs_v1": 59.96,
@@ -230,6 +238,7 @@
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
         "pipeline_version": "2029cd4-dirty@2026-09-05",
+        "pipeline_version_reconstructed": false,
         "seed": 42,
         "timestamp": "2026-09-05T23:16:19.087592+00:00",
         "dabs_v1": 49.53,
@@ -255,7 +264,8 @@
         "platform": "ollama",
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
-        "pipeline_version": null,
+        "pipeline_version": "40f9da8 (reconstructed)",
+        "pipeline_version_reconstructed": true,
         "seed": 42,
         "timestamp": "2026-09-05T14:33:15.720130+00:00",
         "dabs_v1": 62.42,
@@ -282,6 +292,7 @@
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
         "pipeline_version": "60a8765-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
         "seed": 42,
         "timestamp": "2026-09-06T01:12:52.503018+00:00",
         "dabs_v1": 65.3,
@@ -308,6 +319,7 @@
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
         "pipeline_version": "60a8765-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
         "seed": 42,
         "timestamp": "2026-09-06T00:48:19.889043+00:00",
         "dabs_v1": 52.59,
@@ -334,6 +346,7 @@
         "attacker_model": "llama3.1:8b",
         "threat_intel_mode": "off",
         "pipeline_version": "60a8765-dirty@2026-09-06",
+        "pipeline_version_reconstructed": false,
         "seed": 42,
         "timestamp": "2026-09-06T01:35:09.320662+00:00",
         "dabs_v1": 69.0,
@@ -439,11 +452,16 @@
         "b": 0.0802,
         "equation": "DABS = 47.08 × P^+0.080",
         "r2_linear": 0.3103,
-        "r2_log": 0.3313,
-        "p_value": 0.0502,
-        "ci95_lo": -0.0001,
-        "ci95_hi": 0.1605,
-        "significant_at_0.05": false,
+        "significance": {
+          "status": "ok",
+          "p_value": 0.0502,
+          "stderr": 0.036,
+          "ci95_lo": -0.0001,
+          "ci95_hi": 0.1605,
+          "r2_log": 0.3313,
+          "significant_at_0.05": false,
+          "source": "output/benchmarks/scaling_v2/fit_stats_result.json"
+        },
         "points": [
           {
             "model": "gemma2:2b",
@@ -505,7 +523,12 @@
             "params_b": 27.0,
             "dabs": 69.0
           }
-        ]
+        ],
+        "p_value": 0.0502,
+        "ci95_lo": -0.0001,
+        "ci95_hi": 0.1605,
+        "r2_log": 0.3313,
+        "significant_at_0.05": false
       },
       "dabs_v2": {
         "status": "ok",
@@ -514,11 +537,9 @@
         "b": 0.0792,
         "equation": "DABS = 47.27 × P^+0.079",
         "r2_linear": 0.3059,
-        "r2_log": 0.3274,
-        "p_value": 0.0519,
-        "ci95_lo": -0.0008,
-        "ci95_hi": 0.1592,
-        "significant_at_0.05": false,
+        "significance": {
+          "status": "unavailable"
+        },
         "points": [
           {
             "model": "gemma2:2b",
@@ -589,11 +610,9 @@
         "b": 0.1319,
         "equation": "DABS = 44.74 × P^+0.132",
         "r2_linear": 0.3762,
-        "r2_log": 0.4014,
-        "p_value": 0.027,
-        "ci95_lo": 0.0184,
-        "ci95_hi": 0.2453,
-        "significant_at_0.05": true,
+        "significance": {
+          "status": "unavailable"
+        },
         "points": [
           {
             "model": "gemma2:2b",
@@ -664,11 +683,16 @@
         "b": 0.0974,
         "equation": "DABS = 45.90 × P^+0.097",
         "r2_linear": 0.2549,
-        "r2_log": 0.2882,
-        "p_value": 0.0886,
-        "ci95_lo": -0.018,
-        "ci95_hi": 0.2127,
-        "significant_at_0.05": false,
+        "significance": {
+          "status": "ok",
+          "p_value": 0.0886,
+          "stderr": 0.051,
+          "ci95_lo": -0.018,
+          "ci95_hi": 0.2127,
+          "r2_log": 0.2882,
+          "significant_at_0.05": false,
+          "source": "output/benchmarks/scaling_v2/fit_stats_result.json"
+        },
         "points": [
           {
             "model": "gemma2:2b",
@@ -726,6 +750,11 @@
             "dabs": 69.0
           }
         ],
+        "p_value": 0.0886,
+        "ci95_lo": -0.018,
+        "ci95_hi": 0.2127,
+        "r2_log": 0.2882,
+        "significant_at_0.05": false,
         "excluded_model": "openai/gpt-oss-120b"
       }
     }
