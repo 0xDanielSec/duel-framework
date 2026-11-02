@@ -52,8 +52,14 @@ TECHNIQUES = [
     "T1114.002",
 ]
 
-ATTACKER_MODEL = "llama-3.1-70b-versatile"
-DEFENDER_MODEL = "mixtral-8x7b-32768"
+# Exact Groq production IDs (verified against https://console.groq.com/docs/models
+# on 2026-11-02). Attacker is the real Llama 3.1 8B (same model the local
+# Ollama campaign used as llama3.1:8b); Defender is gpt-oss-20b, the model
+# already used in the scaling grid. Groq has no Mistral 7B equivalent.
+# The workflow's pre-flight step re-checks both IDs against /openai/v1/models
+# before any battle runs, so a future decommission fails in seconds, loudly.
+ATTACKER_MODEL = "llama-3.1-8b-instant"
+DEFENDER_MODEL = "openai/gpt-oss-20b"
 PLATFORM = "groq"
 ROUNDS = 3
 LOGS_PER_ROUND = 10
@@ -67,6 +73,7 @@ TECHNIQUE_TIMEOUT_SECS = 300  # 5 min per technique; 8 × 5 = 40 min worst case
 # rather than silently producing another all-zero week.
 _KNOWN_DECOMMISSIONED_GROQ_MODELS = {
     "mixtral-8x7b-32768",
+    "llama-3.1-70b-versatile",
 }
 
 if ATTACKER_MODEL in _KNOWN_DECOMMISSIONED_GROQ_MODELS or DEFENDER_MODEL in _KNOWN_DECOMMISSIONED_GROQ_MODELS:
