@@ -25,7 +25,6 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
-          node-version: "20"
 
       - name: Install dependencies
         timeout-minutes: 30
@@ -42,6 +41,27 @@ jobs:
           echo "GROQ_API_KEY is present (${#GROQ_API_KEY} chars)"
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+
+      - name: Pre-flight — configured models exist on Groq
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os, re, sys, requests
+          src = open("scripts/weekly_battle.py", encoding="utf-8").read()
+          wanted = {k: re.search(rf'^{k}\s*=\s*"([^"]+)"', src, re.M).group(1)
+                    for k in ("ATTACKER_MODEL", "DEFENDER_MODEL")}
+          r = requests.get("https://api.groq.com/openai/v1/models",
+                           headers={"Authorization": f"Bearer {os.environ['GROQ_API_KEY']}"},
+                           timeout=30)
+          r.raise_for_status()
+          live = {m["id"] for m in r.json()["data"]}
+          missing = {k: v for k, v in wanted.items() if v not in live}
+          if missing:
+              print(f"::error::Model(s) not available on Groq: {missing}. Update scripts/weekly_battle.py.")
+              sys.exit(1)
+          print("Models OK:", wanted)
+          PY
 
       - name: Create output directory
         run: mkdir -p output
