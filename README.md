@@ -25,7 +25,7 @@
 ---
 
 <!-- weekly-badge-start -->
-**Weekly automated battle:** paused (2026-09-05) pending workflow fix — see CHANGELOG
+**Last Weekly Battle:** 2026-11-09 &nbsp;|&nbsp; Attacker: `openai/gpt-oss-120b` (groq) &nbsp;|&nbsp; Defender: `openai/gpt-oss-20b` (groq) &nbsp;|&nbsp; Techniques: 8 &nbsp;|&nbsp; Avg Evasion: 12.5% &nbsp;|&nbsp; Attacker 1 – Defender 0
 <!-- weekly-badge-end -->
 
 ![DUEL in action](demo.gif)
